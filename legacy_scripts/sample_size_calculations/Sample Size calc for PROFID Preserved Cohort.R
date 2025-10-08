@@ -94,3 +94,4 @@ for (i in 1:length(p)) {
 }
 C_stat_SS
 R2_SS
+
