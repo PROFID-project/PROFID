@@ -11,3 +11,4 @@ Study 8-
 Study 9-
 
 Also, legacy scripts that may be of use to current analysts that detail the initial cleaning process.
+Bibliography of pre 2020 papers used to inform the original study: https://www.dropbox.com/scl/fo/92jaytesu294f8pi8u1ra/AMb7UplNqDbqKSy7i_hBPQw/bibliography?rlkey=cjsdagohl25dagyghqkzzxymh&subfolder_nav_tracking=1&st=uft8b2qs&dl=0
