@@ -8,6 +8,7 @@ Study 2- Seasonal SCD Patterns Analysis
 Study 3- ICD Shock Rates Analysis
 
 Study 4- Age-Stratified SCD Incidence Analysis
+[Study4_Harmonisation DATA.txt](https://github.com/user-attachments/files/23105773/Study4_Harmonisation.DATA.txt)
 
 Study 5- Heart Failure Therapy Adherence Analysis
 
