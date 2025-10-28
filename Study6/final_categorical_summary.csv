@@ -1,0 +1,3012 @@
+"Variable","Level","BMI_cat","Count","Percent","p.value_rounded","p_adj_rounded"
+"ACE_inhibitor","No","Underweight",664,"42.5%",8.67e-09,1.44e-08
+"ACE_inhibitor","Yes","Underweight",866,"55.5%",8.67e-09,1.44e-08
+"ACE_inhibitor",NA,"Underweight",31,"2.0%",8.67e-09,1.44e-08
+"ACE_inhibitor_ARB","No","Underweight",492,"31.5%",2.86e-164,1.08e-163
+"ACE_inhibitor_ARB","Yes","Underweight",1063,"68.1%",2.86e-164,1.08e-163
+"ACE_inhibitor_ARB",NA,"Underweight",6,"0.4%",2.86e-164,1.08e-163
+"AF_atrial_flutter","No","Underweight",1226,"78.5%",3.24e-20,7.15e-20
+"AF_atrial_flutter","Yes","Underweight",262,"16.8%",3.24e-20,7.15e-20
+"AF_atrial_flutter",NA,"Underweight",73,"4.7%",3.24e-20,7.15e-20
+"ARB","No","Underweight",1317,"84.4%",3.38e-192,1.49e-191
+"ARB","Yes","Underweight",177,"11.3%",3.38e-192,1.49e-191
+"ARB",NA,"Underweight",67,"4.3%",3.38e-192,1.49e-191
+"AV_block","No","Underweight",47,"3.0%",0.13,0.146
+"AV_block","Yes","Underweight",3,"0.2%",0.13,0.146
+"AV_block",NA,"Underweight",1511,"96.8%",0.13,0.146
+"AV_block_II_or_III","No","Underweight",48,"3.1%",0.839,0.839
+"AV_block_II_or_III",NA,"Underweight",1513,"96.9%",0.839,0.839
+"Alcohol","No","Underweight",15,"1.0%",0.00104,0.00138
+"Alcohol","Yes","Underweight",13,"0.8%",0.00104,0.00138
+"Alcohol",NA,"Underweight",1533,"98.2%",0.00104,0.00138
+"Aldosterone_antagonist","No","Underweight",734,"47.0%",3.46e-15,6.79e-15
+"Aldosterone_antagonist","Yes","Underweight",73,"4.7%",3.46e-15,6.79e-15
+"Aldosterone_antagonist",NA,"Underweight",754,"48.3%",3.46e-15,6.79e-15
+"Anti_anginal","No","Underweight",1242,"79.6%",1.61e-09,2.75e-09
+"Anti_anginal","Yes","Underweight",229,"14.7%",1.61e-09,2.75e-09
+"Anti_anginal",NA,"Underweight",90,"5.8%",1.61e-09,2.75e-09
+"Anti_arrhythmic_III","No","Underweight",123,"7.9%",0.05,0.0616
+"Anti_arrhythmic_III","Yes","Underweight",4,"0.3%",0.05,0.0616
+"Anti_arrhythmic_III",NA,"Underweight",1434,"91.9%",0.05,0.0616
+"Anti_coagulant","No","Underweight",1351,"86.5%",1.13e-06,1.66e-06
+"Anti_coagulant","Yes","Underweight",133,"8.5%",1.13e-06,1.66e-06
+"Anti_coagulant",NA,"Underweight",77,"4.9%",1.13e-06,1.66e-06
+"Anti_diabetic","No","Underweight",1459,"93.5%",0,0
+"Anti_diabetic","Yes","Underweight",80,"5.1%",0,0
+"Anti_diabetic",NA,"Underweight",22,"1.4%",0,0
+"Anti_diabetic_insulin","No","Underweight",1492,"95.6%",0,0
+"Anti_diabetic_insulin","Yes","Underweight",47,"3.0%",0,0
+"Anti_diabetic_insulin",NA,"Underweight",22,"1.4%",0,0
+"Anti_diabetic_oral","No","Underweight",1501,"96.2%",0,0
+"Anti_diabetic_oral","Yes","Underweight",41,"2.6%",0,0
+"Anti_diabetic_oral",NA,"Underweight",19,"1.2%",0,0
+"Anti_platelet","No","Underweight",125,"8.0%",2.75e-28,6.63e-28
+"Anti_platelet","Yes","Underweight",1406,"90.1%",2.75e-28,6.63e-28
+"Anti_platelet",NA,"Underweight",30,"1.9%",2.75e-28,6.63e-28
+"Baseline_type","MI","Underweight",1464,"93.8%",0,0
+"Baseline_type","MI40d","Underweight",46,"2.9%",0,0
+"Baseline_type",NA,"Underweight",51,"3.3%",0,0
+"Beta_blockers","No","Underweight",249,"16.0%",2.61e-34,6.92e-34
+"Beta_blockers","Yes","Underweight",1310,"83.9%",2.61e-34,6.92e-34
+"Beta_blockers",NA,"Underweight",2,"0.1%",2.61e-34,6.92e-34
+"CABG","No","Underweight",1408,"90.2%",3.76e-34,9.5e-34
+"CABG","Yes","Underweight",82,"5.3%",3.76e-34,9.5e-34
+"CABG",NA,"Underweight",71,"4.5%",3.76e-34,9.5e-34
+"CABG_acute","No","Underweight",919,"58.9%",0.676,0.703
+"CABG_acute","Yes","Underweight",2,"0.1%",0.676,0.703
+"CABG_acute",NA,"Underweight",640,"41.0%",0.676,0.703
+"COPD","No","Underweight",77,"4.9%",1.54e-14,2.92e-14
+"COPD","Yes","Underweight",19,"1.2%",1.54e-14,2.92e-14
+"COPD",NA,"Underweight",1465,"93.9%",1.54e-14,2.92e-14
+"CVD_risk_region","1","Underweight",15,"1.0%",1.05e-292,6.96e-292
+"CVD_risk_region","2","Underweight",1442,"92.4%",1.05e-292,6.96e-292
+"CVD_risk_region","3","Underweight",97,"6.2%",1.05e-292,6.96e-292
+"CVD_risk_region","4","Underweight",7,"0.4%",1.05e-292,6.96e-292
+"Calcium_antagonists","No","Underweight",1296,"83.0%",9.66e-149,3.41e-148
+"Calcium_antagonists","Yes","Underweight",177,"11.3%",9.66e-149,3.41e-148
+"Calcium_antagonists",NA,"Underweight",88,"5.6%",9.66e-149,3.41e-148
+"Cancer","No","Underweight",6,"0.4%",0.612,0.662
+"Cancer",NA,"Underweight",1555,"99.6%",0.612,0.662
+"Diabetes","No","Underweight",1409,"90.3%",0,0
+"Diabetes","Yes","Underweight",148,"9.5%",0,0
+"Diabetes",NA,"Underweight",4,"0.3%",0,0
+"Digitalis_glycosides","No","Underweight",1436,"92.0%",9.89e-19,2.02e-18
+"Digitalis_glycosides","Yes","Underweight",67,"4.3%",9.89e-19,2.02e-18
+"Digitalis_glycosides",NA,"Underweight",58,"3.7%",9.89e-19,2.02e-18
+"Diseased_arteries_num_cat","1","Underweight",22,"1.4%",0.000863,0.00117
+"Diseased_arteries_num_cat","2","Underweight",10,"0.6%",0.000863,0.00117
+"Diseased_arteries_num_cat","geq3","Underweight",13,"0.8%",0.000863,0.00117
+"Diseased_arteries_num_cat",NA,"Underweight",1516,"97.1%",0.000863,0.00117
+"Diuretics","No","Underweight",1015,"65.0%",1.46e-247,8.59999999999999e-247
+"Diuretics","Yes","Underweight",541,"34.7%",1.46e-247,8.59999999999999e-247
+"Diuretics",NA,"Underweight",5,"0.3%",1.46e-247,8.59999999999999e-247
+"FH_CAD","No","Underweight",30,"1.9%",1.05e-09,1.86e-09
+"FH_CAD","Yes","Underweight",9,"0.6%",1.05e-09,1.86e-09
+"FH_CAD",NA,"Underweight",1522,"97.5%",1.05e-09,1.86e-09
+"FH_SCD","No","Underweight",25,"1.6%",0.0195,0.0252
+"FH_SCD","Yes","Underweight",3,"0.2%",0.0195,0.0252
+"FH_SCD",NA,"Underweight",1533,"98.2%",0.0195,0.0252
+"HF","No","Underweight",1268,"81.2%",1.47e-26,3.4e-26
+"HF","Yes","Underweight",137,"8.8%",1.47e-26,3.4e-26
+"HF",NA,"Underweight",156,"10.0%",1.47e-26,3.4e-26
+"HasMRI","No","Underweight",1543,"98.8%",9.24e-06,1.32e-05
+"HasMRI","Yes","Underweight",18,"1.2%",9.24e-06,1.32e-05
+"Hypertension","No","Underweight",889,"57.0%",0,0
+"Hypertension","Yes","Underweight",646,"41.4%",0,0
+"Hypertension",NA,"Underweight",26,"1.7%",0,0
+"IsSWHR","0","Underweight",82,"5.3%",4.11e-207,1.98e-206
+"IsSWHR","1","Underweight",1428,"91.5%",4.11e-207,1.98e-206
+"IsSWHR",NA,"Underweight",51,"3.3%",4.11e-207,1.98e-206
+"LBBB","No","Underweight",1388,"88.9%",1.52e-05,2.11e-05
+"LBBB","Yes","Underweight",83,"5.3%",1.52e-05,2.11e-05
+"LBBB",NA,"Underweight",90,"5.8%",1.52e-05,2.11e-05
+"Lipid_lowering","No","Underweight",411,"26.3%",3.26e-240,1.73e-239
+"Lipid_lowering","Yes","Underweight",1145,"73.4%",3.26e-240,1.73e-239
+"Lipid_lowering",NA,"Underweight",5,"0.3%",3.26e-240,1.73e-239
+"MI_history","No","Underweight",1184,"75.8%",3.41e-07,5.32e-07
+"MI_history","Yes","Underweight",276,"17.7%",3.41e-07,5.32e-07
+"MI_history",NA,"Underweight",101,"6.5%",3.41e-07,5.32e-07
+"MI_location_anterior","No","Underweight",32,"2.0%",5.42e-07,8.2e-07
+"MI_location_anterior","Yes","Underweight",36,"2.3%",5.42e-07,8.2e-07
+"MI_location_anterior",NA,"Underweight",1493,"95.6%",5.42e-07,8.2e-07
+"MI_location_inferior","No","Underweight",47,"3.0%",0.0649,0.0764
+"MI_location_inferior","Yes","Underweight",21,"1.3%",0.0649,0.0764
+"MI_location_inferior",NA,"Underweight",1493,"95.6%",0.0649,0.0764
+"MI_location_lateral","No","Underweight",56,"3.6%",0.639,0.678
+"MI_location_lateral","Yes","Underweight",8,"0.5%",0.639,0.678
+"MI_location_lateral",NA,"Underweight",1497,"95.9%",0.639,0.678
+"MI_location_posterior","No","Underweight",28,"1.8%",0.0247,0.0311
+"MI_location_posterior","Yes","Underweight",2,"0.1%",0.0247,0.0311
+"MI_location_posterior",NA,"Underweight",1531,"98.1%",0.0247,0.0311
+"MI_type","NSTEMI","Underweight",1032,"66.1%",1.71e-19,3.63e-19
+"MI_type","STEMI","Underweight",400,"25.6%",1.71e-19,3.63e-19
+"MI_type",NA,"Underweight",129,"8.3%",1.71e-19,3.63e-19
+"MR","Moderate","Underweight",2,"0.1%",0.0886,0.102
+"MR","None or mild","Underweight",15,"1.0%",0.0886,0.102
+"MR","Severe","Underweight",1,"0.1%",0.0886,0.102
+"MR",NA,"Underweight",1543,"98.8%",0.0886,0.102
+"NSVT","No","Underweight",8,"0.5%",0.0609,0.0733
+"NSVT","Yes","Underweight",3,"0.2%",0.0609,0.0733
+"NSVT",NA,"Underweight",1550,"99.3%",0.0609,0.0733
+"NYHA","I","Underweight",37,"2.4%",2.21e-07,3.55e-07
+"NYHA","II","Underweight",35,"2.2%",2.21e-07,3.55e-07
+"NYHA","III","Underweight",19,"1.2%",2.21e-07,3.55e-07
+"NYHA","IV","Underweight",4,"0.3%",2.21e-07,3.55e-07
+"NYHA",NA,"Underweight",1466,"93.9%",2.21e-07,3.55e-07
+"PCI","No","Underweight",1335,"85.5%",1.74e-175,7.08e-175
+"PCI","Yes","Underweight",123,"7.9%",1.74e-175,7.08e-175
+"PCI",NA,"Underweight",103,"6.6%",1.74e-175,7.08e-175
+"PCI_acute","No","Underweight",1112,"71.2%",8.41e-41,2.34e-40
+"PCI_acute","Yes","Underweight",355,"22.7%",8.41e-41,2.34e-40
+"PCI_acute",NA,"Underweight",94,"6.0%",8.41e-41,2.34e-40
+"RBBB","No","Underweight",1384,"88.7%",0.808,0.823
+"RBBB","Yes","Underweight",61,"3.9%",0.808,0.823
+"RBBB",NA,"Underweight",116,"7.4%",0.808,0.823
+"Revascularisation_acute","No","Underweight",1097,"70.3%",4.27e-43,1.26e-42
+"Revascularisation_acute","Yes","Underweight",370,"23.7%",4.27e-43,1.26e-42
+"Revascularisation_acute",NA,"Underweight",94,"6.0%",4.27e-43,1.26e-42
+"Sex","Female","Underweight",1091,"69.9%",0,0
+"Sex","Male","Underweight",470,"30.1%",0,0
+"Smoking","No","Underweight",516,"33.1%",4.99e-66,1.65e-65
+"Smoking","Yes","Underweight",911,"58.4%",4.99e-66,1.65e-65
+"Smoking",NA,"Underweight",134,"8.6%",4.99e-66,1.65e-65
+"Stroke_TIA","No","Underweight",1323,"84.8%",2.99e-12,5.46e-12
+"Stroke_TIA","Yes","Underweight",149,"9.5%",2.99e-12,5.46e-12
+"Stroke_TIA",NA,"Underweight",89,"5.7%",2.99e-12,5.46e-12
+"Thrombolysis_acute","No","Underweight",1450,"92.9%",0.546,0.603
+"Thrombolysis_acute","Yes","Underweight",13,"0.8%",0.546,0.603
+"Thrombolysis_acute",NA,"Underweight",98,"6.3%",0.546,0.603
+"Time_zero_Y","1996","Underweight",2,"0.1%",3.2e-44,9.97e-44
+"Time_zero_Y","1997","Underweight",4,"0.3%",3.2e-44,9.97e-44
+"Time_zero_Y","1998","Underweight",10,"0.6%",3.2e-44,9.97e-44
+"Time_zero_Y","1999","Underweight",11,"0.7%",3.2e-44,9.97e-44
+"Time_zero_Y","2000","Underweight",11,"0.7%",3.2e-44,9.97e-44
+"Time_zero_Y","2001","Underweight",8,"0.5%",3.2e-44,9.97e-44
+"Time_zero_Y","2002","Underweight",3,"0.2%",3.2e-44,9.97e-44
+"Time_zero_Y","2003","Underweight",4,"0.3%",3.2e-44,9.97e-44
+"Time_zero_Y","2004","Underweight",1,"0.1%",3.2e-44,9.97e-44
+"Time_zero_Y","2005","Underweight",2,"0.1%",3.2e-44,9.97e-44
+"Time_zero_Y","2006","Underweight",90,"5.8%",3.2e-44,9.97e-44
+"Time_zero_Y","2007","Underweight",103,"6.6%",3.2e-44,9.97e-44
+"Time_zero_Y","2008","Underweight",109,"7.0%",3.2e-44,9.97e-44
+"Time_zero_Y","2009","Underweight",100,"6.4%",3.2e-44,9.97e-44
+"Time_zero_Y","2010","Underweight",148,"9.5%",3.2e-44,9.97e-44
+"Time_zero_Y","2011","Underweight",162,"10.4%",3.2e-44,9.97e-44
+"Time_zero_Y","2012","Underweight",144,"9.2%",3.2e-44,9.97e-44
+"Time_zero_Y","2013","Underweight",156,"10.0%",3.2e-44,9.97e-44
+"Time_zero_Y","2014","Underweight",131,"8.4%",3.2e-44,9.97e-44
+"Time_zero_Y","2015","Underweight",131,"8.4%",3.2e-44,9.97e-44
+"Time_zero_Y","2016","Underweight",111,"7.1%",3.2e-44,9.97e-44
+"Time_zero_Y","2017","Underweight",119,"7.6%",3.2e-44,9.97e-44
+"Time_zero_Y","2018","Underweight",1,"0.1%",3.2e-44,9.97e-44
+"Time_zero_Ym","1996-05-01","Underweight",1,"0.1%",NA,NA
+"Time_zero_Ym","1996-08-01","Underweight",1,"0.1%",NA,NA
+"Time_zero_Ym","1997-01-01","Underweight",1,"0.1%",NA,NA
+"Time_zero_Ym","1997-08-01","Underweight",1,"0.1%",NA,NA
+"Time_zero_Ym","1997-10-01","Underweight",1,"0.1%",NA,NA
+"Time_zero_Ym","1997-12-01","Underweight",1,"0.1%",NA,NA
+"Time_zero_Ym","1998-05-01","Underweight",1,"0.1%",NA,NA
+"Time_zero_Ym","1998-06-01","Underweight",2,"0.1%",NA,NA
+"Time_zero_Ym","1998-07-01","Underweight",6,"0.4%",NA,NA
+"Time_zero_Ym","1998-11-01","Underweight",1,"0.1%",NA,NA
+"Time_zero_Ym","1999-04-01","Underweight",1,"0.1%",NA,NA
+"Time_zero_Ym","1999-07-01","Underweight",5,"0.3%",NA,NA
+"Time_zero_Ym","1999-09-01","Underweight",3,"0.2%",NA,NA
+"Time_zero_Ym","1999-10-01","Underweight",1,"0.1%",NA,NA
+"Time_zero_Ym","1999-11-01","Underweight",1,"0.1%",NA,NA
+"Time_zero_Ym","2000-01-01","Underweight",1,"0.1%",NA,NA
+"Time_zero_Ym","2000-02-01","Underweight",1,"0.1%",NA,NA
+"Time_zero_Ym","2000-07-01","Underweight",7,"0.4%",NA,NA
+"Time_zero_Ym","2000-10-01","Underweight",1,"0.1%",NA,NA
+"Time_zero_Ym","2000-11-01","Underweight",1,"0.1%",NA,NA
+"Time_zero_Ym","2001-01-01","Underweight",2,"0.1%",NA,NA
+"Time_zero_Ym","2001-04-01","Underweight",1,"0.1%",NA,NA
+"Time_zero_Ym","2001-07-01","Underweight",3,"0.2%",NA,NA
+"Time_zero_Ym","2001-08-01","Underweight",1,"0.1%",NA,NA
+"Time_zero_Ym","2001-11-01","Underweight",1,"0.1%",NA,NA
+"Time_zero_Ym","2002-02-01","Underweight",1,"0.1%",NA,NA
+"Time_zero_Ym","2002-03-01","Underweight",1,"0.1%",NA,NA
+"Time_zero_Ym","2002-09-01","Underweight",1,"0.1%",NA,NA
+"Time_zero_Ym","2003-03-01","Underweight",1,"0.1%",NA,NA
+"Time_zero_Ym","2003-06-01","Underweight",1,"0.1%",NA,NA
+"Time_zero_Ym","2003-07-01","Underweight",2,"0.1%",NA,NA
+"Time_zero_Ym","2004-03-01","Underweight",1,"0.1%",NA,NA
+"Time_zero_Ym","2005-01-01","Underweight",1,"0.1%",NA,NA
+"Time_zero_Ym","2005-08-01","Underweight",1,"0.1%",NA,NA
+"Time_zero_Ym","2006-02-01","Underweight",6,"0.4%",NA,NA
+"Time_zero_Ym","2006-03-01","Underweight",9,"0.6%",NA,NA
+"Time_zero_Ym","2006-04-01","Underweight",11,"0.7%",NA,NA
+"Time_zero_Ym","2006-05-01","Underweight",13,"0.8%",NA,NA
+"Time_zero_Ym","2006-06-01","Underweight",9,"0.6%",NA,NA
+"Time_zero_Ym","2006-07-01","Underweight",6,"0.4%",NA,NA
+"Time_zero_Ym","2006-08-01","Underweight",4,"0.3%",NA,NA
+"Time_zero_Ym","2006-09-01","Underweight",5,"0.3%",NA,NA
+"Time_zero_Ym","2006-10-01","Underweight",9,"0.6%",NA,NA
+"Time_zero_Ym","2006-11-01","Underweight",8,"0.5%",NA,NA
+"Time_zero_Ym","2006-11-16","Underweight",2,"0.1%",NA,NA
+"Time_zero_Ym","2006-12-01","Underweight",8,"0.5%",NA,NA
+"Time_zero_Ym","2007-01-01","Underweight",13,"0.8%",NA,NA
+"Time_zero_Ym","2007-02-01","Underweight",11,"0.7%",NA,NA
+"Time_zero_Ym","2007-03-01","Underweight",8,"0.5%",NA,NA
+"Time_zero_Ym","2007-04-01","Underweight",9,"0.6%",NA,NA
+"Time_zero_Ym","2007-05-01","Underweight",8,"0.5%",NA,NA
+"Time_zero_Ym","2007-06-01","Underweight",10,"0.6%",NA,NA
+"Time_zero_Ym","2007-07-01","Underweight",6,"0.4%",NA,NA
+"Time_zero_Ym","2007-08-01","Underweight",4,"0.3%",NA,NA
+"Time_zero_Ym","2007-09-01","Underweight",6,"0.4%",NA,NA
+"Time_zero_Ym","2007-10-01","Underweight",6,"0.4%",NA,NA
+"Time_zero_Ym","2007-11-01","Underweight",8,"0.5%",NA,NA
+"Time_zero_Ym","2007-12-01","Underweight",14,"0.9%",NA,NA
+"Time_zero_Ym","2008-01-01","Underweight",5,"0.3%",NA,NA
+"Time_zero_Ym","2008-02-01","Underweight",9,"0.6%",NA,NA
+"Time_zero_Ym","2008-03-01","Underweight",15,"1.0%",NA,NA
+"Time_zero_Ym","2008-04-01","Underweight",8,"0.5%",NA,NA
+"Time_zero_Ym","2008-05-01","Underweight",7,"0.4%",NA,NA
+"Time_zero_Ym","2008-06-01","Underweight",15,"1.0%",NA,NA
+"Time_zero_Ym","2008-07-01","Underweight",15,"1.0%",NA,NA
+"Time_zero_Ym","2008-08-01","Underweight",3,"0.2%",NA,NA
+"Time_zero_Ym","2008-09-01","Underweight",7,"0.4%",NA,NA
+"Time_zero_Ym","2008-10-01","Underweight",7,"0.4%",NA,NA
+"Time_zero_Ym","2008-11-01","Underweight",8,"0.5%",NA,NA
+"Time_zero_Ym","2008-12-01","Underweight",10,"0.6%",NA,NA
+"Time_zero_Ym","2009-01-01","Underweight",6,"0.4%",NA,NA
+"Time_zero_Ym","2009-02-01","Underweight",7,"0.4%",NA,NA
+"Time_zero_Ym","2009-03-01","Underweight",9,"0.6%",NA,NA
+"Time_zero_Ym","2009-04-01","Underweight",11,"0.7%",NA,NA
+"Time_zero_Ym","2009-05-01","Underweight",12,"0.8%",NA,NA
+"Time_zero_Ym","2009-06-01","Underweight",15,"1.0%",NA,NA
+"Time_zero_Ym","2009-07-01","Underweight",7,"0.4%",NA,NA
+"Time_zero_Ym","2009-08-01","Underweight",9,"0.6%",NA,NA
+"Time_zero_Ym","2009-09-01","Underweight",8,"0.5%",NA,NA
+"Time_zero_Ym","2009-10-01","Underweight",7,"0.4%",NA,NA
+"Time_zero_Ym","2009-11-01","Underweight",6,"0.4%",NA,NA
+"Time_zero_Ym","2009-12-01","Underweight",3,"0.2%",NA,NA
+"Time_zero_Ym","2010-01-01","Underweight",15,"1.0%",NA,NA
+"Time_zero_Ym","2010-02-01","Underweight",12,"0.8%",NA,NA
+"Time_zero_Ym","2010-03-01","Underweight",5,"0.3%",NA,NA
+"Time_zero_Ym","2010-04-01","Underweight",9,"0.6%",NA,NA
+"Time_zero_Ym","2010-04-17","Underweight",2,"0.1%",NA,NA
+"Time_zero_Ym","2010-05-01","Underweight",12,"0.8%",NA,NA
+"Time_zero_Ym","2010-06-01","Underweight",15,"1.0%",NA,NA
+"Time_zero_Ym","2010-07-01","Underweight",16,"1.0%",NA,NA
+"Time_zero_Ym","2010-08-01","Underweight",7,"0.4%",NA,NA
+"Time_zero_Ym","2010-09-01","Underweight",13,"0.8%",NA,NA
+"Time_zero_Ym","2010-10-01","Underweight",19,"1.2%",NA,NA
+"Time_zero_Ym","2010-11-01","Underweight",11,"0.7%",NA,NA
+"Time_zero_Ym","2010-12-01","Underweight",12,"0.8%",NA,NA
+"Time_zero_Ym","2011-01-01","Underweight",12,"0.8%",NA,NA
+"Time_zero_Ym","2011-02-01","Underweight",5,"0.3%",NA,NA
+"Time_zero_Ym","2011-03-01","Underweight",11,"0.7%",NA,NA
+"Time_zero_Ym","2011-04-01","Underweight",16,"1.0%",NA,NA
+"Time_zero_Ym","2011-05-01","Underweight",16,"1.0%",NA,NA
+"Time_zero_Ym","2011-06-01","Underweight",20,"1.3%",NA,NA
+"Time_zero_Ym","2011-07-01","Underweight",14,"0.9%",NA,NA
+"Time_zero_Ym","2011-08-01","Underweight",11,"0.7%",NA,NA
+"Time_zero_Ym","2011-09-01","Underweight",14,"0.9%",NA,NA
+"Time_zero_Ym","2011-10-01","Underweight",15,"1.0%",NA,NA
+"Time_zero_Ym","2011-11-01","Underweight",13,"0.8%",NA,NA
+"Time_zero_Ym","2011-12-01","Underweight",15,"1.0%",NA,NA
+"Time_zero_Ym","2012-01-01","Underweight",9,"0.6%",NA,NA
+"Time_zero_Ym","2012-02-01","Underweight",9,"0.6%",NA,NA
+"Time_zero_Ym","2012-03-01","Underweight",10,"0.6%",NA,NA
+"Time_zero_Ym","2012-04-01","Underweight",11,"0.7%",NA,NA
+"Time_zero_Ym","2012-05-01","Underweight",11,"0.7%",NA,NA
+"Time_zero_Ym","2012-06-01","Underweight",27,"1.7%",NA,NA
+"Time_zero_Ym","2012-07-01","Underweight",13,"0.8%",NA,NA
+"Time_zero_Ym","2012-08-01","Underweight",11,"0.7%",NA,NA
+"Time_zero_Ym","2012-09-01","Underweight",13,"0.8%",NA,NA
+"Time_zero_Ym","2012-10-01","Underweight",9,"0.6%",NA,NA
+"Time_zero_Ym","2012-11-01","Underweight",9,"0.6%",NA,NA
+"Time_zero_Ym","2012-12-01","Underweight",12,"0.8%",NA,NA
+"Time_zero_Ym","2013-01-01","Underweight",17,"1.1%",NA,NA
+"Time_zero_Ym","2013-02-01","Underweight",6,"0.4%",NA,NA
+"Time_zero_Ym","2013-03-01","Underweight",12,"0.8%",NA,NA
+"Time_zero_Ym","2013-04-01","Underweight",12,"0.8%",NA,NA
+"Time_zero_Ym","2013-05-01","Underweight",15,"1.0%",NA,NA
+"Time_zero_Ym","2013-06-01","Underweight",15,"1.0%",NA,NA
+"Time_zero_Ym","2013-07-01","Underweight",14,"0.9%",NA,NA
+"Time_zero_Ym","2013-08-01","Underweight",11,"0.7%",NA,NA
+"Time_zero_Ym","2013-09-01","Underweight",13,"0.8%",NA,NA
+"Time_zero_Ym","2013-10-01","Underweight",14,"0.9%",NA,NA
+"Time_zero_Ym","2013-11-01","Underweight",14,"0.9%",NA,NA
+"Time_zero_Ym","2013-12-01","Underweight",13,"0.8%",NA,NA
+"Time_zero_Ym","2014-01-01","Underweight",10,"0.6%",NA,NA
+"Time_zero_Ym","2014-02-01","Underweight",11,"0.7%",NA,NA
+"Time_zero_Ym","2014-03-01","Underweight",13,"0.8%",NA,NA
+"Time_zero_Ym","2014-04-01","Underweight",10,"0.6%",NA,NA
+"Time_zero_Ym","2014-05-01","Underweight",12,"0.8%",NA,NA
+"Time_zero_Ym","2014-06-01","Underweight",8,"0.5%",NA,NA
+"Time_zero_Ym","2014-07-01","Underweight",9,"0.6%",NA,NA
+"Time_zero_Ym","2014-08-01","Underweight",15,"1.0%",NA,NA
+"Time_zero_Ym","2014-09-01","Underweight",10,"0.6%",NA,NA
+"Time_zero_Ym","2014-10-01","Underweight",16,"1.0%",NA,NA
+"Time_zero_Ym","2014-11-01","Underweight",12,"0.8%",NA,NA
+"Time_zero_Ym","2014-12-01","Underweight",5,"0.3%",NA,NA
+"Time_zero_Ym","2015-01-01","Underweight",10,"0.6%",NA,NA
+"Time_zero_Ym","2015-02-01","Underweight",10,"0.6%",NA,NA
+"Time_zero_Ym","2015-03-01","Underweight",10,"0.6%",NA,NA
+"Time_zero_Ym","2015-04-01","Underweight",5,"0.3%",NA,NA
+"Time_zero_Ym","2015-05-01","Underweight",17,"1.1%",NA,NA
+"Time_zero_Ym","2015-06-01","Underweight",7,"0.4%",NA,NA
+"Time_zero_Ym","2015-07-01","Underweight",13,"0.8%",NA,NA
+"Time_zero_Ym","2015-08-01","Underweight",12,"0.8%",NA,NA
+"Time_zero_Ym","2015-09-01","Underweight",8,"0.5%",NA,NA
+"Time_zero_Ym","2015-10-01","Underweight",19,"1.2%",NA,NA
+"Time_zero_Ym","2015-11-01","Underweight",11,"0.7%",NA,NA
+"Time_zero_Ym","2015-12-01","Underweight",9,"0.6%",NA,NA
+"Time_zero_Ym","2016-01-01","Underweight",8,"0.5%",NA,NA
+"Time_zero_Ym","2016-02-01","Underweight",8,"0.5%",NA,NA
+"Time_zero_Ym","2016-03-01","Underweight",5,"0.3%",NA,NA
+"Time_zero_Ym","2016-04-01","Underweight",6,"0.4%",NA,NA
+"Time_zero_Ym","2016-05-01","Underweight",12,"0.8%",NA,NA
+"Time_zero_Ym","2016-06-01","Underweight",2,"0.1%",NA,NA
+"Time_zero_Ym","2016-07-01","Underweight",13,"0.8%",NA,NA
+"Time_zero_Ym","2016-08-01","Underweight",11,"0.7%",NA,NA
+"Time_zero_Ym","2016-09-01","Underweight",9,"0.6%",NA,NA
+"Time_zero_Ym","2016-10-01","Underweight",13,"0.8%",NA,NA
+"Time_zero_Ym","2016-11-01","Underweight",13,"0.8%",NA,NA
+"Time_zero_Ym","2016-12-01","Underweight",11,"0.7%",NA,NA
+"Time_zero_Ym","2017-01-01","Underweight",9,"0.6%",NA,NA
+"Time_zero_Ym","2017-02-01","Underweight",18,"1.2%",NA,NA
+"Time_zero_Ym","2017-03-01","Underweight",10,"0.6%",NA,NA
+"Time_zero_Ym","2017-04-01","Underweight",16,"1.0%",NA,NA
+"Time_zero_Ym","2017-05-01","Underweight",4,"0.3%",NA,NA
+"Time_zero_Ym","2017-06-01","Underweight",11,"0.7%",NA,NA
+"Time_zero_Ym","2017-07-01","Underweight",7,"0.4%",NA,NA
+"Time_zero_Ym","2017-08-01","Underweight",9,"0.6%",NA,NA
+"Time_zero_Ym","2017-09-01","Underweight",11,"0.7%",NA,NA
+"Time_zero_Ym","2017-10-01","Underweight",10,"0.6%",NA,NA
+"Time_zero_Ym","2017-11-01","Underweight",8,"0.5%",NA,NA
+"Time_zero_Ym","2017-12-01","Underweight",6,"0.4%",NA,NA
+"Time_zero_Ym","2018-02-01","Underweight",1,"0.1%",NA,NA
+"ACE_inhibitor","No","Normal",14697,"37.0%",8.67e-09,1.44e-08
+"ACE_inhibitor","Yes","Normal",24176,"60.8%",8.67e-09,1.44e-08
+"ACE_inhibitor",NA,"Normal",869,"2.2%",8.67e-09,1.44e-08
+"ACE_inhibitor_ARB","No","Normal",9478,"23.8%",2.86e-164,1.08e-163
+"ACE_inhibitor_ARB","Yes","Normal",30022,"75.5%",2.86e-164,1.08e-163
+"ACE_inhibitor_ARB",NA,"Normal",242,"0.6%",2.86e-164,1.08e-163
+"AF_atrial_flutter","No","Normal",32232,"81.1%",3.24e-20,7.15e-20
+"AF_atrial_flutter","Yes","Normal",5263,"13.2%",3.24e-20,7.15e-20
+"AF_atrial_flutter",NA,"Normal",2247,"5.7%",3.24e-20,7.15e-20
+"ARB","No","Normal",32486,"81.7%",3.38e-192,1.49e-191
+"ARB","Yes","Normal",5286,"13.3%",3.38e-192,1.49e-191
+"ARB",NA,"Normal",1970,"5.0%",3.38e-192,1.49e-191
+"AV_block","No","Normal",1343,"3.4%",0.13,0.146
+"AV_block","Yes","Normal",140,"0.4%",0.13,0.146
+"AV_block",NA,"Normal",38259,"96.3%",0.13,0.146
+"AV_block_II_or_III","No","Normal",1477,"3.7%",0.839,0.839
+"AV_block_II_or_III","Yes","Normal",4,"0.0%",0.839,0.839
+"AV_block_II_or_III",NA,"Normal",38261,"96.3%",0.839,0.839
+"Alcohol","No","Normal",433,"1.1%",0.00104,0.00138
+"Alcohol","Yes","Normal",727,"1.8%",0.00104,0.00138
+"Alcohol",NA,"Normal",38582,"97.1%",0.00104,0.00138
+"Aldosterone_antagonist","No","Normal",19877,"50.0%",3.46e-15,6.79e-15
+"Aldosterone_antagonist","Yes","Normal",1488,"3.7%",3.46e-15,6.79e-15
+"Aldosterone_antagonist",NA,"Normal",18377,"46.2%",3.46e-15,6.79e-15
+"Anti_anginal","No","Normal",32459,"81.7%",1.61e-09,2.75e-09
+"Anti_anginal","Yes","Normal",4520,"11.4%",1.61e-09,2.75e-09
+"Anti_anginal",NA,"Normal",2763,"7.0%",1.61e-09,2.75e-09
+"Anti_arrhythmic_III","No","Normal",3428,"8.6%",0.05,0.0616
+"Anti_arrhythmic_III","Yes","Normal",157,"0.4%",0.05,0.0616
+"Anti_arrhythmic_III",NA,"Normal",36157,"91.0%",0.05,0.0616
+"Anti_coagulant","No","Normal",33523,"84.4%",1.13e-06,1.66e-06
+"Anti_coagulant","Yes","Normal",3542,"8.9%",1.13e-06,1.66e-06
+"Anti_coagulant",NA,"Normal",2677,"6.7%",1.13e-06,1.66e-06
+"Anti_diabetic","No","Normal",35020,"88.1%",0,0
+"Anti_diabetic","Yes","Normal",3951,"9.9%",0,0
+"Anti_diabetic",NA,"Normal",771,"1.9%",0,0
+"Anti_diabetic_insulin","No","Normal",36793,"92.6%",0,0
+"Anti_diabetic_insulin","Yes","Normal",2208,"5.6%",0,0
+"Anti_diabetic_insulin",NA,"Normal",741,"1.9%",0,0
+"Anti_diabetic_oral","No","Normal",36687,"92.3%",0,0
+"Anti_diabetic_oral","Yes","Normal",2293,"5.8%",0,0
+"Anti_diabetic_oral",NA,"Normal",762,"1.9%",0,0
+"Anti_platelet","No","Normal",1793,"4.5%",2.75e-28,6.63e-28
+"Anti_platelet","Yes","Normal",36921,"92.9%",2.75e-28,6.63e-28
+"Anti_platelet",NA,"Normal",1028,"2.6%",2.75e-28,6.63e-28
+"Baseline_type","MI","Normal",37011,"93.1%",0,0
+"Baseline_type","MI40d","Normal",1582,"4.0%",0,0
+"Baseline_type",NA,"Normal",1149,"2.9%",0,0
+"Beta_blockers","No","Normal",4958,"12.5%",2.61e-34,6.92e-34
+"Beta_blockers","Yes","Normal",34675,"87.3%",2.61e-34,6.92e-34
+"Beta_blockers",NA,"Normal",109,"0.3%",2.61e-34,6.92e-34
+"CABG","No","Normal",34936,"87.9%",3.76e-34,9.5e-34
+"CABG","Yes","Normal",2820,"7.1%",3.76e-34,9.5e-34
+"CABG",NA,"Normal",1986,"5.0%",3.76e-34,9.5e-34
+"CABG_acute","No","Normal",23746,"59.8%",0.676,0.703
+"CABG_acute","Yes","Normal",156,"0.4%",0.676,0.703
+"CABG_acute",NA,"Normal",15840,"39.9%",0.676,0.703
+"COPD","No","Normal",3057,"7.7%",1.54e-14,2.92e-14
+"COPD","Yes","Normal",289,"0.7%",1.54e-14,2.92e-14
+"COPD",NA,"Normal",36396,"91.6%",1.54e-14,2.92e-14
+"CVD_risk_region","1","Normal",384,"1.0%",1.05e-292,6.96e-292
+"CVD_risk_region","2","Normal",36456,"91.7%",1.05e-292,6.96e-292
+"CVD_risk_region","3","Normal",2678,"6.7%",1.05e-292,6.96e-292
+"CVD_risk_region","4","Normal",224,"0.6%",1.05e-292,6.96e-292
+"Calcium_antagonists","No","Normal",32238,"81.1%",9.66e-149,3.41e-148
+"Calcium_antagonists","Yes","Normal",4770,"12.0%",9.66e-149,3.41e-148
+"Calcium_antagonists",NA,"Normal",2734,"6.9%",9.66e-149,3.41e-148
+"Cancer","No","Normal",150,"0.4%",0.612,0.662
+"Cancer","Yes","Normal",2,"0.0%",0.612,0.662
+"Cancer",NA,"Normal",39590,"99.6%",0.612,0.662
+"Diabetes","No","Normal",33831,"85.1%",0,0
+"Diabetes","Yes","Normal",5784,"14.6%",0,0
+"Diabetes",NA,"Normal",127,"0.3%",0,0
+"Digitalis_glycosides","No","Normal",36979,"93.0%",9.89e-19,2.02e-18
+"Digitalis_glycosides","Yes","Normal",847,"2.1%",9.89e-19,2.02e-18
+"Digitalis_glycosides",NA,"Normal",1916,"4.8%",9.89e-19,2.02e-18
+"Diseased_arteries_num_cat","0","Normal",148,"0.4%",0.000863,0.00117
+"Diseased_arteries_num_cat","1","Normal",452,"1.1%",0.000863,0.00117
+"Diseased_arteries_num_cat","2","Normal",333,"0.8%",0.000863,0.00117
+"Diseased_arteries_num_cat","geq3","Normal",447,"1.1%",0.000863,0.00117
+"Diseased_arteries_num_cat",NA,"Normal",38362,"96.5%",0.000863,0.00117
+"Diuretics","No","Normal",29329,"73.8%",1.46e-247,8.59999999999999e-247
+"Diuretics","Yes","Normal",10251,"25.8%",1.46e-247,8.59999999999999e-247
+"Diuretics",NA,"Normal",162,"0.4%",1.46e-247,8.59999999999999e-247
+"FH_CAD","No","Normal",679,"1.7%",1.05e-09,1.86e-09
+"FH_CAD","Yes","Normal",522,"1.3%",1.05e-09,1.86e-09
+"FH_CAD",NA,"Normal",38541,"97.0%",1.05e-09,1.86e-09
+"FH_SCD","No","Normal",752,"1.9%",0.0195,0.0252
+"FH_SCD","Yes","Normal",228,"0.6%",0.0195,0.0252
+"FH_SCD",NA,"Normal",38762,"97.5%",0.0195,0.0252
+"HF","No","Normal",32946,"82.9%",1.47e-26,3.4e-26
+"HF","Yes","Normal",2421,"6.1%",1.47e-26,3.4e-26
+"HF",NA,"Normal",4375,"11.0%",1.47e-26,3.4e-26
+"HasMRI","No","Normal",39283,"98.8%",9.24e-06,1.32e-05
+"HasMRI","Yes","Normal",459,"1.2%",9.24e-06,1.32e-05
+"Hypertension","No","Normal",21455,"54.0%",0,0
+"Hypertension","Yes","Normal",17310,"43.6%",0,0
+"Hypertension",NA,"Normal",977,"2.5%",0,0
+"IsSWHR","0","Normal",2678,"6.7%",4.11e-207,1.98e-206
+"IsSWHR","1","Normal",35915,"90.4%",4.11e-207,1.98e-206
+"IsSWHR",NA,"Normal",1149,"2.9%",4.11e-207,1.98e-206
+"LBBB","No","Normal",35498,"89.3%",1.52e-05,2.11e-05
+"LBBB","Yes","Normal",2041,"5.1%",1.52e-05,2.11e-05
+"LBBB",NA,"Normal",2203,"5.5%",1.52e-05,2.11e-05
+"Lipid_lowering","No","Normal",4520,"11.4%",3.26e-240,1.73e-239
+"Lipid_lowering","Yes","Normal",35039,"88.2%",3.26e-240,1.73e-239
+"Lipid_lowering",NA,"Normal",183,"0.5%",3.26e-240,1.73e-239
+"MI_history","No","Normal",30173,"75.9%",3.41e-07,5.32e-07
+"MI_history","Yes","Normal",6764,"17.0%",3.41e-07,5.32e-07
+"MI_history",NA,"Normal",2805,"7.1%",3.41e-07,5.32e-07
+"MI_location_anterior","No","Normal",1297,"3.3%",5.42e-07,8.2e-07
+"MI_location_anterior","Yes","Normal",902,"2.3%",5.42e-07,8.2e-07
+"MI_location_anterior",NA,"Normal",37543,"94.5%",5.42e-07,8.2e-07
+"MI_location_inferior","No","Normal",1267,"3.2%",0.0649,0.0764
+"MI_location_inferior","Yes","Normal",932,"2.3%",0.0649,0.0764
+"MI_location_inferior",NA,"Normal",37543,"94.5%",0.0649,0.0764
+"MI_location_lateral","No","Normal",1836,"4.6%",0.639,0.678
+"MI_location_lateral","Yes","Normal",243,"0.6%",0.639,0.678
+"MI_location_lateral",NA,"Normal",37663,"94.8%",0.639,0.678
+"MI_location_posterior","No","Normal",997,"2.5%",0.0247,0.0311
+"MI_location_posterior","Yes","Normal",39,"0.1%",0.0247,0.0311
+"MI_location_posterior",NA,"Normal",38706,"97.4%",0.0247,0.0311
+"MI_type","NSTEMI","Normal",24509,"61.7%",1.71e-19,3.63e-19
+"MI_type","STEMI","Normal",11539,"29.0%",1.71e-19,3.63e-19
+"MI_type",NA,"Normal",3694,"9.3%",1.71e-19,3.63e-19
+"MR","Moderate","Normal",100,"0.3%",0.0886,0.102
+"MR","None or mild","Normal",567,"1.4%",0.0886,0.102
+"MR","Severe","Normal",24,"0.1%",0.0886,0.102
+"MR",NA,"Normal",39051,"98.3%",0.0886,0.102
+"NSVT","No","Normal",182,"0.5%",0.0609,0.0733
+"NSVT","Yes","Normal",42,"0.1%",0.0609,0.0733
+"NSVT",NA,"Normal",39518,"99.4%",0.0609,0.0733
+"NYHA","I","Normal",1343,"3.4%",2.21e-07,3.55e-07
+"NYHA","II","Normal",865,"2.2%",2.21e-07,3.55e-07
+"NYHA","III","Normal",404,"1.0%",2.21e-07,3.55e-07
+"NYHA","IV","Normal",58,"0.1%",2.21e-07,3.55e-07
+"NYHA",NA,"Normal",37072,"93.3%",2.21e-07,3.55e-07
+"PCI","No","Normal",32280,"81.2%",1.74e-175,7.08e-175
+"PCI","Yes","Normal",5001,"12.6%",1.74e-175,7.08e-175
+"PCI",NA,"Normal",2461,"6.2%",1.74e-175,7.08e-175
+"PCI_acute","No","Normal",24563,"61.8%",8.41e-41,2.34e-40
+"PCI_acute","Yes","Normal",12533,"31.5%",8.41e-41,2.34e-40
+"PCI_acute",NA,"Normal",2646,"6.7%",8.41e-41,2.34e-40
+"RBBB","No","Normal",35198,"88.6%",0.808,0.823
+"RBBB","Yes","Normal",1607,"4.0%",0.808,0.823
+"RBBB",NA,"Normal",2937,"7.4%",0.808,0.823
+"Revascularisation_acute","No","Normal",23937,"60.2%",4.27e-43,1.26e-42
+"Revascularisation_acute","Yes","Normal",13159,"33.1%",4.27e-43,1.26e-42
+"Revascularisation_acute",NA,"Normal",2646,"6.7%",4.27e-43,1.26e-42
+"Sex","Female","Normal",14206,"35.7%",0,0
+"Sex","Male","Normal",25535,"64.3%",0,0
+"Sex",NA,"Normal",1,"0.0%",0,0
+"Smoking","No","Normal",16057,"40.4%",4.99e-66,1.65e-65
+"Smoking","Yes","Normal",21473,"54.0%",4.99e-66,1.65e-65
+"Smoking",NA,"Normal",2212,"5.6%",4.99e-66,1.65e-65
+"Stroke_TIA","No","Normal",34473,"86.7%",2.99e-12,5.46e-12
+"Stroke_TIA","Yes","Normal",2822,"7.1%",2.99e-12,5.46e-12
+"Stroke_TIA",NA,"Normal",2447,"6.2%",2.99e-12,5.46e-12
+"Thrombolysis_acute","No","Normal",36474,"91.8%",0.546,0.603
+"Thrombolysis_acute","Yes","Normal",489,"1.2%",0.546,0.603
+"Thrombolysis_acute",NA,"Normal",2779,"7.0%",0.546,0.603
+"Time_zero_Y","1994","Normal",1,"0.0%",3.2e-44,9.97e-44
+"Time_zero_Y","1995","Normal",61,"0.2%",3.2e-44,9.97e-44
+"Time_zero_Y","1996","Normal",83,"0.2%",3.2e-44,9.97e-44
+"Time_zero_Y","1997","Normal",159,"0.4%",3.2e-44,9.97e-44
+"Time_zero_Y","1998","Normal",225,"0.6%",3.2e-44,9.97e-44
+"Time_zero_Y","1999","Normal",225,"0.6%",3.2e-44,9.97e-44
+"Time_zero_Y","2000","Normal",191,"0.5%",3.2e-44,9.97e-44
+"Time_zero_Y","2001","Normal",177,"0.4%",3.2e-44,9.97e-44
+"Time_zero_Y","2002","Normal",107,"0.3%",3.2e-44,9.97e-44
+"Time_zero_Y","2003","Normal",89,"0.2%",3.2e-44,9.97e-44
+"Time_zero_Y","2004","Normal",42,"0.1%",3.2e-44,9.97e-44
+"Time_zero_Y","2005","Normal",29,"0.1%",3.2e-44,9.97e-44
+"Time_zero_Y","2006","Normal",2087,"5.3%",3.2e-44,9.97e-44
+"Time_zero_Y","2007","Normal",2593,"6.5%",3.2e-44,9.97e-44
+"Time_zero_Y","2008","Normal",2718,"6.8%",3.2e-44,9.97e-44
+"Time_zero_Y","2009","Normal",2666,"6.7%",3.2e-44,9.97e-44
+"Time_zero_Y","2010","Normal",3473,"8.7%",3.2e-44,9.97e-44
+"Time_zero_Y","2011","Normal",3673,"9.2%",3.2e-44,9.97e-44
+"Time_zero_Y","2012","Normal",3897,"9.8%",3.2e-44,9.97e-44
+"Time_zero_Y","2013","Normal",3636,"9.1%",3.2e-44,9.97e-44
+"Time_zero_Y","2014","Normal",3422,"8.6%",3.2e-44,9.97e-44
+"Time_zero_Y","2015","Normal",3459,"8.7%",3.2e-44,9.97e-44
+"Time_zero_Y","2016","Normal",3383,"8.5%",3.2e-44,9.97e-44
+"Time_zero_Y","2017","Normal",3320,"8.4%",3.2e-44,9.97e-44
+"Time_zero_Y","2018","Normal",14,"0.0%",3.2e-44,9.97e-44
+"Time_zero_Y","2019","Normal",11,"0.0%",3.2e-44,9.97e-44
+"Time_zero_Y","2020","Normal",1,"0.0%",3.2e-44,9.97e-44
+"Time_zero_Ym","1994-12-01","Normal",1,"0.0%",NA,NA
+"Time_zero_Ym","1995-01-01","Normal",1,"0.0%",NA,NA
+"Time_zero_Ym","1995-02-01","Normal",3,"0.0%",NA,NA
+"Time_zero_Ym","1995-03-01","Normal",3,"0.0%",NA,NA
+"Time_zero_Ym","1995-05-01","Normal",4,"0.0%",NA,NA
+"Time_zero_Ym","1995-06-01","Normal",2,"0.0%",NA,NA
+"Time_zero_Ym","1995-07-01","Normal",5,"0.0%",NA,NA
+"Time_zero_Ym","1995-08-01","Normal",10,"0.0%",NA,NA
+"Time_zero_Ym","1995-09-01","Normal",11,"0.0%",NA,NA
+"Time_zero_Ym","1995-10-01","Normal",7,"0.0%",NA,NA
+"Time_zero_Ym","1995-11-01","Normal",8,"0.0%",NA,NA
+"Time_zero_Ym","1995-12-01","Normal",7,"0.0%",NA,NA
+"Time_zero_Ym","1996-01-01","Normal",5,"0.0%",NA,NA
+"Time_zero_Ym","1996-02-01","Normal",6,"0.0%",NA,NA
+"Time_zero_Ym","1996-03-01","Normal",7,"0.0%",NA,NA
+"Time_zero_Ym","1996-04-01","Normal",5,"0.0%",NA,NA
+"Time_zero_Ym","1996-05-01","Normal",5,"0.0%",NA,NA
+"Time_zero_Ym","1996-06-01","Normal",4,"0.0%",NA,NA
+"Time_zero_Ym","1996-07-01","Normal",6,"0.0%",NA,NA
+"Time_zero_Ym","1996-08-01","Normal",8,"0.0%",NA,NA
+"Time_zero_Ym","1996-09-01","Normal",12,"0.0%",NA,NA
+"Time_zero_Ym","1996-10-01","Normal",3,"0.0%",NA,NA
+"Time_zero_Ym","1996-11-01","Normal",15,"0.0%",NA,NA
+"Time_zero_Ym","1996-12-01","Normal",7,"0.0%",NA,NA
+"Time_zero_Ym","1997-01-01","Normal",9,"0.0%",NA,NA
+"Time_zero_Ym","1997-02-01","Normal",17,"0.0%",NA,NA
+"Time_zero_Ym","1997-03-01","Normal",10,"0.0%",NA,NA
+"Time_zero_Ym","1997-04-01","Normal",13,"0.0%",NA,NA
+"Time_zero_Ym","1997-05-01","Normal",15,"0.0%",NA,NA
+"Time_zero_Ym","1997-06-01","Normal",7,"0.0%",NA,NA
+"Time_zero_Ym","1997-07-01","Normal",17,"0.0%",NA,NA
+"Time_zero_Ym","1997-08-01","Normal",15,"0.0%",NA,NA
+"Time_zero_Ym","1997-09-01","Normal",15,"0.0%",NA,NA
+"Time_zero_Ym","1997-10-01","Normal",16,"0.0%",NA,NA
+"Time_zero_Ym","1997-11-01","Normal",13,"0.0%",NA,NA
+"Time_zero_Ym","1997-12-01","Normal",12,"0.0%",NA,NA
+"Time_zero_Ym","1998-01-01","Normal",14,"0.0%",NA,NA
+"Time_zero_Ym","1998-02-01","Normal",12,"0.0%",NA,NA
+"Time_zero_Ym","1998-03-01","Normal",13,"0.0%",NA,NA
+"Time_zero_Ym","1998-04-01","Normal",11,"0.0%",NA,NA
+"Time_zero_Ym","1998-05-01","Normal",17,"0.0%",NA,NA
+"Time_zero_Ym","1998-06-01","Normal",12,"0.0%",NA,NA
+"Time_zero_Ym","1998-07-01","Normal",81,"0.2%",NA,NA
+"Time_zero_Ym","1998-08-01","Normal",11,"0.0%",NA,NA
+"Time_zero_Ym","1998-09-01","Normal",15,"0.0%",NA,NA
+"Time_zero_Ym","1998-10-01","Normal",16,"0.0%",NA,NA
+"Time_zero_Ym","1998-11-01","Normal",14,"0.0%",NA,NA
+"Time_zero_Ym","1998-12-01","Normal",9,"0.0%",NA,NA
+"Time_zero_Ym","1999-01-01","Normal",11,"0.0%",NA,NA
+"Time_zero_Ym","1999-02-01","Normal",12,"0.0%",NA,NA
+"Time_zero_Ym","1999-03-01","Normal",11,"0.0%",NA,NA
+"Time_zero_Ym","1999-04-01","Normal",12,"0.0%",NA,NA
+"Time_zero_Ym","1999-05-01","Normal",8,"0.0%",NA,NA
+"Time_zero_Ym","1999-06-01","Normal",11,"0.0%",NA,NA
+"Time_zero_Ym","1999-07-01","Normal",82,"0.2%",NA,NA
+"Time_zero_Ym","1999-08-01","Normal",16,"0.0%",NA,NA
+"Time_zero_Ym","1999-09-01","Normal",19,"0.0%",NA,NA
+"Time_zero_Ym","1999-10-01","Normal",15,"0.0%",NA,NA
+"Time_zero_Ym","1999-11-01","Normal",13,"0.0%",NA,NA
+"Time_zero_Ym","1999-12-01","Normal",15,"0.0%",NA,NA
+"Time_zero_Ym","2000-01-01","Normal",12,"0.0%",NA,NA
+"Time_zero_Ym","2000-02-01","Normal",7,"0.0%",NA,NA
+"Time_zero_Ym","2000-03-01","Normal",3,"0.0%",NA,NA
+"Time_zero_Ym","2000-04-01","Normal",9,"0.0%",NA,NA
+"Time_zero_Ym","2000-05-01","Normal",12,"0.0%",NA,NA
+"Time_zero_Ym","2000-06-01","Normal",10,"0.0%",NA,NA
+"Time_zero_Ym","2000-07-01","Normal",90,"0.2%",NA,NA
+"Time_zero_Ym","2000-08-01","Normal",8,"0.0%",NA,NA
+"Time_zero_Ym","2000-09-01","Normal",11,"0.0%",NA,NA
+"Time_zero_Ym","2000-10-01","Normal",9,"0.0%",NA,NA
+"Time_zero_Ym","2000-11-01","Normal",5,"0.0%",NA,NA
+"Time_zero_Ym","2000-12-01","Normal",15,"0.0%",NA,NA
+"Time_zero_Ym","2001-01-01","Normal",14,"0.0%",NA,NA
+"Time_zero_Ym","2001-02-01","Normal",9,"0.0%",NA,NA
+"Time_zero_Ym","2001-03-01","Normal",9,"0.0%",NA,NA
+"Time_zero_Ym","2001-04-01","Normal",14,"0.0%",NA,NA
+"Time_zero_Ym","2001-05-01","Normal",12,"0.0%",NA,NA
+"Time_zero_Ym","2001-06-01","Normal",12,"0.0%",NA,NA
+"Time_zero_Ym","2001-07-01","Normal",65,"0.2%",NA,NA
+"Time_zero_Ym","2001-08-01","Normal",9,"0.0%",NA,NA
+"Time_zero_Ym","2001-09-01","Normal",8,"0.0%",NA,NA
+"Time_zero_Ym","2001-10-01","Normal",10,"0.0%",NA,NA
+"Time_zero_Ym","2001-11-01","Normal",8,"0.0%",NA,NA
+"Time_zero_Ym","2001-12-01","Normal",7,"0.0%",NA,NA
+"Time_zero_Ym","2002-01-01","Normal",10,"0.0%",NA,NA
+"Time_zero_Ym","2002-02-01","Normal",7,"0.0%",NA,NA
+"Time_zero_Ym","2002-03-01","Normal",10,"0.0%",NA,NA
+"Time_zero_Ym","2002-04-01","Normal",10,"0.0%",NA,NA
+"Time_zero_Ym","2002-05-01","Normal",7,"0.0%",NA,NA
+"Time_zero_Ym","2002-06-01","Normal",14,"0.0%",NA,NA
+"Time_zero_Ym","2002-07-01","Normal",10,"0.0%",NA,NA
+"Time_zero_Ym","2002-08-01","Normal",8,"0.0%",NA,NA
+"Time_zero_Ym","2002-09-01","Normal",12,"0.0%",NA,NA
+"Time_zero_Ym","2002-10-01","Normal",9,"0.0%",NA,NA
+"Time_zero_Ym","2002-11-01","Normal",7,"0.0%",NA,NA
+"Time_zero_Ym","2002-12-01","Normal",3,"0.0%",NA,NA
+"Time_zero_Ym","2003-01-01","Normal",9,"0.0%",NA,NA
+"Time_zero_Ym","2003-02-01","Normal",5,"0.0%",NA,NA
+"Time_zero_Ym","2003-03-01","Normal",4,"0.0%",NA,NA
+"Time_zero_Ym","2003-04-01","Normal",6,"0.0%",NA,NA
+"Time_zero_Ym","2003-05-01","Normal",7,"0.0%",NA,NA
+"Time_zero_Ym","2003-06-01","Normal",6,"0.0%",NA,NA
+"Time_zero_Ym","2003-07-01","Normal",7,"0.0%",NA,NA
+"Time_zero_Ym","2003-08-01","Normal",8,"0.0%",NA,NA
+"Time_zero_Ym","2003-09-01","Normal",6,"0.0%",NA,NA
+"Time_zero_Ym","2003-10-01","Normal",10,"0.0%",NA,NA
+"Time_zero_Ym","2003-11-01","Normal",13,"0.0%",NA,NA
+"Time_zero_Ym","2003-12-01","Normal",8,"0.0%",NA,NA
+"Time_zero_Ym","2004-01-01","Normal",5,"0.0%",NA,NA
+"Time_zero_Ym","2004-02-01","Normal",4,"0.0%",NA,NA
+"Time_zero_Ym","2004-03-01","Normal",8,"0.0%",NA,NA
+"Time_zero_Ym","2004-04-01","Normal",5,"0.0%",NA,NA
+"Time_zero_Ym","2004-05-01","Normal",2,"0.0%",NA,NA
+"Time_zero_Ym","2004-06-01","Normal",3,"0.0%",NA,NA
+"Time_zero_Ym","2004-07-01","Normal",4,"0.0%",NA,NA
+"Time_zero_Ym","2004-08-01","Normal",2,"0.0%",NA,NA
+"Time_zero_Ym","2004-09-01","Normal",3,"0.0%",NA,NA
+"Time_zero_Ym","2004-10-01","Normal",2,"0.0%",NA,NA
+"Time_zero_Ym","2004-11-01","Normal",2,"0.0%",NA,NA
+"Time_zero_Ym","2004-12-01","Normal",2,"0.0%",NA,NA
+"Time_zero_Ym","2005-01-01","Normal",5,"0.0%",NA,NA
+"Time_zero_Ym","2005-02-01","Normal",1,"0.0%",NA,NA
+"Time_zero_Ym","2005-03-01","Normal",5,"0.0%",NA,NA
+"Time_zero_Ym","2005-04-01","Normal",1,"0.0%",NA,NA
+"Time_zero_Ym","2005-05-01","Normal",2,"0.0%",NA,NA
+"Time_zero_Ym","2005-06-01","Normal",2,"0.0%",NA,NA
+"Time_zero_Ym","2005-07-01","Normal",5,"0.0%",NA,NA
+"Time_zero_Ym","2005-08-01","Normal",3,"0.0%",NA,NA
+"Time_zero_Ym","2005-09-01","Normal",2,"0.0%",NA,NA
+"Time_zero_Ym","2005-10-01","Normal",1,"0.0%",NA,NA
+"Time_zero_Ym","2005-12-01","Normal",2,"0.0%",NA,NA
+"Time_zero_Ym","2006-01-01","Normal",6,"0.0%",NA,NA
+"Time_zero_Ym","2006-02-01","Normal",143,"0.4%",NA,NA
+"Time_zero_Ym","2006-03-01","Normal",195,"0.5%",NA,NA
+"Time_zero_Ym","2006-04-01","Normal",137,"0.3%",NA,NA
+"Time_zero_Ym","2006-05-01","Normal",165,"0.4%",NA,NA
+"Time_zero_Ym","2006-06-01","Normal",195,"0.5%",NA,NA
+"Time_zero_Ym","2006-06-16","Normal",38,"0.1%",NA,NA
+"Time_zero_Ym","2006-07-01","Normal",187,"0.5%",NA,NA
+"Time_zero_Ym","2006-08-01","Normal",161,"0.4%",NA,NA
+"Time_zero_Ym","2006-09-01","Normal",172,"0.4%",NA,NA
+"Time_zero_Ym","2006-10-01","Normal",194,"0.5%",NA,NA
+"Time_zero_Ym","2006-11-01","Normal",207,"0.5%",NA,NA
+"Time_zero_Ym","2006-11-16","Normal",73,"0.2%",NA,NA
+"Time_zero_Ym","2006-12-01","Normal",214,"0.5%",NA,NA
+"Time_zero_Ym","2007-01-01","Normal",207,"0.5%",NA,NA
+"Time_zero_Ym","2007-02-01","Normal",194,"0.5%",NA,NA
+"Time_zero_Ym","2007-03-01","Normal",230,"0.6%",NA,NA
+"Time_zero_Ym","2007-04-01","Normal",219,"0.6%",NA,NA
+"Time_zero_Ym","2007-05-01","Normal",231,"0.6%",NA,NA
+"Time_zero_Ym","2007-06-01","Normal",209,"0.5%",NA,NA
+"Time_zero_Ym","2007-07-01","Normal",213,"0.5%",NA,NA
+"Time_zero_Ym","2007-08-01","Normal",196,"0.5%",NA,NA
+"Time_zero_Ym","2007-09-01","Normal",209,"0.5%",NA,NA
+"Time_zero_Ym","2007-10-01","Normal",219,"0.6%",NA,NA
+"Time_zero_Ym","2007-11-01","Normal",219,"0.6%",NA,NA
+"Time_zero_Ym","2007-12-01","Normal",247,"0.6%",NA,NA
+"Time_zero_Ym","2008-01-01","Normal",239,"0.6%",NA,NA
+"Time_zero_Ym","2008-02-01","Normal",220,"0.6%",NA,NA
+"Time_zero_Ym","2008-03-01","Normal",266,"0.7%",NA,NA
+"Time_zero_Ym","2008-04-01","Normal",232,"0.6%",NA,NA
+"Time_zero_Ym","2008-05-01","Normal",206,"0.5%",NA,NA
+"Time_zero_Ym","2008-06-01","Normal",236,"0.6%",NA,NA
+"Time_zero_Ym","2008-07-01","Normal",192,"0.5%",NA,NA
+"Time_zero_Ym","2008-08-01","Normal",213,"0.5%",NA,NA
+"Time_zero_Ym","2008-09-01","Normal",202,"0.5%",NA,NA
+"Time_zero_Ym","2008-10-01","Normal",239,"0.6%",NA,NA
+"Time_zero_Ym","2008-11-01","Normal",236,"0.6%",NA,NA
+"Time_zero_Ym","2008-12-01","Normal",237,"0.6%",NA,NA
+"Time_zero_Ym","2009-01-01","Normal",214,"0.5%",NA,NA
+"Time_zero_Ym","2009-02-01","Normal",214,"0.5%",NA,NA
+"Time_zero_Ym","2009-03-01","Normal",236,"0.6%",NA,NA
+"Time_zero_Ym","2009-04-01","Normal",202,"0.5%",NA,NA
+"Time_zero_Ym","2009-05-01","Normal",245,"0.6%",NA,NA
+"Time_zero_Ym","2009-06-01","Normal",240,"0.6%",NA,NA
+"Time_zero_Ym","2009-07-01","Normal",243,"0.6%",NA,NA
+"Time_zero_Ym","2009-08-01","Normal",191,"0.5%",NA,NA
+"Time_zero_Ym","2009-09-01","Normal",192,"0.5%",NA,NA
+"Time_zero_Ym","2009-10-01","Normal",203,"0.5%",NA,NA
+"Time_zero_Ym","2009-11-01","Normal",234,"0.6%",NA,NA
+"Time_zero_Ym","2009-12-01","Normal",252,"0.6%",NA,NA
+"Time_zero_Ym","2010-01-01","Normal",271,"0.7%",NA,NA
+"Time_zero_Ym","2010-02-01","Normal",249,"0.6%",NA,NA
+"Time_zero_Ym","2010-03-01","Normal",281,"0.7%",NA,NA
+"Time_zero_Ym","2010-04-01","Normal",281,"0.7%",NA,NA
+"Time_zero_Ym","2010-04-17","Normal",257,"0.6%",NA,NA
+"Time_zero_Ym","2010-05-01","Normal",254,"0.6%",NA,NA
+"Time_zero_Ym","2010-06-01","Normal",302,"0.8%",NA,NA
+"Time_zero_Ym","2010-07-01","Normal",325,"0.8%",NA,NA
+"Time_zero_Ym","2010-08-01","Normal",210,"0.5%",NA,NA
+"Time_zero_Ym","2010-09-01","Normal",244,"0.6%",NA,NA
+"Time_zero_Ym","2010-10-01","Normal",263,"0.7%",NA,NA
+"Time_zero_Ym","2010-11-01","Normal",282,"0.7%",NA,NA
+"Time_zero_Ym","2010-12-01","Normal",254,"0.6%",NA,NA
+"Time_zero_Ym","2011-01-01","Normal",314,"0.8%",NA,NA
+"Time_zero_Ym","2011-02-01","Normal",253,"0.6%",NA,NA
+"Time_zero_Ym","2011-03-01","Normal",271,"0.7%",NA,NA
+"Time_zero_Ym","2011-04-01","Normal",257,"0.6%",NA,NA
+"Time_zero_Ym","2011-05-01","Normal",271,"0.7%",NA,NA
+"Time_zero_Ym","2011-06-01","Normal",573,"1.4%",NA,NA
+"Time_zero_Ym","2011-07-01","Normal",333,"0.8%",NA,NA
+"Time_zero_Ym","2011-08-01","Normal",260,"0.7%",NA,NA
+"Time_zero_Ym","2011-09-01","Normal",250,"0.6%",NA,NA
+"Time_zero_Ym","2011-10-01","Normal",294,"0.7%",NA,NA
+"Time_zero_Ym","2011-11-01","Normal",311,"0.8%",NA,NA
+"Time_zero_Ym","2011-12-01","Normal",286,"0.7%",NA,NA
+"Time_zero_Ym","2012-01-01","Normal",306,"0.8%",NA,NA
+"Time_zero_Ym","2012-02-01","Normal",273,"0.7%",NA,NA
+"Time_zero_Ym","2012-03-01","Normal",269,"0.7%",NA,NA
+"Time_zero_Ym","2012-04-01","Normal",317,"0.8%",NA,NA
+"Time_zero_Ym","2012-05-01","Normal",303,"0.8%",NA,NA
+"Time_zero_Ym","2012-06-01","Normal",646,"1.6%",NA,NA
+"Time_zero_Ym","2012-07-01","Normal",302,"0.8%",NA,NA
+"Time_zero_Ym","2012-08-01","Normal",289,"0.7%",NA,NA
+"Time_zero_Ym","2012-09-01","Normal",256,"0.6%",NA,NA
+"Time_zero_Ym","2012-10-01","Normal",284,"0.7%",NA,NA
+"Time_zero_Ym","2012-11-01","Normal",316,"0.8%",NA,NA
+"Time_zero_Ym","2012-12-01","Normal",336,"0.8%",NA,NA
+"Time_zero_Ym","2013-01-01","Normal",316,"0.8%",NA,NA
+"Time_zero_Ym","2013-02-01","Normal",256,"0.6%",NA,NA
+"Time_zero_Ym","2013-03-01","Normal",287,"0.7%",NA,NA
+"Time_zero_Ym","2013-04-01","Normal",280,"0.7%",NA,NA
+"Time_zero_Ym","2013-05-01","Normal",301,"0.8%",NA,NA
+"Time_zero_Ym","2013-06-01","Normal",424,"1.1%",NA,NA
+"Time_zero_Ym","2013-06-28","Normal",1,"0.0%",NA,NA
+"Time_zero_Ym","2013-07-01","Normal",300,"0.8%",NA,NA
+"Time_zero_Ym","2013-08-01","Normal",293,"0.7%",NA,NA
+"Time_zero_Ym","2013-09-01","Normal",283,"0.7%",NA,NA
+"Time_zero_Ym","2013-10-01","Normal",268,"0.7%",NA,NA
+"Time_zero_Ym","2013-11-01","Normal",313,"0.8%",NA,NA
+"Time_zero_Ym","2013-12-01","Normal",314,"0.8%",NA,NA
+"Time_zero_Ym","2014-01-01","Normal",316,"0.8%",NA,NA
+"Time_zero_Ym","2014-02-01","Normal",261,"0.7%",NA,NA
+"Time_zero_Ym","2014-03-01","Normal",328,"0.8%",NA,NA
+"Time_zero_Ym","2014-04-01","Normal",286,"0.7%",NA,NA
+"Time_zero_Ym","2014-05-01","Normal",269,"0.7%",NA,NA
+"Time_zero_Ym","2014-06-01","Normal",283,"0.7%",NA,NA
+"Time_zero_Ym","2014-07-01","Normal",286,"0.7%",NA,NA
+"Time_zero_Ym","2014-08-01","Normal",256,"0.6%",NA,NA
+"Time_zero_Ym","2014-09-01","Normal",229,"0.6%",NA,NA
+"Time_zero_Ym","2014-10-01","Normal",311,"0.8%",NA,NA
+"Time_zero_Ym","2014-11-01","Normal",281,"0.7%",NA,NA
+"Time_zero_Ym","2014-12-01","Normal",316,"0.8%",NA,NA
+"Time_zero_Ym","2015-01-01","Normal",293,"0.7%",NA,NA
+"Time_zero_Ym","2015-02-01","Normal",271,"0.7%",NA,NA
+"Time_zero_Ym","2015-03-01","Normal",295,"0.7%",NA,NA
+"Time_zero_Ym","2015-04-01","Normal",257,"0.6%",NA,NA
+"Time_zero_Ym","2015-05-01","Normal",284,"0.7%",NA,NA
+"Time_zero_Ym","2015-06-01","Normal",279,"0.7%",NA,NA
+"Time_zero_Ym","2015-07-01","Normal",373,"0.9%",NA,NA
+"Time_zero_Ym","2015-08-01","Normal",283,"0.7%",NA,NA
+"Time_zero_Ym","2015-09-01","Normal",267,"0.7%",NA,NA
+"Time_zero_Ym","2015-10-01","Normal",274,"0.7%",NA,NA
+"Time_zero_Ym","2015-11-01","Normal",285,"0.7%",NA,NA
+"Time_zero_Ym","2015-12-01","Normal",298,"0.7%",NA,NA
+"Time_zero_Ym","2016-01-01","Normal",290,"0.7%",NA,NA
+"Time_zero_Ym","2016-02-01","Normal",268,"0.7%",NA,NA
+"Time_zero_Ym","2016-03-01","Normal",314,"0.8%",NA,NA
+"Time_zero_Ym","2016-04-01","Normal",289,"0.7%",NA,NA
+"Time_zero_Ym","2016-05-01","Normal",310,"0.8%",NA,NA
+"Time_zero_Ym","2016-06-01","Normal",258,"0.6%",NA,NA
+"Time_zero_Ym","2016-07-01","Normal",276,"0.7%",NA,NA
+"Time_zero_Ym","2016-08-01","Normal",278,"0.7%",NA,NA
+"Time_zero_Ym","2016-09-01","Normal",236,"0.6%",NA,NA
+"Time_zero_Ym","2016-10-01","Normal",252,"0.6%",NA,NA
+"Time_zero_Ym","2016-11-01","Normal",284,"0.7%",NA,NA
+"Time_zero_Ym","2016-12-01","Normal",328,"0.8%",NA,NA
+"Time_zero_Ym","2017-01-01","Normal",316,"0.8%",NA,NA
+"Time_zero_Ym","2017-02-01","Normal",260,"0.7%",NA,NA
+"Time_zero_Ym","2017-03-01","Normal",256,"0.6%",NA,NA
+"Time_zero_Ym","2017-04-01","Normal",271,"0.7%",NA,NA
+"Time_zero_Ym","2017-05-01","Normal",291,"0.7%",NA,NA
+"Time_zero_Ym","2017-06-01","Normal",277,"0.7%",NA,NA
+"Time_zero_Ym","2017-07-01","Normal",291,"0.7%",NA,NA
+"Time_zero_Ym","2017-08-01","Normal",244,"0.6%",NA,NA
+"Time_zero_Ym","2017-09-01","Normal",283,"0.7%",NA,NA
+"Time_zero_Ym","2017-10-01","Normal",290,"0.7%",NA,NA
+"Time_zero_Ym","2017-11-01","Normal",255,"0.6%",NA,NA
+"Time_zero_Ym","2017-12-01","Normal",286,"0.7%",NA,NA
+"Time_zero_Ym","2018-01-01","Normal",4,"0.0%",NA,NA
+"Time_zero_Ym","2018-02-01","Normal",1,"0.0%",NA,NA
+"Time_zero_Ym","2018-03-01","Normal",1,"0.0%",NA,NA
+"Time_zero_Ym","2018-05-01","Normal",1,"0.0%",NA,NA
+"Time_zero_Ym","2018-06-01","Normal",2,"0.0%",NA,NA
+"Time_zero_Ym","2018-09-01","Normal",1,"0.0%",NA,NA
+"Time_zero_Ym","2018-10-01","Normal",2,"0.0%",NA,NA
+"Time_zero_Ym","2018-11-01","Normal",2,"0.0%",NA,NA
+"Time_zero_Ym","2019-01-01","Normal",2,"0.0%",NA,NA
+"Time_zero_Ym","2019-02-01","Normal",2,"0.0%",NA,NA
+"Time_zero_Ym","2019-04-01","Normal",2,"0.0%",NA,NA
+"Time_zero_Ym","2019-07-01","Normal",1,"0.0%",NA,NA
+"Time_zero_Ym","2019-08-01","Normal",1,"0.0%",NA,NA
+"Time_zero_Ym","2019-10-01","Normal",1,"0.0%",NA,NA
+"Time_zero_Ym","2019-12-01","Normal",2,"0.0%",NA,NA
+"Time_zero_Ym","2020-01-01","Normal",1,"0.0%",NA,NA
+"ACE_inhibitor","No","Overweight",18719,"35.9%",8.67e-09,1.44e-08
+"ACE_inhibitor","Yes","Overweight",32241,"61.8%",8.67e-09,1.44e-08
+"ACE_inhibitor",NA,"Overweight",1193,"2.3%",8.67e-09,1.44e-08
+"ACE_inhibitor_ARB","No","Overweight",10053,"19.3%",2.86e-164,1.08e-163
+"ACE_inhibitor_ARB","Yes","Overweight",41764,"80.1%",2.86e-164,1.08e-163
+"ACE_inhibitor_ARB",NA,"Overweight",336,"0.6%",2.86e-164,1.08e-163
+"AF_atrial_flutter","No","Overweight",43152,"82.7%",3.24e-20,7.15e-20
+"AF_atrial_flutter","Yes","Overweight",6004,"11.5%",3.24e-20,7.15e-20
+"AF_atrial_flutter",NA,"Overweight",2997,"5.7%",3.24e-20,7.15e-20
+"ARB","No","Overweight",40533,"77.7%",3.38e-192,1.49e-191
+"ARB","Yes","Overweight",8866,"17.0%",3.38e-192,1.49e-191
+"ARB",NA,"Overweight",2754,"5.3%",3.38e-192,1.49e-191
+"AV_block","No","Overweight",2526,"4.8%",0.13,0.146
+"AV_block","Yes","Overweight",313,"0.6%",0.13,0.146
+"AV_block",NA,"Overweight",49314,"94.6%",0.13,0.146
+"AV_block_II_or_III","No","Overweight",2790,"5.3%",0.839,0.839
+"AV_block_II_or_III","Yes","Overweight",4,"0.0%",0.839,0.839
+"AV_block_II_or_III",NA,"Overweight",49359,"94.6%",0.839,0.839
+"Alcohol","No","Overweight",754,"1.4%",0.00104,0.00138
+"Alcohol","Yes","Overweight",1583,"3.0%",0.00104,0.00138
+"Alcohol",NA,"Overweight",49816,"95.5%",0.00104,0.00138
+"Aldosterone_antagonist","No","Overweight",27105,"52.0%",3.46e-15,6.79e-15
+"Aldosterone_antagonist","Yes","Overweight",2053,"3.9%",3.46e-15,6.79e-15
+"Aldosterone_antagonist",NA,"Overweight",22995,"44.1%",3.46e-15,6.79e-15
+"Anti_anginal","No","Overweight",42113,"80.7%",1.61e-09,2.75e-09
+"Anti_anginal","Yes","Overweight",5335,"10.2%",1.61e-09,2.75e-09
+"Anti_anginal",NA,"Overweight",4705,"9.0%",1.61e-09,2.75e-09
+"Anti_arrhythmic_III","No","Overweight",5615,"10.8%",0.05,0.0616
+"Anti_arrhythmic_III","Yes","Overweight",190,"0.4%",0.05,0.0616
+"Anti_arrhythmic_III",NA,"Overweight",46348,"88.9%",0.05,0.0616
+"Anti_coagulant","No","Overweight",43106,"82.7%",1.13e-06,1.66e-06
+"Anti_coagulant","Yes","Overweight",4531,"8.7%",1.13e-06,1.66e-06
+"Anti_coagulant",NA,"Overweight",4516,"8.7%",1.13e-06,1.66e-06
+"Anti_diabetic","No","Overweight",42996,"82.4%",0,0
+"Anti_diabetic","Yes","Overweight",7668,"14.7%",0,0
+"Anti_diabetic",NA,"Overweight",1489,"2.9%",0,0
+"Anti_diabetic_insulin","No","Overweight",46646,"89.4%",0,0
+"Anti_diabetic_insulin","Yes","Overweight",4089,"7.8%",0,0
+"Anti_diabetic_insulin",NA,"Overweight",1418,"2.7%",0,0
+"Anti_diabetic_oral","No","Overweight",45527,"87.3%",0,0
+"Anti_diabetic_oral","Yes","Overweight",5194,"10.0%",0,0
+"Anti_diabetic_oral",NA,"Overweight",1432,"2.7%",0,0
+"Anti_platelet","No","Overweight",1885,"3.6%",2.75e-28,6.63e-28
+"Anti_platelet","Yes","Overweight",48135,"92.3%",2.75e-28,6.63e-28
+"Anti_platelet",NA,"Overweight",2133,"4.1%",2.75e-28,6.63e-28
+"Baseline_type","MI","Overweight",47604,"91.3%",0,0
+"Baseline_type","MI40d","Overweight",2880,"5.5%",0,0
+"Baseline_type",NA,"Overweight",1669,"3.2%",0,0
+"Beta_blockers","No","Overweight",5599,"10.7%",2.61e-34,6.92e-34
+"Beta_blockers","Yes","Overweight",46411,"89.0%",2.61e-34,6.92e-34
+"Beta_blockers",NA,"Overweight",143,"0.3%",2.61e-34,6.92e-34
+"CABG","No","Overweight",45228,"86.7%",3.76e-34,9.5e-34
+"CABG","Yes","Overweight",4196,"8.0%",3.76e-34,9.5e-34
+"CABG",NA,"Overweight",2729,"5.2%",3.76e-34,9.5e-34
+"CABG_acute","No","Overweight",31387,"60.2%",0.676,0.703
+"CABG_acute","Yes","Overweight",212,"0.4%",0.676,0.703
+"CABG_acute",NA,"Overweight",20554,"39.4%",0.676,0.703
+"COPD","No","Overweight",5166,"9.9%",1.54e-14,2.92e-14
+"COPD","Yes","Overweight",354,"0.7%",1.54e-14,2.92e-14
+"COPD",NA,"Overweight",46633,"89.4%",1.54e-14,2.92e-14
+"CVD_risk_region","1","Overweight",530,"1.0%",1.05e-292,6.96e-292
+"CVD_risk_region","2","Overweight",46659,"89.5%",1.05e-292,6.96e-292
+"CVD_risk_region","3","Overweight",4572,"8.8%",1.05e-292,6.96e-292
+"CVD_risk_region","4","Overweight",392,"0.8%",1.05e-292,6.96e-292
+"Calcium_antagonists","No","Overweight",40115,"76.9%",9.66e-149,3.41e-148
+"Calcium_antagonists","Yes","Overweight",7373,"14.1%",9.66e-149,3.41e-148
+"Calcium_antagonists",NA,"Overweight",4665,"8.9%",9.66e-149,3.41e-148
+"Cancer","No","Overweight",288,"0.6%",0.612,0.662
+"Cancer","Yes","Overweight",1,"0.0%",0.612,0.662
+"Cancer",NA,"Overweight",51864,"99.4%",0.612,0.662
+"Diabetes","No","Overweight",40987,"78.6%",0,0
+"Diabetes","Yes","Overweight",11016,"21.1%",0,0
+"Diabetes",NA,"Overweight",150,"0.3%",0,0
+"Digitalis_glycosides","No","Overweight",48074,"92.2%",9.89e-19,2.02e-18
+"Digitalis_glycosides","Yes","Overweight",831,"1.6%",9.89e-19,2.02e-18
+"Digitalis_glycosides",NA,"Overweight",3248,"6.2%",9.89e-19,2.02e-18
+"Diseased_arteries_num_cat","0","Overweight",200,"0.4%",0.000863,0.00117
+"Diseased_arteries_num_cat","1","Overweight",642,"1.2%",0.000863,0.00117
+"Diseased_arteries_num_cat","2","Overweight",547,"1.0%",0.000863,0.00117
+"Diseased_arteries_num_cat","geq3","Overweight",658,"1.3%",0.000863,0.00117
+"Diseased_arteries_num_cat",NA,"Overweight",50106,"96.1%",0.000863,0.00117
+"Diuretics","No","Overweight",38799,"74.4%",1.46e-247,8.59999999999999e-247
+"Diuretics","Yes","Overweight",13131,"25.2%",1.46e-247,8.59999999999999e-247
+"Diuretics",NA,"Overweight",223,"0.4%",1.46e-247,8.59999999999999e-247
+"FH_CAD","No","Overweight",1148,"2.2%",1.05e-09,1.86e-09
+"FH_CAD","Yes","Overweight",1104,"2.1%",1.05e-09,1.86e-09
+"FH_CAD",NA,"Overweight",49901,"95.7%",1.05e-09,1.86e-09
+"FH_SCD","No","Overweight",1585,"3.0%",0.0195,0.0252
+"FH_SCD","Yes","Overweight",480,"0.9%",0.0195,0.0252
+"FH_SCD",NA,"Overweight",50088,"96.0%",0.0195,0.0252
+"HF","No","Overweight",42758,"82.0%",1.47e-26,3.4e-26
+"HF","Yes","Overweight",2746,"5.3%",1.47e-26,3.4e-26
+"HF",NA,"Overweight",6649,"12.7%",1.47e-26,3.4e-26
+"HasMRI","No","Overweight",51552,"98.8%",9.24e-06,1.32e-05
+"HasMRI","Yes","Overweight",601,"1.2%",9.24e-06,1.32e-05
+"Hypertension","No","Overweight",24991,"47.9%",0,0
+"Hypertension","Yes","Overweight",25855,"49.6%",0,0
+"Hypertension",NA,"Overweight",1307,"2.5%",0,0
+"IsSWHR","0","Overweight",4496,"8.6%",4.11e-207,1.98e-206
+"IsSWHR","1","Overweight",45988,"88.2%",4.11e-207,1.98e-206
+"IsSWHR",NA,"Overweight",1669,"3.2%",4.11e-207,1.98e-206
+"LBBB","No","Overweight",46709,"89.6%",1.52e-05,2.11e-05
+"LBBB","Yes","Overweight",2317,"4.4%",1.52e-05,2.11e-05
+"LBBB",NA,"Overweight",3127,"6.0%",1.52e-05,2.11e-05
+"Lipid_lowering","No","Overweight",3934,"7.5%",3.26e-240,1.73e-239
+"Lipid_lowering","Yes","Overweight",47999,"92.0%",3.26e-240,1.73e-239
+"Lipid_lowering",NA,"Overweight",220,"0.4%",3.26e-240,1.73e-239
+"MI_history","No","Overweight",38728,"74.3%",3.41e-07,5.32e-07
+"MI_history","Yes","Overweight",8836,"16.9%",3.41e-07,5.32e-07
+"MI_history",NA,"Overweight",4589,"8.8%",3.41e-07,5.32e-07
+"MI_location_anterior","No","Overweight",2462,"4.7%",5.42e-07,8.2e-07
+"MI_location_anterior","Yes","Overweight",1417,"2.7%",5.42e-07,8.2e-07
+"MI_location_anterior",NA,"Overweight",48274,"92.6%",5.42e-07,8.2e-07
+"MI_location_inferior","No","Overweight",2185,"4.2%",0.0649,0.0764
+"MI_location_inferior","Yes","Overweight",1694,"3.2%",0.0649,0.0764
+"MI_location_inferior",NA,"Overweight",48274,"92.6%",0.0649,0.0764
+"MI_location_lateral","No","Overweight",3235,"6.2%",0.639,0.678
+"MI_location_lateral","Yes","Overweight",471,"0.9%",0.639,0.678
+"MI_location_lateral",NA,"Overweight",48447,"92.9%",0.639,0.678
+"MI_location_posterior","No","Overweight",2094,"4.0%",0.0247,0.0311
+"MI_location_posterior","Yes","Overweight",111,"0.2%",0.0247,0.0311
+"MI_location_posterior",NA,"Overweight",49948,"95.8%",0.0247,0.0311
+"MI_type","NSTEMI","Overweight",31373,"60.2%",1.71e-19,3.63e-19
+"MI_type","STEMI","Overweight",14863,"28.5%",1.71e-19,3.63e-19
+"MI_type",NA,"Overweight",5917,"11.3%",1.71e-19,3.63e-19
+"MR","Moderate","Overweight",102,"0.2%",0.0886,0.102
+"MR","None or mild","Overweight",860,"1.6%",0.0886,0.102
+"MR","Severe","Overweight",19,"0.0%",0.0886,0.102
+"MR",NA,"Overweight",51172,"98.1%",0.0886,0.102
+"NSVT","No","Overweight",299,"0.6%",0.0609,0.0733
+"NSVT","Yes","Overweight",48,"0.1%",0.0609,0.0733
+"NSVT",NA,"Overweight",51806,"99.3%",0.0609,0.0733
+"NYHA","I","Overweight",2457,"4.7%",2.21e-07,3.55e-07
+"NYHA","II","Overweight",1395,"2.7%",2.21e-07,3.55e-07
+"NYHA","III","Overweight",534,"1.0%",2.21e-07,3.55e-07
+"NYHA","IV","Overweight",53,"0.1%",2.21e-07,3.55e-07
+"NYHA",NA,"Overweight",47714,"91.5%",2.21e-07,3.55e-07
+"PCI","No","Overweight",40815,"78.3%",1.74e-175,7.08e-175
+"PCI","Yes","Overweight",8034,"15.4%",1.74e-175,7.08e-175
+"PCI",NA,"Overweight",3304,"6.3%",1.74e-175,7.08e-175
+"PCI_acute","No","Overweight",30814,"59.1%",8.41e-41,2.34e-40
+"PCI_acute","Yes","Overweight",16934,"32.5%",8.41e-41,2.34e-40
+"PCI_acute",NA,"Overweight",4405,"8.4%",8.41e-41,2.34e-40
+"RBBB","No","Overweight",45964,"88.1%",0.808,0.823
+"RBBB","Yes","Overweight",2106,"4.0%",0.808,0.823
+"RBBB",NA,"Overweight",4083,"7.8%",0.808,0.823
+"Revascularisation_acute","No","Overweight",29974,"57.5%",4.27e-43,1.26e-42
+"Revascularisation_acute","Yes","Overweight",17774,"34.1%",4.27e-43,1.26e-42
+"Revascularisation_acute",NA,"Overweight",4405,"8.4%",4.27e-43,1.26e-42
+"Sex","Female","Overweight",13283,"25.5%",0,0
+"Sex","Male","Overweight",38870,"74.5%",0,0
+"Smoking","No","Overweight",19934,"38.2%",4.99e-66,1.65e-65
+"Smoking","Yes","Overweight",29662,"56.9%",4.99e-66,1.65e-65
+"Smoking",NA,"Overweight",2557,"4.9%",4.99e-66,1.65e-65
+"Stroke_TIA","No","Overweight",45619,"87.5%",2.99e-12,5.46e-12
+"Stroke_TIA","Yes","Overweight",3168,"6.1%",2.99e-12,5.46e-12
+"Stroke_TIA",NA,"Overweight",3366,"6.5%",2.99e-12,5.46e-12
+"Thrombolysis_acute","No","Overweight",46851,"89.8%",0.546,0.603
+"Thrombolysis_acute","Yes","Overweight",649,"1.2%",0.546,0.603
+"Thrombolysis_acute",NA,"Overweight",4653,"8.9%",0.546,0.603
+"Time_zero_Y","1994","Overweight",1,"0.0%",3.2e-44,9.97e-44
+"Time_zero_Y","1995","Overweight",86,"0.2%",3.2e-44,9.97e-44
+"Time_zero_Y","1996","Overweight",107,"0.2%",3.2e-44,9.97e-44
+"Time_zero_Y","1997","Overweight",191,"0.4%",3.2e-44,9.97e-44
+"Time_zero_Y","1998","Overweight",279,"0.5%",3.2e-44,9.97e-44
+"Time_zero_Y","1999","Overweight",288,"0.6%",3.2e-44,9.97e-44
+"Time_zero_Y","2000","Overweight",365,"0.7%",3.2e-44,9.97e-44
+"Time_zero_Y","2001","Overweight",271,"0.5%",3.2e-44,9.97e-44
+"Time_zero_Y","2002","Overweight",158,"0.3%",3.2e-44,9.97e-44
+"Time_zero_Y","2003","Overweight",159,"0.3%",3.2e-44,9.97e-44
+"Time_zero_Y","2004","Overweight",52,"0.1%",3.2e-44,9.97e-44
+"Time_zero_Y","2005","Overweight",42,"0.1%",3.2e-44,9.97e-44
+"Time_zero_Y","2006","Overweight",2539,"4.9%",3.2e-44,9.97e-44
+"Time_zero_Y","2007","Overweight",3173,"6.1%",3.2e-44,9.97e-44
+"Time_zero_Y","2008","Overweight",3321,"6.4%",3.2e-44,9.97e-44
+"Time_zero_Y","2009","Overweight",3344,"6.4%",3.2e-44,9.97e-44
+"Time_zero_Y","2010","Overweight",4402,"8.4%",3.2e-44,9.97e-44
+"Time_zero_Y","2011","Overweight",4979,"9.5%",3.2e-44,9.97e-44
+"Time_zero_Y","2012","Overweight",5489,"10.5%",3.2e-44,9.97e-44
+"Time_zero_Y","2013","Overweight",4812,"9.2%",3.2e-44,9.97e-44
+"Time_zero_Y","2014","Overweight",4389,"8.4%",3.2e-44,9.97e-44
+"Time_zero_Y","2015","Overweight",4479,"8.6%",3.2e-44,9.97e-44
+"Time_zero_Y","2016","Overweight",4548,"8.7%",3.2e-44,9.97e-44
+"Time_zero_Y","2017","Overweight",4634,"8.9%",3.2e-44,9.97e-44
+"Time_zero_Y","2018","Overweight",27,"0.1%",3.2e-44,9.97e-44
+"Time_zero_Y","2019","Overweight",17,"0.0%",3.2e-44,9.97e-44
+"Time_zero_Y","2020","Overweight",1,"0.0%",3.2e-44,9.97e-44
+"Time_zero_Ym","1994-12-01","Overweight",1,"0.0%",NA,NA
+"Time_zero_Ym","1995-01-01","Overweight",3,"0.0%",NA,NA
+"Time_zero_Ym","1995-02-01","Overweight",4,"0.0%",NA,NA
+"Time_zero_Ym","1995-03-01","Overweight",4,"0.0%",NA,NA
+"Time_zero_Ym","1995-04-01","Overweight",4,"0.0%",NA,NA
+"Time_zero_Ym","1995-05-01","Overweight",6,"0.0%",NA,NA
+"Time_zero_Ym","1995-06-01","Overweight",10,"0.0%",NA,NA
+"Time_zero_Ym","1995-07-01","Overweight",7,"0.0%",NA,NA
+"Time_zero_Ym","1995-08-01","Overweight",11,"0.0%",NA,NA
+"Time_zero_Ym","1995-09-01","Overweight",10,"0.0%",NA,NA
+"Time_zero_Ym","1995-10-01","Overweight",11,"0.0%",NA,NA
+"Time_zero_Ym","1995-11-01","Overweight",7,"0.0%",NA,NA
+"Time_zero_Ym","1995-12-01","Overweight",9,"0.0%",NA,NA
+"Time_zero_Ym","1996-01-01","Overweight",5,"0.0%",NA,NA
+"Time_zero_Ym","1996-02-01","Overweight",11,"0.0%",NA,NA
+"Time_zero_Ym","1996-03-01","Overweight",5,"0.0%",NA,NA
+"Time_zero_Ym","1996-04-01","Overweight",4,"0.0%",NA,NA
+"Time_zero_Ym","1996-05-01","Overweight",8,"0.0%",NA,NA
+"Time_zero_Ym","1996-06-01","Overweight",6,"0.0%",NA,NA
+"Time_zero_Ym","1996-07-01","Overweight",14,"0.0%",NA,NA
+"Time_zero_Ym","1996-08-01","Overweight",10,"0.0%",NA,NA
+"Time_zero_Ym","1996-09-01","Overweight",9,"0.0%",NA,NA
+"Time_zero_Ym","1996-10-01","Overweight",10,"0.0%",NA,NA
+"Time_zero_Ym","1996-11-01","Overweight",13,"0.0%",NA,NA
+"Time_zero_Ym","1996-12-01","Overweight",12,"0.0%",NA,NA
+"Time_zero_Ym","1997-01-01","Overweight",16,"0.0%",NA,NA
+"Time_zero_Ym","1997-02-01","Overweight",14,"0.0%",NA,NA
+"Time_zero_Ym","1997-03-01","Overweight",12,"0.0%",NA,NA
+"Time_zero_Ym","1997-04-01","Overweight",10,"0.0%",NA,NA
+"Time_zero_Ym","1997-05-01","Overweight",14,"0.0%",NA,NA
+"Time_zero_Ym","1997-06-01","Overweight",16,"0.0%",NA,NA
+"Time_zero_Ym","1997-07-01","Overweight",21,"0.0%",NA,NA
+"Time_zero_Ym","1997-08-01","Overweight",25,"0.0%",NA,NA
+"Time_zero_Ym","1997-09-01","Overweight",14,"0.0%",NA,NA
+"Time_zero_Ym","1997-10-01","Overweight",15,"0.0%",NA,NA
+"Time_zero_Ym","1997-11-01","Overweight",16,"0.0%",NA,NA
+"Time_zero_Ym","1997-12-01","Overweight",18,"0.0%",NA,NA
+"Time_zero_Ym","1998-01-01","Overweight",18,"0.0%",NA,NA
+"Time_zero_Ym","1998-02-01","Overweight",16,"0.0%",NA,NA
+"Time_zero_Ym","1998-03-01","Overweight",16,"0.0%",NA,NA
+"Time_zero_Ym","1998-04-01","Overweight",8,"0.0%",NA,NA
+"Time_zero_Ym","1998-05-01","Overweight",12,"0.0%",NA,NA
+"Time_zero_Ym","1998-06-01","Overweight",18,"0.0%",NA,NA
+"Time_zero_Ym","1998-07-01","Overweight",103,"0.2%",NA,NA
+"Time_zero_Ym","1998-08-01","Overweight",21,"0.0%",NA,NA
+"Time_zero_Ym","1998-09-01","Overweight",21,"0.0%",NA,NA
+"Time_zero_Ym","1998-10-01","Overweight",14,"0.0%",NA,NA
+"Time_zero_Ym","1998-11-01","Overweight",15,"0.0%",NA,NA
+"Time_zero_Ym","1998-12-01","Overweight",17,"0.0%",NA,NA
+"Time_zero_Ym","1999-01-01","Overweight",22,"0.0%",NA,NA
+"Time_zero_Ym","1999-02-01","Overweight",16,"0.0%",NA,NA
+"Time_zero_Ym","1999-03-01","Overweight",23,"0.0%",NA,NA
+"Time_zero_Ym","1999-04-01","Overweight",11,"0.0%",NA,NA
+"Time_zero_Ym","1999-05-01","Overweight",16,"0.0%",NA,NA
+"Time_zero_Ym","1999-06-01","Overweight",21,"0.0%",NA,NA
+"Time_zero_Ym","1999-07-01","Overweight",102,"0.2%",NA,NA
+"Time_zero_Ym","1999-08-01","Overweight",14,"0.0%",NA,NA
+"Time_zero_Ym","1999-09-01","Overweight",17,"0.0%",NA,NA
+"Time_zero_Ym","1999-10-01","Overweight",14,"0.0%",NA,NA
+"Time_zero_Ym","1999-11-01","Overweight",20,"0.0%",NA,NA
+"Time_zero_Ym","1999-12-01","Overweight",12,"0.0%",NA,NA
+"Time_zero_Ym","2000-01-01","Overweight",24,"0.0%",NA,NA
+"Time_zero_Ym","2000-02-01","Overweight",22,"0.0%",NA,NA
+"Time_zero_Ym","2000-03-01","Overweight",15,"0.0%",NA,NA
+"Time_zero_Ym","2000-04-01","Overweight",16,"0.0%",NA,NA
+"Time_zero_Ym","2000-05-01","Overweight",17,"0.0%",NA,NA
+"Time_zero_Ym","2000-06-01","Overweight",21,"0.0%",NA,NA
+"Time_zero_Ym","2000-07-01","Overweight",153,"0.3%",NA,NA
+"Time_zero_Ym","2000-08-01","Overweight",20,"0.0%",NA,NA
+"Time_zero_Ym","2000-09-01","Overweight",14,"0.0%",NA,NA
+"Time_zero_Ym","2000-10-01","Overweight",22,"0.0%",NA,NA
+"Time_zero_Ym","2000-11-01","Overweight",22,"0.0%",NA,NA
+"Time_zero_Ym","2000-12-01","Overweight",19,"0.0%",NA,NA
+"Time_zero_Ym","2001-01-01","Overweight",16,"0.0%",NA,NA
+"Time_zero_Ym","2001-02-01","Overweight",9,"0.0%",NA,NA
+"Time_zero_Ym","2001-03-01","Overweight",12,"0.0%",NA,NA
+"Time_zero_Ym","2001-04-01","Overweight",18,"0.0%",NA,NA
+"Time_zero_Ym","2001-05-01","Overweight",19,"0.0%",NA,NA
+"Time_zero_Ym","2001-06-01","Overweight",20,"0.0%",NA,NA
+"Time_zero_Ym","2001-07-01","Overweight",105,"0.2%",NA,NA
+"Time_zero_Ym","2001-08-01","Overweight",20,"0.0%",NA,NA
+"Time_zero_Ym","2001-09-01","Overweight",8,"0.0%",NA,NA
+"Time_zero_Ym","2001-10-01","Overweight",14,"0.0%",NA,NA
+"Time_zero_Ym","2001-11-01","Overweight",17,"0.0%",NA,NA
+"Time_zero_Ym","2001-12-01","Overweight",13,"0.0%",NA,NA
+"Time_zero_Ym","2002-01-01","Overweight",16,"0.0%",NA,NA
+"Time_zero_Ym","2002-02-01","Overweight",13,"0.0%",NA,NA
+"Time_zero_Ym","2002-03-01","Overweight",15,"0.0%",NA,NA
+"Time_zero_Ym","2002-04-01","Overweight",17,"0.0%",NA,NA
+"Time_zero_Ym","2002-05-01","Overweight",13,"0.0%",NA,NA
+"Time_zero_Ym","2002-06-01","Overweight",15,"0.0%",NA,NA
+"Time_zero_Ym","2002-07-01","Overweight",15,"0.0%",NA,NA
+"Time_zero_Ym","2002-08-01","Overweight",8,"0.0%",NA,NA
+"Time_zero_Ym","2002-09-01","Overweight",14,"0.0%",NA,NA
+"Time_zero_Ym","2002-10-01","Overweight",12,"0.0%",NA,NA
+"Time_zero_Ym","2002-11-01","Overweight",8,"0.0%",NA,NA
+"Time_zero_Ym","2002-12-01","Overweight",12,"0.0%",NA,NA
+"Time_zero_Ym","2003-01-01","Overweight",11,"0.0%",NA,NA
+"Time_zero_Ym","2003-02-01","Overweight",15,"0.0%",NA,NA
+"Time_zero_Ym","2003-03-01","Overweight",10,"0.0%",NA,NA
+"Time_zero_Ym","2003-04-01","Overweight",15,"0.0%",NA,NA
+"Time_zero_Ym","2003-05-01","Overweight",15,"0.0%",NA,NA
+"Time_zero_Ym","2003-06-01","Overweight",22,"0.0%",NA,NA
+"Time_zero_Ym","2003-07-01","Overweight",12,"0.0%",NA,NA
+"Time_zero_Ym","2003-08-01","Overweight",15,"0.0%",NA,NA
+"Time_zero_Ym","2003-09-01","Overweight",13,"0.0%",NA,NA
+"Time_zero_Ym","2003-10-01","Overweight",13,"0.0%",NA,NA
+"Time_zero_Ym","2003-11-01","Overweight",12,"0.0%",NA,NA
+"Time_zero_Ym","2003-12-01","Overweight",6,"0.0%",NA,NA
+"Time_zero_Ym","2004-01-01","Overweight",11,"0.0%",NA,NA
+"Time_zero_Ym","2004-02-01","Overweight",6,"0.0%",NA,NA
+"Time_zero_Ym","2004-03-01","Overweight",4,"0.0%",NA,NA
+"Time_zero_Ym","2004-04-01","Overweight",11,"0.0%",NA,NA
+"Time_zero_Ym","2004-05-01","Overweight",6,"0.0%",NA,NA
+"Time_zero_Ym","2004-06-01","Overweight",2,"0.0%",NA,NA
+"Time_zero_Ym","2004-07-01","Overweight",2,"0.0%",NA,NA
+"Time_zero_Ym","2004-08-01","Overweight",3,"0.0%",NA,NA
+"Time_zero_Ym","2004-09-01","Overweight",2,"0.0%",NA,NA
+"Time_zero_Ym","2004-10-01","Overweight",1,"0.0%",NA,NA
+"Time_zero_Ym","2004-11-01","Overweight",1,"0.0%",NA,NA
+"Time_zero_Ym","2004-12-01","Overweight",3,"0.0%",NA,NA
+"Time_zero_Ym","2005-01-01","Overweight",13,"0.0%",NA,NA
+"Time_zero_Ym","2005-02-01","Overweight",4,"0.0%",NA,NA
+"Time_zero_Ym","2005-03-01","Overweight",2,"0.0%",NA,NA
+"Time_zero_Ym","2005-04-01","Overweight",3,"0.0%",NA,NA
+"Time_zero_Ym","2005-05-01","Overweight",1,"0.0%",NA,NA
+"Time_zero_Ym","2005-06-01","Overweight",1,"0.0%",NA,NA
+"Time_zero_Ym","2005-07-01","Overweight",3,"0.0%",NA,NA
+"Time_zero_Ym","2005-08-01","Overweight",1,"0.0%",NA,NA
+"Time_zero_Ym","2005-09-01","Overweight",4,"0.0%",NA,NA
+"Time_zero_Ym","2005-10-01","Overweight",2,"0.0%",NA,NA
+"Time_zero_Ym","2005-11-01","Overweight",4,"0.0%",NA,NA
+"Time_zero_Ym","2005-12-01","Overweight",4,"0.0%",NA,NA
+"Time_zero_Ym","2006-01-01","Overweight",11,"0.0%",NA,NA
+"Time_zero_Ym","2006-02-01","Overweight",135,"0.3%",NA,NA
+"Time_zero_Ym","2006-03-01","Overweight",217,"0.4%",NA,NA
+"Time_zero_Ym","2006-04-01","Overweight",197,"0.4%",NA,NA
+"Time_zero_Ym","2006-05-01","Overweight",231,"0.4%",NA,NA
+"Time_zero_Ym","2006-06-01","Overweight",212,"0.4%",NA,NA
+"Time_zero_Ym","2006-06-16","Overweight",53,"0.1%",NA,NA
+"Time_zero_Ym","2006-07-01","Overweight",232,"0.4%",NA,NA
+"Time_zero_Ym","2006-08-01","Overweight",214,"0.4%",NA,NA
+"Time_zero_Ym","2006-09-01","Overweight",190,"0.4%",NA,NA
+"Time_zero_Ym","2006-10-01","Overweight",241,"0.5%",NA,NA
+"Time_zero_Ym","2006-11-01","Overweight",221,"0.4%",NA,NA
+"Time_zero_Ym","2006-11-16","Overweight",129,"0.2%",NA,NA
+"Time_zero_Ym","2006-12-01","Overweight",256,"0.5%",NA,NA
+"Time_zero_Ym","2007-01-01","Overweight",239,"0.5%",NA,NA
+"Time_zero_Ym","2007-02-01","Overweight",254,"0.5%",NA,NA
+"Time_zero_Ym","2007-03-01","Overweight",286,"0.5%",NA,NA
+"Time_zero_Ym","2007-04-01","Overweight",289,"0.6%",NA,NA
+"Time_zero_Ym","2007-05-01","Overweight",273,"0.5%",NA,NA
+"Time_zero_Ym","2007-06-01","Overweight",263,"0.5%",NA,NA
+"Time_zero_Ym","2007-07-01","Overweight",270,"0.5%",NA,NA
+"Time_zero_Ym","2007-08-01","Overweight",250,"0.5%",NA,NA
+"Time_zero_Ym","2007-09-01","Overweight",236,"0.5%",NA,NA
+"Time_zero_Ym","2007-10-01","Overweight",255,"0.5%",NA,NA
+"Time_zero_Ym","2007-11-01","Overweight",281,"0.5%",NA,NA
+"Time_zero_Ym","2007-12-01","Overweight",277,"0.5%",NA,NA
+"Time_zero_Ym","2008-01-01","Overweight",296,"0.6%",NA,NA
+"Time_zero_Ym","2008-02-01","Overweight",262,"0.5%",NA,NA
+"Time_zero_Ym","2008-03-01","Overweight",278,"0.5%",NA,NA
+"Time_zero_Ym","2008-04-01","Overweight",281,"0.5%",NA,NA
+"Time_zero_Ym","2008-05-01","Overweight",303,"0.6%",NA,NA
+"Time_zero_Ym","2008-06-01","Overweight",327,"0.6%",NA,NA
+"Time_zero_Ym","2008-07-01","Overweight",248,"0.5%",NA,NA
+"Time_zero_Ym","2008-08-01","Overweight",237,"0.5%",NA,NA
+"Time_zero_Ym","2008-09-01","Overweight",236,"0.5%",NA,NA
+"Time_zero_Ym","2008-10-01","Overweight",301,"0.6%",NA,NA
+"Time_zero_Ym","2008-11-01","Overweight",266,"0.5%",NA,NA
+"Time_zero_Ym","2008-12-01","Overweight",286,"0.5%",NA,NA
+"Time_zero_Ym","2009-01-01","Overweight",270,"0.5%",NA,NA
+"Time_zero_Ym","2009-02-01","Overweight",251,"0.5%",NA,NA
+"Time_zero_Ym","2009-03-01","Overweight",298,"0.6%",NA,NA
+"Time_zero_Ym","2009-04-01","Overweight",271,"0.5%",NA,NA
+"Time_zero_Ym","2009-05-01","Overweight",269,"0.5%",NA,NA
+"Time_zero_Ym","2009-06-01","Overweight",377,"0.7%",NA,NA
+"Time_zero_Ym","2009-07-01","Overweight",241,"0.5%",NA,NA
+"Time_zero_Ym","2009-08-01","Overweight",252,"0.5%",NA,NA
+"Time_zero_Ym","2009-09-01","Overweight",260,"0.5%",NA,NA
+"Time_zero_Ym","2009-10-01","Overweight",282,"0.5%",NA,NA
+"Time_zero_Ym","2009-11-01","Overweight",252,"0.5%",NA,NA
+"Time_zero_Ym","2009-12-01","Overweight",321,"0.6%",NA,NA
+"Time_zero_Ym","2010-01-01","Overweight",306,"0.6%",NA,NA
+"Time_zero_Ym","2010-02-01","Overweight",286,"0.5%",NA,NA
+"Time_zero_Ym","2010-03-01","Overweight",318,"0.6%",NA,NA
+"Time_zero_Ym","2010-04-01","Overweight",356,"0.7%",NA,NA
+"Time_zero_Ym","2010-04-17","Overweight",386,"0.7%",NA,NA
+"Time_zero_Ym","2010-05-01","Overweight",317,"0.6%",NA,NA
+"Time_zero_Ym","2010-06-01","Overweight",396,"0.8%",NA,NA
+"Time_zero_Ym","2010-07-01","Overweight",426,"0.8%",NA,NA
+"Time_zero_Ym","2010-08-01","Overweight",302,"0.6%",NA,NA
+"Time_zero_Ym","2010-09-01","Overweight",284,"0.5%",NA,NA
+"Time_zero_Ym","2010-10-01","Overweight",330,"0.6%",NA,NA
+"Time_zero_Ym","2010-11-01","Overweight",355,"0.7%",NA,NA
+"Time_zero_Ym","2010-12-01","Overweight",340,"0.7%",NA,NA
+"Time_zero_Ym","2011-01-01","Overweight",343,"0.7%",NA,NA
+"Time_zero_Ym","2011-02-01","Overweight",313,"0.6%",NA,NA
+"Time_zero_Ym","2011-03-01","Overweight",364,"0.7%",NA,NA
+"Time_zero_Ym","2011-04-01","Overweight",356,"0.7%",NA,NA
+"Time_zero_Ym","2011-05-01","Overweight",357,"0.7%",NA,NA
+"Time_zero_Ym","2011-06-01","Overweight",1023,"2.0%",NA,NA
+"Time_zero_Ym","2011-07-01","Overweight",479,"0.9%",NA,NA
+"Time_zero_Ym","2011-08-01","Overweight",323,"0.6%",NA,NA
+"Time_zero_Ym","2011-09-01","Overweight",314,"0.6%",NA,NA
+"Time_zero_Ym","2011-10-01","Overweight",363,"0.7%",NA,NA
+"Time_zero_Ym","2011-11-01","Overweight",359,"0.7%",NA,NA
+"Time_zero_Ym","2011-12-01","Overweight",385,"0.7%",NA,NA
+"Time_zero_Ym","2012-01-01","Overweight",423,"0.8%",NA,NA
+"Time_zero_Ym","2012-02-01","Overweight",426,"0.8%",NA,NA
+"Time_zero_Ym","2012-03-01","Overweight",366,"0.7%",NA,NA
+"Time_zero_Ym","2012-04-01","Overweight",376,"0.7%",NA,NA
+"Time_zero_Ym","2012-05-01","Overweight",411,"0.8%",NA,NA
+"Time_zero_Ym","2012-06-01","Overweight",1166,"2.2%",NA,NA
+"Time_zero_Ym","2012-07-01","Overweight",381,"0.7%",NA,NA
+"Time_zero_Ym","2012-08-01","Overweight",352,"0.7%",NA,NA
+"Time_zero_Ym","2012-09-01","Overweight",398,"0.8%",NA,NA
+"Time_zero_Ym","2012-10-01","Overweight",395,"0.8%",NA,NA
+"Time_zero_Ym","2012-11-01","Overweight",412,"0.8%",NA,NA
+"Time_zero_Ym","2012-12-01","Overweight",383,"0.7%",NA,NA
+"Time_zero_Ym","2013-01-01","Overweight",412,"0.8%",NA,NA
+"Time_zero_Ym","2013-02-01","Overweight",341,"0.7%",NA,NA
+"Time_zero_Ym","2013-03-01","Overweight",410,"0.8%",NA,NA
+"Time_zero_Ym","2013-04-01","Overweight",378,"0.7%",NA,NA
+"Time_zero_Ym","2013-05-01","Overweight",377,"0.7%",NA,NA
+"Time_zero_Ym","2013-06-01","Overweight",674,"1.3%",NA,NA
+"Time_zero_Ym","2013-07-01","Overweight",362,"0.7%",NA,NA
+"Time_zero_Ym","2013-08-01","Overweight",368,"0.7%",NA,NA
+"Time_zero_Ym","2013-09-01","Overweight",312,"0.6%",NA,NA
+"Time_zero_Ym","2013-10-01","Overweight",389,"0.7%",NA,NA
+"Time_zero_Ym","2013-11-01","Overweight",407,"0.8%",NA,NA
+"Time_zero_Ym","2013-12-01","Overweight",382,"0.7%",NA,NA
+"Time_zero_Ym","2014-01-01","Overweight",394,"0.8%",NA,NA
+"Time_zero_Ym","2014-02-01","Overweight",345,"0.7%",NA,NA
+"Time_zero_Ym","2014-03-01","Overweight",422,"0.8%",NA,NA
+"Time_zero_Ym","2014-04-01","Overweight",359,"0.7%",NA,NA
+"Time_zero_Ym","2014-05-01","Overweight",379,"0.7%",NA,NA
+"Time_zero_Ym","2014-06-01","Overweight",356,"0.7%",NA,NA
+"Time_zero_Ym","2014-07-01","Overweight",349,"0.7%",NA,NA
+"Time_zero_Ym","2014-08-01","Overweight",355,"0.7%",NA,NA
+"Time_zero_Ym","2014-09-01","Overweight",299,"0.6%",NA,NA
+"Time_zero_Ym","2014-10-01","Overweight",380,"0.7%",NA,NA
+"Time_zero_Ym","2014-11-01","Overweight",368,"0.7%",NA,NA
+"Time_zero_Ym","2014-12-01","Overweight",383,"0.7%",NA,NA
+"Time_zero_Ym","2015-01-01","Overweight",361,"0.7%",NA,NA
+"Time_zero_Ym","2015-02-01","Overweight",346,"0.7%",NA,NA
+"Time_zero_Ym","2015-03-01","Overweight",390,"0.7%",NA,NA
+"Time_zero_Ym","2015-04-01","Overweight",347,"0.7%",NA,NA
+"Time_zero_Ym","2015-05-01","Overweight",429,"0.8%",NA,NA
+"Time_zero_Ym","2015-06-01","Overweight",350,"0.7%",NA,NA
+"Time_zero_Ym","2015-07-01","Overweight",477,"0.9%",NA,NA
+"Time_zero_Ym","2015-08-01","Overweight",335,"0.6%",NA,NA
+"Time_zero_Ym","2015-09-01","Overweight",362,"0.7%",NA,NA
+"Time_zero_Ym","2015-10-01","Overweight",357,"0.7%",NA,NA
+"Time_zero_Ym","2015-11-01","Overweight",365,"0.7%",NA,NA
+"Time_zero_Ym","2015-12-01","Overweight",360,"0.7%",NA,NA
+"Time_zero_Ym","2016-01-01","Overweight",425,"0.8%",NA,NA
+"Time_zero_Ym","2016-02-01","Overweight",390,"0.7%",NA,NA
+"Time_zero_Ym","2016-03-01","Overweight",372,"0.7%",NA,NA
+"Time_zero_Ym","2016-04-01","Overweight",391,"0.7%",NA,NA
+"Time_zero_Ym","2016-05-01","Overweight",396,"0.8%",NA,NA
+"Time_zero_Ym","2016-06-01","Overweight",376,"0.7%",NA,NA
+"Time_zero_Ym","2016-07-01","Overweight",366,"0.7%",NA,NA
+"Time_zero_Ym","2016-08-01","Overweight",350,"0.7%",NA,NA
+"Time_zero_Ym","2016-09-01","Overweight",350,"0.7%",NA,NA
+"Time_zero_Ym","2016-10-01","Overweight",351,"0.7%",NA,NA
+"Time_zero_Ym","2016-11-01","Overweight",399,"0.8%",NA,NA
+"Time_zero_Ym","2016-12-01","Overweight",382,"0.7%",NA,NA
+"Time_zero_Ym","2017-01-01","Overweight",368,"0.7%",NA,NA
+"Time_zero_Ym","2017-02-01","Overweight",361,"0.7%",NA,NA
+"Time_zero_Ym","2017-03-01","Overweight",395,"0.8%",NA,NA
+"Time_zero_Ym","2017-04-01","Overweight",381,"0.7%",NA,NA
+"Time_zero_Ym","2017-05-01","Overweight",445,"0.9%",NA,NA
+"Time_zero_Ym","2017-06-01","Overweight",363,"0.7%",NA,NA
+"Time_zero_Ym","2017-07-01","Overweight",414,"0.8%",NA,NA
+"Time_zero_Ym","2017-08-01","Overweight",390,"0.7%",NA,NA
+"Time_zero_Ym","2017-09-01","Overweight",341,"0.7%",NA,NA
+"Time_zero_Ym","2017-10-01","Overweight",377,"0.7%",NA,NA
+"Time_zero_Ym","2017-11-01","Overweight",403,"0.8%",NA,NA
+"Time_zero_Ym","2017-12-01","Overweight",396,"0.8%",NA,NA
+"Time_zero_Ym","2018-01-01","Overweight",14,"0.0%",NA,NA
+"Time_zero_Ym","2018-02-01","Overweight",5,"0.0%",NA,NA
+"Time_zero_Ym","2018-03-01","Overweight",1,"0.0%",NA,NA
+"Time_zero_Ym","2018-04-01","Overweight",2,"0.0%",NA,NA
+"Time_zero_Ym","2018-06-01","Overweight",1,"0.0%",NA,NA
+"Time_zero_Ym","2018-10-01","Overweight",1,"0.0%",NA,NA
+"Time_zero_Ym","2018-11-01","Overweight",2,"0.0%",NA,NA
+"Time_zero_Ym","2018-12-01","Overweight",1,"0.0%",NA,NA
+"Time_zero_Ym","2019-01-01","Overweight",11,"0.0%",NA,NA
+"Time_zero_Ym","2019-02-01","Overweight",1,"0.0%",NA,NA
+"Time_zero_Ym","2019-04-01","Overweight",1,"0.0%",NA,NA
+"Time_zero_Ym","2019-05-01","Overweight",1,"0.0%",NA,NA
+"Time_zero_Ym","2019-08-01","Overweight",1,"0.0%",NA,NA
+"Time_zero_Ym","2019-10-01","Overweight",2,"0.0%",NA,NA
+"Time_zero_Ym","2020-01-01","Overweight",1,"0.0%",NA,NA
+"ACE_inhibitor","No","Obese I",7677,"36.7%",8.67e-09,1.44e-08
+"ACE_inhibitor","Yes","Obese I",12708,"60.7%",8.67e-09,1.44e-08
+"ACE_inhibitor",NA,"Obese I",545,"2.6%",8.67e-09,1.44e-08
+"ACE_inhibitor_ARB","No","Obese I",3433,"16.4%",2.86e-164,1.08e-163
+"ACE_inhibitor_ARB","Yes","Obese I",17378,"83.0%",2.86e-164,1.08e-163
+"ACE_inhibitor_ARB",NA,"Obese I",119,"0.6%",2.86e-164,1.08e-163
+"AF_atrial_flutter","No","Obese I",17269,"82.5%",3.24e-20,7.15e-20
+"AF_atrial_flutter","Yes","Obese I",2551,"12.2%",3.24e-20,7.15e-20
+"AF_atrial_flutter",NA,"Obese I",1110,"5.3%",3.24e-20,7.15e-20
+"ARB","No","Obese I",15454,"73.8%",3.38e-192,1.49e-191
+"ARB","Yes","Obese I",4421,"21.1%",3.38e-192,1.49e-191
+"ARB",NA,"Obese I",1055,"5.0%",3.38e-192,1.49e-191
+"AV_block","No","Obese I",1559,"7.4%",0.13,0.146
+"AV_block","Yes","Obese I",191,"0.9%",0.13,0.146
+"AV_block",NA,"Obese I",19180,"91.6%",0.13,0.146
+"AV_block_II_or_III","No","Obese I",1770,"8.5%",0.839,0.839
+"AV_block_II_or_III","Yes","Obese I",6,"0.0%",0.839,0.839
+"AV_block_II_or_III",NA,"Obese I",19154,"91.5%",0.839,0.839
+"Alcohol","No","Obese I",506,"2.4%",0.00104,0.00138
+"Alcohol","Yes","Obese I",1040,"5.0%",0.00104,0.00138
+"Alcohol",NA,"Obese I",19384,"92.6%",0.00104,0.00138
+"Aldosterone_antagonist","No","Obese I",11405,"54.5%",3.46e-15,6.79e-15
+"Aldosterone_antagonist","Yes","Obese I",1042,"5.0%",3.46e-15,6.79e-15
+"Aldosterone_antagonist",NA,"Obese I",8483,"40.5%",3.46e-15,6.79e-15
+"Anti_anginal","No","Obese I",16241,"77.6%",1.61e-09,2.75e-09
+"Anti_anginal","Yes","Obese I",2251,"10.8%",1.61e-09,2.75e-09
+"Anti_anginal",NA,"Obese I",2438,"11.6%",1.61e-09,2.75e-09
+"Anti_arrhythmic_III","No","Obese I",2874,"13.7%",0.05,0.0616
+"Anti_arrhythmic_III","Yes","Obese I",105,"0.5%",0.05,0.0616
+"Anti_arrhythmic_III",NA,"Obese I",17951,"85.8%",0.05,0.0616
+"Anti_coagulant","No","Obese I",16623,"79.4%",1.13e-06,1.66e-06
+"Anti_coagulant","Yes","Obese I",1956,"9.3%",1.13e-06,1.66e-06
+"Anti_coagulant",NA,"Obese I",2351,"11.2%",1.13e-06,1.66e-06
+"Anti_diabetic","No","Obese I",15155,"72.4%",0,0
+"Anti_diabetic","Yes","Obese I",4689,"22.4%",0,0
+"Anti_diabetic",NA,"Obese I",1086,"5.2%",0,0
+"Anti_diabetic_insulin","No","Obese I",17218,"82.3%",0,0
+"Anti_diabetic_insulin","Yes","Obese I",2666,"12.7%",0,0
+"Anti_diabetic_insulin",NA,"Obese I",1046,"5.0%",0,0
+"Anti_diabetic_oral","No","Obese I",16620,"79.4%",0,0
+"Anti_diabetic_oral","Yes","Obese I",3255,"15.6%",0,0
+"Anti_diabetic_oral",NA,"Obese I",1055,"5.0%",0,0
+"Anti_platelet","No","Obese I",857,"4.1%",2.75e-28,6.63e-28
+"Anti_platelet","Yes","Obese I",18617,"88.9%",2.75e-28,6.63e-28
+"Anti_platelet",NA,"Obese I",1456,"7.0%",2.75e-28,6.63e-28
+"Baseline_type","MI","Obese I",18309,"87.5%",0,0
+"Baseline_type","MI40d","Obese I",1759,"8.4%",0,0
+"Baseline_type",NA,"Obese I",862,"4.1%",0,0
+"Beta_blockers","No","Obese I",2043,"9.8%",2.61e-34,6.92e-34
+"Beta_blockers","Yes","Obese I",18818,"89.9%",2.61e-34,6.92e-34
+"Beta_blockers",NA,"Obese I",69,"0.3%",2.61e-34,6.92e-34
+"CABG","No","Obese I",17938,"85.7%",3.76e-34,9.5e-34
+"CABG","Yes","Obese I",1984,"9.5%",3.76e-34,9.5e-34
+"CABG",NA,"Obese I",1008,"4.8%",3.76e-34,9.5e-34
+"CABG_acute","No","Obese I",12391,"59.2%",0.676,0.703
+"CABG_acute","Yes","Obese I",77,"0.4%",0.676,0.703
+"CABG_acute",NA,"Obese I",8462,"40.4%",0.676,0.703
+"COPD","No","Obese I",2541,"12.1%",1.54e-14,2.92e-14
+"COPD","Yes","Obese I",240,"1.1%",1.54e-14,2.92e-14
+"COPD",NA,"Obese I",18149,"86.7%",1.54e-14,2.92e-14
+"CVD_risk_region","1","Obese I",231,"1.1%",1.05e-292,6.96e-292
+"CVD_risk_region","2","Obese I",18031,"86.1%",1.05e-292,6.96e-292
+"CVD_risk_region","3","Obese I",2435,"11.6%",1.05e-292,6.96e-292
+"CVD_risk_region","4","Obese I",233,"1.1%",1.05e-292,6.96e-292
+"Calcium_antagonists","No","Obese I",14909,"71.2%",9.66e-149,3.41e-148
+"Calcium_antagonists","Yes","Obese I",3595,"17.2%",9.66e-149,3.41e-148
+"Calcium_antagonists",NA,"Obese I",2426,"11.6%",9.66e-149,3.41e-148
+"Cancer","No","Obese I",151,"0.7%",0.612,0.662
+"Cancer",NA,"Obese I",20779,"99.3%",0.612,0.662
+"Diabetes","No","Obese I",14202,"67.9%",0,0
+"Diabetes","Yes","Obese I",6662,"31.8%",0,0
+"Diabetes",NA,"Obese I",66,"0.3%",0,0
+"Digitalis_glycosides","No","Obese I",18669,"89.2%",9.89e-19,2.02e-18
+"Digitalis_glycosides","Yes","Obese I",352,"1.7%",9.89e-19,2.02e-18
+"Digitalis_glycosides",NA,"Obese I",1909,"9.1%",9.89e-19,2.02e-18
+"Diseased_arteries_num_cat","0","Obese I",96,"0.5%",0.000863,0.00117
+"Diseased_arteries_num_cat","1","Obese I",233,"1.1%",0.000863,0.00117
+"Diseased_arteries_num_cat","2","Obese I",221,"1.1%",0.000863,0.00117
+"Diseased_arteries_num_cat","geq3","Obese I",224,"1.1%",0.000863,0.00117
+"Diseased_arteries_num_cat",NA,"Obese I",20156,"96.3%",0.000863,0.00117
+"Diuretics","No","Obese I",14189,"67.8%",1.46e-247,8.59999999999999e-247
+"Diuretics","Yes","Obese I",6646,"31.8%",1.46e-247,8.59999999999999e-247
+"Diuretics",NA,"Obese I",95,"0.5%",1.46e-247,8.59999999999999e-247
+"FH_CAD","No","Obese I",692,"3.3%",1.05e-09,1.86e-09
+"FH_CAD","Yes","Obese I",798,"3.8%",1.05e-09,1.86e-09
+"FH_CAD",NA,"Obese I",19440,"92.9%",1.05e-09,1.86e-09
+"FH_SCD","No","Obese I",1067,"5.1%",0.0195,0.0252
+"FH_SCD","Yes","Obese I",363,"1.7%",0.0195,0.0252
+"FH_SCD",NA,"Obese I",19500,"93.2%",0.0195,0.0252
+"HF","No","Obese I",16341,"78.1%",1.47e-26,3.4e-26
+"HF","Yes","Obese I",1232,"5.9%",1.47e-26,3.4e-26
+"HF",NA,"Obese I",3357,"16.0%",1.47e-26,3.4e-26
+"HasMRI","No","Obese I",20631,"98.6%",9.24e-06,1.32e-05
+"HasMRI","Yes","Obese I",299,"1.4%",9.24e-06,1.32e-05
+"Hypertension","No","Obese I",8181,"39.1%",0,0
+"Hypertension","Yes","Obese I",12182,"58.2%",0,0
+"Hypertension",NA,"Obese I",567,"2.7%",0,0
+"IsSWHR","0","Obese I",2305,"11.0%",4.11e-207,1.98e-206
+"IsSWHR","1","Obese I",17763,"84.9%",4.11e-207,1.98e-206
+"IsSWHR",NA,"Obese I",862,"4.1%",4.11e-207,1.98e-206
+"LBBB","No","Obese I",18774,"89.7%",1.52e-05,2.11e-05
+"LBBB","Yes","Obese I",917,"4.4%",1.52e-05,2.11e-05
+"LBBB",NA,"Obese I",1239,"5.9%",1.52e-05,2.11e-05
+"Lipid_lowering","No","Obese I",1447,"6.9%",3.26e-240,1.73e-239
+"Lipid_lowering","Yes","Obese I",19388,"92.6%",3.26e-240,1.73e-239
+"Lipid_lowering",NA,"Obese I",95,"0.5%",3.26e-240,1.73e-239
+"MI_history","No","Obese I",14691,"70.2%",3.41e-07,5.32e-07
+"MI_history","Yes","Obese I",3590,"17.2%",3.41e-07,5.32e-07
+"MI_history",NA,"Obese I",2649,"12.7%",3.41e-07,5.32e-07
+"MI_location_anterior","No","Obese I",1306,"6.2%",5.42e-07,8.2e-07
+"MI_location_anterior","Yes","Obese I",754,"3.6%",5.42e-07,8.2e-07
+"MI_location_anterior",NA,"Obese I",18870,"90.2%",5.42e-07,8.2e-07
+"MI_location_inferior","No","Obese I",1212,"5.8%",0.0649,0.0764
+"MI_location_inferior","Yes","Obese I",848,"4.1%",0.0649,0.0764
+"MI_location_inferior",NA,"Obese I",18870,"90.2%",0.0649,0.0764
+"MI_location_lateral","No","Obese I",1720,"8.2%",0.639,0.678
+"MI_location_lateral","Yes","Obese I",259,"1.2%",0.639,0.678
+"MI_location_lateral",NA,"Obese I",18951,"90.5%",0.639,0.678
+"MI_location_posterior","No","Obese I",1439,"6.9%",0.0247,0.0311
+"MI_location_posterior","Yes","Obese I",67,"0.3%",0.0247,0.0311
+"MI_location_posterior",NA,"Obese I",19424,"92.8%",0.0247,0.0311
+"MI_type","NSTEMI","Obese I",12545,"59.9%",1.71e-19,3.63e-19
+"MI_type","STEMI","Obese I",5344,"25.5%",1.71e-19,3.63e-19
+"MI_type",NA,"Obese I",3041,"14.5%",1.71e-19,3.63e-19
+"MR","Moderate","Obese I",43,"0.2%",0.0886,0.102
+"MR","None or mild","Obese I",384,"1.8%",0.0886,0.102
+"MR","Severe","Obese I",9,"0.0%",0.0886,0.102
+"MR",NA,"Obese I",20494,"97.9%",0.0886,0.102
+"NSVT","No","Obese I",171,"0.8%",0.0609,0.0733
+"NSVT","Yes","Obese I",24,"0.1%",0.0609,0.0733
+"NSVT",NA,"Obese I",20735,"99.1%",0.0609,0.0733
+"NYHA","I","Obese I",1445,"6.9%",2.21e-07,3.55e-07
+"NYHA","II","Obese I",797,"3.8%",2.21e-07,3.55e-07
+"NYHA","III","Obese I",306,"1.5%",2.21e-07,3.55e-07
+"NYHA","IV","Obese I",31,"0.1%",2.21e-07,3.55e-07
+"NYHA",NA,"Obese I",18351,"87.7%",2.21e-07,3.55e-07
+"PCI","No","Obese I",15696,"75.0%",1.74e-175,7.08e-175
+"PCI","Yes","Obese I",3890,"18.6%",1.74e-175,7.08e-175
+"PCI",NA,"Obese I",1344,"6.4%",1.74e-175,7.08e-175
+"PCI_acute","No","Obese I",12377,"59.1%",8.41e-41,2.34e-40
+"PCI_acute","Yes","Obese I",5990,"28.6%",8.41e-41,2.34e-40
+"PCI_acute",NA,"Obese I",2563,"12.2%",8.41e-41,2.34e-40
+"RBBB","No","Obese I",18452,"88.2%",0.808,0.823
+"RBBB","Yes","Obese I",823,"3.9%",0.808,0.823
+"RBBB",NA,"Obese I",1655,"7.9%",0.808,0.823
+"Revascularisation_acute","No","Obese I",12086,"57.7%",4.27e-43,1.26e-42
+"Revascularisation_acute","Yes","Obese I",6281,"30.0%",4.27e-43,1.26e-42
+"Revascularisation_acute",NA,"Obese I",2563,"12.2%",4.27e-43,1.26e-42
+"Sex","Female","Obese I",6335,"30.3%",0,0
+"Sex","Male","Obese I",14595,"69.7%",0,0
+"Smoking","No","Obese I",7289,"34.8%",4.99e-66,1.65e-65
+"Smoking","Yes","Obese I",12638,"60.4%",4.99e-66,1.65e-65
+"Smoking",NA,"Obese I",1003,"4.8%",4.99e-66,1.65e-65
+"Stroke_TIA","No","Obese I",18239,"87.1%",2.99e-12,5.46e-12
+"Stroke_TIA","Yes","Obese I",1309,"6.3%",2.99e-12,5.46e-12
+"Stroke_TIA",NA,"Obese I",1382,"6.6%",2.99e-12,5.46e-12
+"Thrombolysis_acute","No","Obese I",18014,"86.1%",0.546,0.603
+"Thrombolysis_acute","Yes","Obese I",227,"1.1%",0.546,0.603
+"Thrombolysis_acute",NA,"Obese I",2689,"12.8%",0.546,0.603
+"Time_zero_Y","1994","Obese I",1,"0.0%",3.2e-44,9.97e-44
+"Time_zero_Y","1995","Obese I",20,"0.1%",3.2e-44,9.97e-44
+"Time_zero_Y","1996","Obese I",32,"0.2%",3.2e-44,9.97e-44
+"Time_zero_Y","1997","Obese I",62,"0.3%",3.2e-44,9.97e-44
+"Time_zero_Y","1998","Obese I",121,"0.6%",3.2e-44,9.97e-44
+"Time_zero_Y","1999","Obese I",110,"0.5%",3.2e-44,9.97e-44
+"Time_zero_Y","2000","Obese I",149,"0.7%",3.2e-44,9.97e-44
+"Time_zero_Y","2001","Obese I",81,"0.4%",3.2e-44,9.97e-44
+"Time_zero_Y","2002","Obese I",48,"0.2%",3.2e-44,9.97e-44
+"Time_zero_Y","2003","Obese I",56,"0.3%",3.2e-44,9.97e-44
+"Time_zero_Y","2004","Obese I",17,"0.1%",3.2e-44,9.97e-44
+"Time_zero_Y","2005","Obese I",18,"0.1%",3.2e-44,9.97e-44
+"Time_zero_Y","2006","Obese I",969,"4.6%",3.2e-44,9.97e-44
+"Time_zero_Y","2007","Obese I",1099,"5.3%",3.2e-44,9.97e-44
+"Time_zero_Y","2008","Obese I",1195,"5.7%",3.2e-44,9.97e-44
+"Time_zero_Y","2009","Obese I",1257,"6.0%",3.2e-44,9.97e-44
+"Time_zero_Y","2010","Obese I",1771,"8.5%",3.2e-44,9.97e-44
+"Time_zero_Y","2011","Obese I",2211,"10.6%",3.2e-44,9.97e-44
+"Time_zero_Y","2012","Obese I",2212,"10.6%",3.2e-44,9.97e-44
+"Time_zero_Y","2013","Obese I",1978,"9.5%",3.2e-44,9.97e-44
+"Time_zero_Y","2014","Obese I",1839,"8.8%",3.2e-44,9.97e-44
+"Time_zero_Y","2015","Obese I",1848,"8.8%",3.2e-44,9.97e-44
+"Time_zero_Y","2016","Obese I",1886,"9.0%",3.2e-44,9.97e-44
+"Time_zero_Y","2017","Obese I",1931,"9.2%",3.2e-44,9.97e-44
+"Time_zero_Y","2018","Obese I",11,"0.1%",3.2e-44,9.97e-44
+"Time_zero_Y","2019","Obese I",8,"0.0%",3.2e-44,9.97e-44
+"Time_zero_Ym","1994-12-01","Obese I",1,"0.0%",NA,NA
+"Time_zero_Ym","1995-01-01","Obese I",1,"0.0%",NA,NA
+"Time_zero_Ym","1995-03-01","Obese I",2,"0.0%",NA,NA
+"Time_zero_Ym","1995-06-01","Obese I",1,"0.0%",NA,NA
+"Time_zero_Ym","1995-07-01","Obese I",2,"0.0%",NA,NA
+"Time_zero_Ym","1995-08-01","Obese I",5,"0.0%",NA,NA
+"Time_zero_Ym","1995-09-01","Obese I",3,"0.0%",NA,NA
+"Time_zero_Ym","1995-10-01","Obese I",1,"0.0%",NA,NA
+"Time_zero_Ym","1995-11-01","Obese I",1,"0.0%",NA,NA
+"Time_zero_Ym","1995-12-01","Obese I",4,"0.0%",NA,NA
+"Time_zero_Ym","1996-01-01","Obese I",3,"0.0%",NA,NA
+"Time_zero_Ym","1996-02-01","Obese I",3,"0.0%",NA,NA
+"Time_zero_Ym","1996-03-01","Obese I",3,"0.0%",NA,NA
+"Time_zero_Ym","1996-04-01","Obese I",3,"0.0%",NA,NA
+"Time_zero_Ym","1996-05-01","Obese I",2,"0.0%",NA,NA
+"Time_zero_Ym","1996-07-01","Obese I",2,"0.0%",NA,NA
+"Time_zero_Ym","1996-08-01","Obese I",2,"0.0%",NA,NA
+"Time_zero_Ym","1996-09-01","Obese I",4,"0.0%",NA,NA
+"Time_zero_Ym","1996-10-01","Obese I",3,"0.0%",NA,NA
+"Time_zero_Ym","1996-11-01","Obese I",2,"0.0%",NA,NA
+"Time_zero_Ym","1996-12-01","Obese I",5,"0.0%",NA,NA
+"Time_zero_Ym","1997-01-01","Obese I",6,"0.0%",NA,NA
+"Time_zero_Ym","1997-02-01","Obese I",4,"0.0%",NA,NA
+"Time_zero_Ym","1997-03-01","Obese I",7,"0.0%",NA,NA
+"Time_zero_Ym","1997-04-01","Obese I",4,"0.0%",NA,NA
+"Time_zero_Ym","1997-05-01","Obese I",2,"0.0%",NA,NA
+"Time_zero_Ym","1997-06-01","Obese I",2,"0.0%",NA,NA
+"Time_zero_Ym","1997-07-01","Obese I",10,"0.0%",NA,NA
+"Time_zero_Ym","1997-08-01","Obese I",5,"0.0%",NA,NA
+"Time_zero_Ym","1997-09-01","Obese I",4,"0.0%",NA,NA
+"Time_zero_Ym","1997-10-01","Obese I",4,"0.0%",NA,NA
+"Time_zero_Ym","1997-11-01","Obese I",8,"0.0%",NA,NA
+"Time_zero_Ym","1997-12-01","Obese I",6,"0.0%",NA,NA
+"Time_zero_Ym","1998-01-01","Obese I",6,"0.0%",NA,NA
+"Time_zero_Ym","1998-02-01","Obese I",10,"0.0%",NA,NA
+"Time_zero_Ym","1998-03-01","Obese I",9,"0.0%",NA,NA
+"Time_zero_Ym","1998-04-01","Obese I",8,"0.0%",NA,NA
+"Time_zero_Ym","1998-05-01","Obese I",5,"0.0%",NA,NA
+"Time_zero_Ym","1998-06-01","Obese I",5,"0.0%",NA,NA
+"Time_zero_Ym","1998-07-01","Obese I",53,"0.3%",NA,NA
+"Time_zero_Ym","1998-08-01","Obese I",8,"0.0%",NA,NA
+"Time_zero_Ym","1998-09-01","Obese I",4,"0.0%",NA,NA
+"Time_zero_Ym","1998-10-01","Obese I",4,"0.0%",NA,NA
+"Time_zero_Ym","1998-11-01","Obese I",1,"0.0%",NA,NA
+"Time_zero_Ym","1998-12-01","Obese I",8,"0.0%",NA,NA
+"Time_zero_Ym","1999-01-01","Obese I",4,"0.0%",NA,NA
+"Time_zero_Ym","1999-02-01","Obese I",3,"0.0%",NA,NA
+"Time_zero_Ym","1999-03-01","Obese I",2,"0.0%",NA,NA
+"Time_zero_Ym","1999-04-01","Obese I",3,"0.0%",NA,NA
+"Time_zero_Ym","1999-05-01","Obese I",10,"0.0%",NA,NA
+"Time_zero_Ym","1999-06-01","Obese I",7,"0.0%",NA,NA
+"Time_zero_Ym","1999-07-01","Obese I",57,"0.3%",NA,NA
+"Time_zero_Ym","1999-08-01","Obese I",2,"0.0%",NA,NA
+"Time_zero_Ym","1999-09-01","Obese I",2,"0.0%",NA,NA
+"Time_zero_Ym","1999-10-01","Obese I",8,"0.0%",NA,NA
+"Time_zero_Ym","1999-11-01","Obese I",9,"0.0%",NA,NA
+"Time_zero_Ym","1999-12-01","Obese I",3,"0.0%",NA,NA
+"Time_zero_Ym","2000-01-01","Obese I",10,"0.0%",NA,NA
+"Time_zero_Ym","2000-02-01","Obese I",4,"0.0%",NA,NA
+"Time_zero_Ym","2000-03-01","Obese I",3,"0.0%",NA,NA
+"Time_zero_Ym","2000-04-01","Obese I",8,"0.0%",NA,NA
+"Time_zero_Ym","2000-05-01","Obese I",8,"0.0%",NA,NA
+"Time_zero_Ym","2000-06-01","Obese I",14,"0.1%",NA,NA
+"Time_zero_Ym","2000-07-01","Obese I",79,"0.4%",NA,NA
+"Time_zero_Ym","2000-08-01","Obese I",5,"0.0%",NA,NA
+"Time_zero_Ym","2000-09-01","Obese I",8,"0.0%",NA,NA
+"Time_zero_Ym","2000-10-01","Obese I",3,"0.0%",NA,NA
+"Time_zero_Ym","2000-11-01","Obese I",2,"0.0%",NA,NA
+"Time_zero_Ym","2000-12-01","Obese I",5,"0.0%",NA,NA
+"Time_zero_Ym","2001-01-01","Obese I",6,"0.0%",NA,NA
+"Time_zero_Ym","2001-02-01","Obese I",4,"0.0%",NA,NA
+"Time_zero_Ym","2001-03-01","Obese I",4,"0.0%",NA,NA
+"Time_zero_Ym","2001-04-01","Obese I",3,"0.0%",NA,NA
+"Time_zero_Ym","2001-05-01","Obese I",6,"0.0%",NA,NA
+"Time_zero_Ym","2001-06-01","Obese I",4,"0.0%",NA,NA
+"Time_zero_Ym","2001-07-01","Obese I",37,"0.2%",NA,NA
+"Time_zero_Ym","2001-08-01","Obese I",3,"0.0%",NA,NA
+"Time_zero_Ym","2001-09-01","Obese I",3,"0.0%",NA,NA
+"Time_zero_Ym","2001-10-01","Obese I",5,"0.0%",NA,NA
+"Time_zero_Ym","2001-11-01","Obese I",4,"0.0%",NA,NA
+"Time_zero_Ym","2001-12-01","Obese I",2,"0.0%",NA,NA
+"Time_zero_Ym","2002-01-01","Obese I",1,"0.0%",NA,NA
+"Time_zero_Ym","2002-02-01","Obese I",2,"0.0%",NA,NA
+"Time_zero_Ym","2002-03-01","Obese I",6,"0.0%",NA,NA
+"Time_zero_Ym","2002-04-01","Obese I",2,"0.0%",NA,NA
+"Time_zero_Ym","2002-05-01","Obese I",6,"0.0%",NA,NA
+"Time_zero_Ym","2002-06-01","Obese I",5,"0.0%",NA,NA
+"Time_zero_Ym","2002-07-01","Obese I",5,"0.0%",NA,NA
+"Time_zero_Ym","2002-08-01","Obese I",4,"0.0%",NA,NA
+"Time_zero_Ym","2002-09-01","Obese I",2,"0.0%",NA,NA
+"Time_zero_Ym","2002-10-01","Obese I",3,"0.0%",NA,NA
+"Time_zero_Ym","2002-11-01","Obese I",9,"0.0%",NA,NA
+"Time_zero_Ym","2002-12-01","Obese I",3,"0.0%",NA,NA
+"Time_zero_Ym","2003-01-01","Obese I",8,"0.0%",NA,NA
+"Time_zero_Ym","2003-02-01","Obese I",4,"0.0%",NA,NA
+"Time_zero_Ym","2003-03-01","Obese I",5,"0.0%",NA,NA
+"Time_zero_Ym","2003-04-01","Obese I",5,"0.0%",NA,NA
+"Time_zero_Ym","2003-05-01","Obese I",6,"0.0%",NA,NA
+"Time_zero_Ym","2003-06-01","Obese I",4,"0.0%",NA,NA
+"Time_zero_Ym","2003-07-01","Obese I",5,"0.0%",NA,NA
+"Time_zero_Ym","2003-08-01","Obese I",9,"0.0%",NA,NA
+"Time_zero_Ym","2003-09-01","Obese I",4,"0.0%",NA,NA
+"Time_zero_Ym","2003-10-01","Obese I",3,"0.0%",NA,NA
+"Time_zero_Ym","2003-12-01","Obese I",3,"0.0%",NA,NA
+"Time_zero_Ym","2004-01-01","Obese I",2,"0.0%",NA,NA
+"Time_zero_Ym","2004-02-01","Obese I",2,"0.0%",NA,NA
+"Time_zero_Ym","2004-03-01","Obese I",2,"0.0%",NA,NA
+"Time_zero_Ym","2004-04-01","Obese I",2,"0.0%",NA,NA
+"Time_zero_Ym","2004-05-01","Obese I",2,"0.0%",NA,NA
+"Time_zero_Ym","2004-07-01","Obese I",2,"0.0%",NA,NA
+"Time_zero_Ym","2004-08-01","Obese I",2,"0.0%",NA,NA
+"Time_zero_Ym","2004-09-01","Obese I",1,"0.0%",NA,NA
+"Time_zero_Ym","2004-12-01","Obese I",2,"0.0%",NA,NA
+"Time_zero_Ym","2005-01-01","Obese I",7,"0.0%",NA,NA
+"Time_zero_Ym","2005-02-01","Obese I",1,"0.0%",NA,NA
+"Time_zero_Ym","2005-06-01","Obese I",2,"0.0%",NA,NA
+"Time_zero_Ym","2005-08-01","Obese I",2,"0.0%",NA,NA
+"Time_zero_Ym","2005-09-01","Obese I",3,"0.0%",NA,NA
+"Time_zero_Ym","2005-11-01","Obese I",1,"0.0%",NA,NA
+"Time_zero_Ym","2005-12-01","Obese I",2,"0.0%",NA,NA
+"Time_zero_Ym","2006-01-01","Obese I",2,"0.0%",NA,NA
+"Time_zero_Ym","2006-02-01","Obese I",44,"0.2%",NA,NA
+"Time_zero_Ym","2006-03-01","Obese I",67,"0.3%",NA,NA
+"Time_zero_Ym","2006-04-01","Obese I",75,"0.4%",NA,NA
+"Time_zero_Ym","2006-05-01","Obese I",84,"0.4%",NA,NA
+"Time_zero_Ym","2006-06-01","Obese I",90,"0.4%",NA,NA
+"Time_zero_Ym","2006-06-16","Obese I",35,"0.2%",NA,NA
+"Time_zero_Ym","2006-07-01","Obese I",92,"0.4%",NA,NA
+"Time_zero_Ym","2006-08-01","Obese I",63,"0.3%",NA,NA
+"Time_zero_Ym","2006-09-01","Obese I",73,"0.3%",NA,NA
+"Time_zero_Ym","2006-10-01","Obese I",79,"0.4%",NA,NA
+"Time_zero_Ym","2006-11-01","Obese I",77,"0.4%",NA,NA
+"Time_zero_Ym","2006-11-16","Obese I",96,"0.5%",NA,NA
+"Time_zero_Ym","2006-12-01","Obese I",92,"0.4%",NA,NA
+"Time_zero_Ym","2007-01-01","Obese I",93,"0.4%",NA,NA
+"Time_zero_Ym","2007-02-01","Obese I",93,"0.4%",NA,NA
+"Time_zero_Ym","2007-03-01","Obese I",108,"0.5%",NA,NA
+"Time_zero_Ym","2007-04-01","Obese I",82,"0.4%",NA,NA
+"Time_zero_Ym","2007-05-01","Obese I",91,"0.4%",NA,NA
+"Time_zero_Ym","2007-06-01","Obese I",89,"0.4%",NA,NA
+"Time_zero_Ym","2007-07-01","Obese I",97,"0.5%",NA,NA
+"Time_zero_Ym","2007-08-01","Obese I",82,"0.4%",NA,NA
+"Time_zero_Ym","2007-09-01","Obese I",85,"0.4%",NA,NA
+"Time_zero_Ym","2007-10-01","Obese I",93,"0.4%",NA,NA
+"Time_zero_Ym","2007-11-01","Obese I",93,"0.4%",NA,NA
+"Time_zero_Ym","2007-12-01","Obese I",93,"0.4%",NA,NA
+"Time_zero_Ym","2008-01-01","Obese I",111,"0.5%",NA,NA
+"Time_zero_Ym","2008-02-01","Obese I",82,"0.4%",NA,NA
+"Time_zero_Ym","2008-03-01","Obese I",91,"0.4%",NA,NA
+"Time_zero_Ym","2008-04-01","Obese I",87,"0.4%",NA,NA
+"Time_zero_Ym","2008-05-01","Obese I",101,"0.5%",NA,NA
+"Time_zero_Ym","2008-06-01","Obese I",119,"0.6%",NA,NA
+"Time_zero_Ym","2008-07-01","Obese I",98,"0.5%",NA,NA
+"Time_zero_Ym","2008-08-01","Obese I",105,"0.5%",NA,NA
+"Time_zero_Ym","2008-09-01","Obese I",101,"0.5%",NA,NA
+"Time_zero_Ym","2008-10-01","Obese I",112,"0.5%",NA,NA
+"Time_zero_Ym","2008-11-01","Obese I",81,"0.4%",NA,NA
+"Time_zero_Ym","2008-12-01","Obese I",107,"0.5%",NA,NA
+"Time_zero_Ym","2009-01-01","Obese I",108,"0.5%",NA,NA
+"Time_zero_Ym","2009-02-01","Obese I",86,"0.4%",NA,NA
+"Time_zero_Ym","2009-03-01","Obese I",95,"0.5%",NA,NA
+"Time_zero_Ym","2009-04-01","Obese I",92,"0.4%",NA,NA
+"Time_zero_Ym","2009-05-01","Obese I",98,"0.5%",NA,NA
+"Time_zero_Ym","2009-06-01","Obese I",184,"0.9%",NA,NA
+"Time_zero_Ym","2009-07-01","Obese I",99,"0.5%",NA,NA
+"Time_zero_Ym","2009-08-01","Obese I",93,"0.4%",NA,NA
+"Time_zero_Ym","2009-09-01","Obese I",93,"0.4%",NA,NA
+"Time_zero_Ym","2009-10-01","Obese I",108,"0.5%",NA,NA
+"Time_zero_Ym","2009-11-01","Obese I",91,"0.4%",NA,NA
+"Time_zero_Ym","2009-12-01","Obese I",110,"0.5%",NA,NA
+"Time_zero_Ym","2010-01-01","Obese I",122,"0.6%",NA,NA
+"Time_zero_Ym","2010-02-01","Obese I",109,"0.5%",NA,NA
+"Time_zero_Ym","2010-03-01","Obese I",140,"0.7%",NA,NA
+"Time_zero_Ym","2010-04-01","Obese I",130,"0.6%",NA,NA
+"Time_zero_Ym","2010-04-17","Obese I",168,"0.8%",NA,NA
+"Time_zero_Ym","2010-05-01","Obese I",151,"0.7%",NA,NA
+"Time_zero_Ym","2010-06-01","Obese I",192,"0.9%",NA,NA
+"Time_zero_Ym","2010-07-01","Obese I",181,"0.9%",NA,NA
+"Time_zero_Ym","2010-08-01","Obese I",101,"0.5%",NA,NA
+"Time_zero_Ym","2010-09-01","Obese I",108,"0.5%",NA,NA
+"Time_zero_Ym","2010-10-01","Obese I",117,"0.6%",NA,NA
+"Time_zero_Ym","2010-11-01","Obese I",131,"0.6%",NA,NA
+"Time_zero_Ym","2010-12-01","Obese I",121,"0.6%",NA,NA
+"Time_zero_Ym","2011-01-01","Obese I",142,"0.7%",NA,NA
+"Time_zero_Ym","2011-02-01","Obese I",117,"0.6%",NA,NA
+"Time_zero_Ym","2011-03-01","Obese I",145,"0.7%",NA,NA
+"Time_zero_Ym","2011-04-01","Obese I",155,"0.7%",NA,NA
+"Time_zero_Ym","2011-05-01","Obese I",153,"0.7%",NA,NA
+"Time_zero_Ym","2011-06-01","Obese I",608,"2.9%",NA,NA
+"Time_zero_Ym","2011-07-01","Obese I",190,"0.9%",NA,NA
+"Time_zero_Ym","2011-08-01","Obese I",125,"0.6%",NA,NA
+"Time_zero_Ym","2011-09-01","Obese I",125,"0.6%",NA,NA
+"Time_zero_Ym","2011-10-01","Obese I",151,"0.7%",NA,NA
+"Time_zero_Ym","2011-11-01","Obese I",163,"0.8%",NA,NA
+"Time_zero_Ym","2011-12-01","Obese I",137,"0.7%",NA,NA
+"Time_zero_Ym","2012-01-01","Obese I",164,"0.8%",NA,NA
+"Time_zero_Ym","2012-02-01","Obese I",148,"0.7%",NA,NA
+"Time_zero_Ym","2012-03-01","Obese I",144,"0.7%",NA,NA
+"Time_zero_Ym","2012-04-01","Obese I",134,"0.6%",NA,NA
+"Time_zero_Ym","2012-05-01","Obese I",146,"0.7%",NA,NA
+"Time_zero_Ym","2012-06-01","Obese I",608,"2.9%",NA,NA
+"Time_zero_Ym","2012-07-01","Obese I",148,"0.7%",NA,NA
+"Time_zero_Ym","2012-08-01","Obese I",121,"0.6%",NA,NA
+"Time_zero_Ym","2012-09-01","Obese I",144,"0.7%",NA,NA
+"Time_zero_Ym","2012-10-01","Obese I",149,"0.7%",NA,NA
+"Time_zero_Ym","2012-11-01","Obese I",144,"0.7%",NA,NA
+"Time_zero_Ym","2012-12-01","Obese I",162,"0.8%",NA,NA
+"Time_zero_Ym","2013-01-01","Obese I",166,"0.8%",NA,NA
+"Time_zero_Ym","2013-02-01","Obese I",141,"0.7%",NA,NA
+"Time_zero_Ym","2013-03-01","Obese I",152,"0.7%",NA,NA
+"Time_zero_Ym","2013-04-01","Obese I",163,"0.8%",NA,NA
+"Time_zero_Ym","2013-05-01","Obese I",158,"0.8%",NA,NA
+"Time_zero_Ym","2013-06-01","Obese I",379,"1.8%",NA,NA
+"Time_zero_Ym","2013-07-01","Obese I",127,"0.6%",NA,NA
+"Time_zero_Ym","2013-08-01","Obese I",123,"0.6%",NA,NA
+"Time_zero_Ym","2013-09-01","Obese I",125,"0.6%",NA,NA
+"Time_zero_Ym","2013-10-01","Obese I",171,"0.8%",NA,NA
+"Time_zero_Ym","2013-11-01","Obese I",129,"0.6%",NA,NA
+"Time_zero_Ym","2013-12-01","Obese I",144,"0.7%",NA,NA
+"Time_zero_Ym","2014-01-01","Obese I",166,"0.8%",NA,NA
+"Time_zero_Ym","2014-02-01","Obese I",142,"0.7%",NA,NA
+"Time_zero_Ym","2014-03-01","Obese I",161,"0.8%",NA,NA
+"Time_zero_Ym","2014-04-01","Obese I",166,"0.8%",NA,NA
+"Time_zero_Ym","2014-05-01","Obese I",149,"0.7%",NA,NA
+"Time_zero_Ym","2014-06-01","Obese I",171,"0.8%",NA,NA
+"Time_zero_Ym","2014-07-01","Obese I",158,"0.8%",NA,NA
+"Time_zero_Ym","2014-08-01","Obese I",139,"0.7%",NA,NA
+"Time_zero_Ym","2014-09-01","Obese I",116,"0.6%",NA,NA
+"Time_zero_Ym","2014-10-01","Obese I",149,"0.7%",NA,NA
+"Time_zero_Ym","2014-11-01","Obese I",167,"0.8%",NA,NA
+"Time_zero_Ym","2014-12-01","Obese I",155,"0.7%",NA,NA
+"Time_zero_Ym","2015-01-01","Obese I",179,"0.9%",NA,NA
+"Time_zero_Ym","2015-02-01","Obese I",150,"0.7%",NA,NA
+"Time_zero_Ym","2015-03-01","Obese I",132,"0.6%",NA,NA
+"Time_zero_Ym","2015-04-01","Obese I",149,"0.7%",NA,NA
+"Time_zero_Ym","2015-05-01","Obese I",140,"0.7%",NA,NA
+"Time_zero_Ym","2015-06-01","Obese I",149,"0.7%",NA,NA
+"Time_zero_Ym","2015-07-01","Obese I",207,"1.0%",NA,NA
+"Time_zero_Ym","2015-08-01","Obese I",140,"0.7%",NA,NA
+"Time_zero_Ym","2015-09-01","Obese I",142,"0.7%",NA,NA
+"Time_zero_Ym","2015-10-01","Obese I",147,"0.7%",NA,NA
+"Time_zero_Ym","2015-11-01","Obese I",164,"0.8%",NA,NA
+"Time_zero_Ym","2015-12-01","Obese I",149,"0.7%",NA,NA
+"Time_zero_Ym","2016-01-01","Obese I",156,"0.7%",NA,NA
+"Time_zero_Ym","2016-02-01","Obese I",147,"0.7%",NA,NA
+"Time_zero_Ym","2016-03-01","Obese I",164,"0.8%",NA,NA
+"Time_zero_Ym","2016-04-01","Obese I",150,"0.7%",NA,NA
+"Time_zero_Ym","2016-05-01","Obese I",173,"0.8%",NA,NA
+"Time_zero_Ym","2016-06-01","Obese I",143,"0.7%",NA,NA
+"Time_zero_Ym","2016-07-01","Obese I",161,"0.8%",NA,NA
+"Time_zero_Ym","2016-08-01","Obese I",154,"0.7%",NA,NA
+"Time_zero_Ym","2016-09-01","Obese I",140,"0.7%",NA,NA
+"Time_zero_Ym","2016-10-01","Obese I",173,"0.8%",NA,NA
+"Time_zero_Ym","2016-11-01","Obese I",146,"0.7%",NA,NA
+"Time_zero_Ym","2016-12-01","Obese I",179,"0.9%",NA,NA
+"Time_zero_Ym","2017-01-01","Obese I",156,"0.7%",NA,NA
+"Time_zero_Ym","2017-02-01","Obese I",179,"0.9%",NA,NA
+"Time_zero_Ym","2017-03-01","Obese I",160,"0.8%",NA,NA
+"Time_zero_Ym","2017-04-01","Obese I",168,"0.8%",NA,NA
+"Time_zero_Ym","2017-05-01","Obese I",164,"0.8%",NA,NA
+"Time_zero_Ym","2017-06-01","Obese I",145,"0.7%",NA,NA
+"Time_zero_Ym","2017-07-01","Obese I",145,"0.7%",NA,NA
+"Time_zero_Ym","2017-08-01","Obese I",153,"0.7%",NA,NA
+"Time_zero_Ym","2017-09-01","Obese I",153,"0.7%",NA,NA
+"Time_zero_Ym","2017-10-01","Obese I",155,"0.7%",NA,NA
+"Time_zero_Ym","2017-11-01","Obese I",197,"0.9%",NA,NA
+"Time_zero_Ym","2017-12-01","Obese I",156,"0.7%",NA,NA
+"Time_zero_Ym","2018-01-01","Obese I",4,"0.0%",NA,NA
+"Time_zero_Ym","2018-03-01","Obese I",3,"0.0%",NA,NA
+"Time_zero_Ym","2018-04-01","Obese I",2,"0.0%",NA,NA
+"Time_zero_Ym","2018-11-01","Obese I",1,"0.0%",NA,NA
+"Time_zero_Ym","2018-12-01","Obese I",1,"0.0%",NA,NA
+"Time_zero_Ym","2019-02-01","Obese I",1,"0.0%",NA,NA
+"Time_zero_Ym","2019-03-01","Obese I",1,"0.0%",NA,NA
+"Time_zero_Ym","2019-04-01","Obese I",1,"0.0%",NA,NA
+"Time_zero_Ym","2019-05-01","Obese I",1,"0.0%",NA,NA
+"Time_zero_Ym","2019-08-01","Obese I",1,"0.0%",NA,NA
+"Time_zero_Ym","2019-10-01","Obese I",1,"0.0%",NA,NA
+"Time_zero_Ym","2019-11-01","Obese I",1,"0.0%",NA,NA
+"Time_zero_Ym","2019-12-01","Obese I",1,"0.0%",NA,NA
+"ACE_inhibitor","No","Obese II",2027,"37.4%",8.67e-09,1.44e-08
+"ACE_inhibitor","Yes","Obese II",3244,"59.9%",8.67e-09,1.44e-08
+"ACE_inhibitor",NA,"Obese II",142,"2.6%",8.67e-09,1.44e-08
+"ACE_inhibitor_ARB","No","Obese II",815,"15.1%",2.86e-164,1.08e-163
+"ACE_inhibitor_ARB","Yes","Obese II",4571,"84.4%",2.86e-164,1.08e-163
+"ACE_inhibitor_ARB",NA,"Obese II",27,"0.5%",2.86e-164,1.08e-163
+"AF_atrial_flutter","No","Obese II",4481,"82.8%",3.24e-20,7.15e-20
+"AF_atrial_flutter","Yes","Obese II",678,"12.5%",3.24e-20,7.15e-20
+"AF_atrial_flutter",NA,"Obese II",254,"4.7%",3.24e-20,7.15e-20
+"ARB","No","Obese II",3922,"72.5%",3.38e-192,1.49e-191
+"ARB","Yes","Obese II",1266,"23.4%",3.38e-192,1.49e-191
+"ARB",NA,"Obese II",225,"4.2%",3.38e-192,1.49e-191
+"AV_block","No","Obese II",635,"11.7%",0.13,0.146
+"AV_block","Yes","Obese II",91,"1.7%",0.13,0.146
+"AV_block",NA,"Obese II",4687,"86.6%",0.13,0.146
+"AV_block_II_or_III","No","Obese II",743,"13.7%",0.839,0.839
+"AV_block_II_or_III","Yes","Obese II",2,"0.0%",0.839,0.839
+"AV_block_II_or_III",NA,"Obese II",4668,"86.2%",0.839,0.839
+"Alcohol","No","Obese II",234,"4.3%",0.00104,0.00138
+"Alcohol","Yes","Obese II",429,"7.9%",0.00104,0.00138
+"Alcohol",NA,"Obese II",4750,"87.8%",0.00104,0.00138
+"Aldosterone_antagonist","No","Obese II",3163,"58.4%",3.46e-15,6.79e-15
+"Aldosterone_antagonist","Yes","Obese II",337,"6.2%",3.46e-15,6.79e-15
+"Aldosterone_antagonist",NA,"Obese II",1913,"35.3%",3.46e-15,6.79e-15
+"Anti_anginal","No","Obese II",4003,"74.0%",1.61e-09,2.75e-09
+"Anti_anginal","Yes","Obese II",568,"10.5%",1.61e-09,2.75e-09
+"Anti_anginal",NA,"Obese II",842,"15.6%",1.61e-09,2.75e-09
+"Anti_arrhythmic_III","No","Obese II",1015,"18.8%",0.05,0.0616
+"Anti_arrhythmic_III","Yes","Obese II",30,"0.6%",0.05,0.0616
+"Anti_arrhythmic_III",NA,"Obese II",4368,"80.7%",0.05,0.0616
+"Anti_coagulant","No","Obese II",4084,"75.4%",1.13e-06,1.66e-06
+"Anti_coagulant","Yes","Obese II",499,"9.2%",1.13e-06,1.66e-06
+"Anti_coagulant",NA,"Obese II",830,"15.3%",1.13e-06,1.66e-06
+"Anti_diabetic","No","Obese II",3395,"62.7%",0,0
+"Anti_diabetic","Yes","Obese II",1570,"29.0%",0,0
+"Anti_diabetic",NA,"Obese II",448,"8.3%",0,0
+"Anti_diabetic_insulin","No","Obese II",4057,"74.9%",0,0
+"Anti_diabetic_insulin","Yes","Obese II",920,"17.0%",0,0
+"Anti_diabetic_insulin",NA,"Obese II",436,"8.1%",0,0
+"Anti_diabetic_oral","No","Obese II",3844,"71.0%",0,0
+"Anti_diabetic_oral","Yes","Obese II",1147,"21.2%",0,0
+"Anti_diabetic_oral",NA,"Obese II",422,"7.8%",0,0
+"Anti_platelet","No","Obese II",279,"5.2%",2.75e-28,6.63e-28
+"Anti_platelet","Yes","Obese II",4505,"83.2%",2.75e-28,6.63e-28
+"Anti_platelet",NA,"Obese II",629,"11.6%",2.75e-28,6.63e-28
+"Baseline_type","MI","Obese II",4408,"81.4%",0,0
+"Baseline_type","MI40d","Obese II",716,"13.2%",0,0
+"Baseline_type",NA,"Obese II",289,"5.3%",0,0
+"Beta_blockers","No","Obese II",546,"10.1%",2.61e-34,6.92e-34
+"Beta_blockers","Yes","Obese II",4849,"89.6%",2.61e-34,6.92e-34
+"Beta_blockers",NA,"Obese II",18,"0.3%",2.61e-34,6.92e-34
+"CABG","No","Obese II",4639,"85.7%",3.76e-34,9.5e-34
+"CABG","Yes","Obese II",567,"10.5%",3.76e-34,9.5e-34
+"CABG",NA,"Obese II",207,"3.8%",3.76e-34,9.5e-34
+"CABG_acute","No","Obese II",3069,"56.7%",0.676,0.703
+"CABG_acute","Yes","Obese II",19,"0.4%",0.676,0.703
+"CABG_acute",NA,"Obese II",2325,"43.0%",0.676,0.703
+"COPD","No","Obese II",797,"14.7%",1.54e-14,2.92e-14
+"COPD","Yes","Obese II",100,"1.8%",1.54e-14,2.92e-14
+"COPD",NA,"Obese II",4516,"83.4%",1.54e-14,2.92e-14
+"CVD_risk_region","1","Obese II",69,"1.3%",1.05e-292,6.96e-292
+"CVD_risk_region","2","Obese II",4373,"80.8%",1.05e-292,6.96e-292
+"CVD_risk_region","3","Obese II",901,"16.6%",1.05e-292,6.96e-292
+"CVD_risk_region","4","Obese II",70,"1.3%",1.05e-292,6.96e-292
+"Calcium_antagonists","No","Obese II",3509,"64.8%",9.66e-149,3.41e-148
+"Calcium_antagonists","Yes","Obese II",1065,"19.7%",9.66e-149,3.41e-148
+"Calcium_antagonists",NA,"Obese II",839,"15.5%",9.66e-149,3.41e-148
+"Cancer","No","Obese II",47,"0.9%",0.612,0.662
+"Cancer",NA,"Obese II",5366,"99.1%",0.612,0.662
+"Diabetes","No","Obese II",3139,"58.0%",0,0
+"Diabetes","Yes","Obese II",2251,"41.6%",0,0
+"Diabetes",NA,"Obese II",23,"0.4%",0,0
+"Digitalis_glycosides","No","Obese II",4553,"84.1%",9.89e-19,2.02e-18
+"Digitalis_glycosides","Yes","Obese II",107,"2.0%",9.89e-19,2.02e-18
+"Digitalis_glycosides",NA,"Obese II",753,"13.9%",9.89e-19,2.02e-18
+"Diseased_arteries_num_cat","0","Obese II",24,"0.4%",0.000863,0.00117
+"Diseased_arteries_num_cat","1","Obese II",73,"1.3%",0.000863,0.00117
+"Diseased_arteries_num_cat","2","Obese II",30,"0.6%",0.000863,0.00117
+"Diseased_arteries_num_cat","geq3","Obese II",44,"0.8%",0.000863,0.00117
+"Diseased_arteries_num_cat",NA,"Obese II",5242,"96.8%",0.000863,0.00117
+"Diuretics","No","Obese II",3259,"60.2%",1.46e-247,8.59999999999999e-247
+"Diuretics","Yes","Obese II",2129,"39.3%",1.46e-247,8.59999999999999e-247
+"Diuretics",NA,"Obese II",25,"0.5%",1.46e-247,8.59999999999999e-247
+"FH_CAD","No","Obese II",288,"5.3%",1.05e-09,1.86e-09
+"FH_CAD","Yes","Obese II",346,"6.4%",1.05e-09,1.86e-09
+"FH_CAD",NA,"Obese II",4779,"88.3%",1.05e-09,1.86e-09
+"FH_SCD","No","Obese II",456,"8.4%",0.0195,0.0252
+"FH_SCD","Yes","Obese II",179,"3.3%",0.0195,0.0252
+"FH_SCD",NA,"Obese II",4778,"88.3%",0.0195,0.0252
+"HF","No","Obese II",3890,"71.9%",1.47e-26,3.4e-26
+"HF","Yes","Obese II",385,"7.1%",1.47e-26,3.4e-26
+"HF",NA,"Obese II",1138,"21.0%",1.47e-26,3.4e-26
+"HasMRI","No","Obese II",5315,"98.2%",9.24e-06,1.32e-05
+"HasMRI","Yes","Obese II",98,"1.8%",9.24e-06,1.32e-05
+"Hypertension","No","Obese II",1701,"31.4%",0,0
+"Hypertension","Yes","Obese II",3548,"65.5%",0,0
+"Hypertension",NA,"Obese II",164,"3.0%",0,0
+"IsSWHR","0","Obese II",816,"15.1%",4.11e-207,1.98e-206
+"IsSWHR","1","Obese II",4308,"79.6%",4.11e-207,1.98e-206
+"IsSWHR",NA,"Obese II",289,"5.3%",4.11e-207,1.98e-206
+"LBBB","No","Obese II",4850,"89.6%",1.52e-05,2.11e-05
+"LBBB","Yes","Obese II",243,"4.5%",1.52e-05,2.11e-05
+"LBBB",NA,"Obese II",320,"5.9%",1.52e-05,2.11e-05
+"Lipid_lowering","No","Obese II",411,"7.6%",3.26e-240,1.73e-239
+"Lipid_lowering","Yes","Obese II",4971,"91.8%",3.26e-240,1.73e-239
+"Lipid_lowering",NA,"Obese II",31,"0.6%",3.26e-240,1.73e-239
+"MI_history","No","Obese II",3449,"63.7%",3.41e-07,5.32e-07
+"MI_history","Yes","Obese II",949,"17.5%",3.41e-07,5.32e-07
+"MI_history",NA,"Obese II",1015,"18.8%",3.41e-07,5.32e-07
+"MI_location_anterior","No","Obese II",514,"9.5%",5.42e-07,8.2e-07
+"MI_location_anterior","Yes","Obese II",236,"4.4%",5.42e-07,8.2e-07
+"MI_location_anterior",NA,"Obese II",4663,"86.1%",5.42e-07,8.2e-07
+"MI_location_inferior","No","Obese II",432,"8.0%",0.0649,0.0764
+"MI_location_inferior","Yes","Obese II",318,"5.9%",0.0649,0.0764
+"MI_location_inferior",NA,"Obese II",4663,"86.1%",0.0649,0.0764
+"MI_location_lateral","No","Obese II",620,"11.5%",0.639,0.678
+"MI_location_lateral","Yes","Obese II",101,"1.9%",0.639,0.678
+"MI_location_lateral",NA,"Obese II",4692,"86.7%",0.639,0.678
+"MI_location_posterior","No","Obese II",616,"11.4%",0.0247,0.0311
+"MI_location_posterior","Yes","Obese II",31,"0.6%",0.0247,0.0311
+"MI_location_posterior",NA,"Obese II",4766,"88.0%",0.0247,0.0311
+"MI_type","NSTEMI","Obese II",3145,"58.1%",1.71e-19,3.63e-19
+"MI_type","STEMI","Obese II",1196,"22.1%",1.71e-19,3.63e-19
+"MI_type",NA,"Obese II",1072,"19.8%",1.71e-19,3.63e-19
+"MR","Moderate","Obese II",10,"0.2%",0.0886,0.102
+"MR","None or mild","Obese II",105,"1.9%",0.0886,0.102
+"MR","Severe","Obese II",4,"0.1%",0.0886,0.102
+"MR",NA,"Obese II",5294,"97.8%",0.0886,0.102
+"NSVT","No","Obese II",92,"1.7%",0.0609,0.0733
+"NSVT","Yes","Obese II",9,"0.2%",0.0609,0.0733
+"NSVT",NA,"Obese II",5312,"98.1%",0.0609,0.0733
+"NYHA","I","Obese II",546,"10.1%",2.21e-07,3.55e-07
+"NYHA","II","Obese II",303,"5.6%",2.21e-07,3.55e-07
+"NYHA","III","Obese II",135,"2.5%",2.21e-07,3.55e-07
+"NYHA","IV","Obese II",9,"0.2%",2.21e-07,3.55e-07
+"NYHA",NA,"Obese II",4420,"81.7%",2.21e-07,3.55e-07
+"PCI","No","Obese II",3848,"71.1%",1.74e-175,7.08e-175
+"PCI","Yes","Obese II",1206,"22.3%",1.74e-175,7.08e-175
+"PCI",NA,"Obese II",359,"6.6%",1.74e-175,7.08e-175
+"PCI_acute","No","Obese II",3122,"57.7%",8.41e-41,2.34e-40
+"PCI_acute","Yes","Obese II",1295,"23.9%",8.41e-41,2.34e-40
+"PCI_acute",NA,"Obese II",996,"18.4%",8.41e-41,2.34e-40
+"RBBB","No","Obese II",4760,"87.9%",0.808,0.823
+"RBBB","Yes","Obese II",227,"4.2%",0.808,0.823
+"RBBB",NA,"Obese II",426,"7.9%",0.808,0.823
+"Revascularisation_acute","No","Obese II",3045,"56.3%",4.27e-43,1.26e-42
+"Revascularisation_acute","Yes","Obese II",1372,"25.3%",4.27e-43,1.26e-42
+"Revascularisation_acute",NA,"Obese II",996,"18.4%",4.27e-43,1.26e-42
+"Sex","Female","Obese II",2034,"37.6%",0,0
+"Sex","Male","Obese II",3379,"62.4%",0,0
+"Smoking","No","Obese II",1774,"32.8%",4.99e-66,1.65e-65
+"Smoking","Yes","Obese II",3371,"62.3%",4.99e-66,1.65e-65
+"Smoking",NA,"Obese II",268,"5.0%",4.99e-66,1.65e-65
+"Stroke_TIA","No","Obese II",4686,"86.6%",2.99e-12,5.46e-12
+"Stroke_TIA","Yes","Obese II",353,"6.5%",2.99e-12,5.46e-12
+"Stroke_TIA",NA,"Obese II",374,"6.9%",2.99e-12,5.46e-12
+"Thrombolysis_acute","No","Obese II",4323,"79.9%",0.546,0.603
+"Thrombolysis_acute","Yes","Obese II",61,"1.1%",0.546,0.603
+"Thrombolysis_acute",NA,"Obese II",1029,"19.0%",0.546,0.603
+"Time_zero_Y","1995","Obese II",1,"0.0%",3.2e-44,9.97e-44
+"Time_zero_Y","1996","Obese II",5,"0.1%",3.2e-44,9.97e-44
+"Time_zero_Y","1997","Obese II",9,"0.2%",3.2e-44,9.97e-44
+"Time_zero_Y","1998","Obese II",23,"0.4%",3.2e-44,9.97e-44
+"Time_zero_Y","1999","Obese II",24,"0.4%",3.2e-44,9.97e-44
+"Time_zero_Y","2000","Obese II",38,"0.7%",3.2e-44,9.97e-44
+"Time_zero_Y","2001","Obese II",25,"0.5%",3.2e-44,9.97e-44
+"Time_zero_Y","2002","Obese II",17,"0.3%",3.2e-44,9.97e-44
+"Time_zero_Y","2003","Obese II",4,"0.1%",3.2e-44,9.97e-44
+"Time_zero_Y","2004","Obese II",1,"0.0%",3.2e-44,9.97e-44
+"Time_zero_Y","2005","Obese II",2,"0.0%",3.2e-44,9.97e-44
+"Time_zero_Y","2006","Obese II",198,"3.7%",3.2e-44,9.97e-44
+"Time_zero_Y","2007","Obese II",250,"4.6%",3.2e-44,9.97e-44
+"Time_zero_Y","2008","Obese II",258,"4.8%",3.2e-44,9.97e-44
+"Time_zero_Y","2009","Obese II",321,"5.9%",3.2e-44,9.97e-44
+"Time_zero_Y","2010","Obese II",480,"8.9%",3.2e-44,9.97e-44
+"Time_zero_Y","2011","Obese II",634,"11.7%",3.2e-44,9.97e-44
+"Time_zero_Y","2012","Obese II",679,"12.5%",3.2e-44,9.97e-44
+"Time_zero_Y","2013","Obese II",543,"10.0%",3.2e-44,9.97e-44
+"Time_zero_Y","2014","Obese II",435,"8.0%",3.2e-44,9.97e-44
+"Time_zero_Y","2015","Obese II",501,"9.3%",3.2e-44,9.97e-44
+"Time_zero_Y","2016","Obese II",465,"8.6%",3.2e-44,9.97e-44
+"Time_zero_Y","2017","Obese II",485,"9.0%",3.2e-44,9.97e-44
+"Time_zero_Y","2018","Obese II",9,"0.2%",3.2e-44,9.97e-44
+"Time_zero_Y","2019","Obese II",4,"0.1%",3.2e-44,9.97e-44
+"Time_zero_Y","2020","Obese II",2,"0.0%",3.2e-44,9.97e-44
+"Time_zero_Ym","1995-04-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","1996-03-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","1996-05-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","1996-08-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","1996-11-01","Obese II",2,"0.0%",NA,NA
+"Time_zero_Ym","1997-06-01","Obese II",4,"0.1%",NA,NA
+"Time_zero_Ym","1997-07-01","Obese II",2,"0.0%",NA,NA
+"Time_zero_Ym","1997-08-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","1997-09-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","1997-12-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","1998-01-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","1998-02-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","1998-04-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","1998-05-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","1998-06-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","1998-07-01","Obese II",12,"0.2%",NA,NA
+"Time_zero_Ym","1998-08-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","1998-09-01","Obese II",3,"0.1%",NA,NA
+"Time_zero_Ym","1998-12-01","Obese II",2,"0.0%",NA,NA
+"Time_zero_Ym","1999-02-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","1999-05-01","Obese II",2,"0.0%",NA,NA
+"Time_zero_Ym","1999-07-01","Obese II",21,"0.4%",NA,NA
+"Time_zero_Ym","2000-01-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","2000-02-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","2000-03-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","2000-04-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","2000-05-01","Obese II",2,"0.0%",NA,NA
+"Time_zero_Ym","2000-06-01","Obese II",3,"0.1%",NA,NA
+"Time_zero_Ym","2000-07-01","Obese II",24,"0.4%",NA,NA
+"Time_zero_Ym","2000-08-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","2000-09-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","2000-10-01","Obese II",3,"0.1%",NA,NA
+"Time_zero_Ym","2001-01-01","Obese II",3,"0.1%",NA,NA
+"Time_zero_Ym","2001-02-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","2001-03-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","2001-04-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","2001-05-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","2001-07-01","Obese II",11,"0.2%",NA,NA
+"Time_zero_Ym","2001-08-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","2001-10-01","Obese II",4,"0.1%",NA,NA
+"Time_zero_Ym","2001-11-01","Obese II",2,"0.0%",NA,NA
+"Time_zero_Ym","2002-01-01","Obese II",3,"0.1%",NA,NA
+"Time_zero_Ym","2002-02-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","2002-03-01","Obese II",2,"0.0%",NA,NA
+"Time_zero_Ym","2002-04-01","Obese II",2,"0.0%",NA,NA
+"Time_zero_Ym","2002-05-01","Obese II",2,"0.0%",NA,NA
+"Time_zero_Ym","2002-06-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","2002-07-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","2002-08-01","Obese II",3,"0.1%",NA,NA
+"Time_zero_Ym","2002-10-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","2002-11-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","2003-02-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","2003-06-01","Obese II",2,"0.0%",NA,NA
+"Time_zero_Ym","2003-12-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","2004-03-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","2005-01-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","2005-11-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","2006-02-01","Obese II",15,"0.3%",NA,NA
+"Time_zero_Ym","2006-03-01","Obese II",10,"0.2%",NA,NA
+"Time_zero_Ym","2006-04-01","Obese II",9,"0.2%",NA,NA
+"Time_zero_Ym","2006-05-01","Obese II",9,"0.2%",NA,NA
+"Time_zero_Ym","2006-06-01","Obese II",12,"0.2%",NA,NA
+"Time_zero_Ym","2006-06-16","Obese II",9,"0.2%",NA,NA
+"Time_zero_Ym","2006-07-01","Obese II",16,"0.3%",NA,NA
+"Time_zero_Ym","2006-08-01","Obese II",23,"0.4%",NA,NA
+"Time_zero_Ym","2006-09-01","Obese II",12,"0.2%",NA,NA
+"Time_zero_Ym","2006-10-01","Obese II",16,"0.3%",NA,NA
+"Time_zero_Ym","2006-11-01","Obese II",18,"0.3%",NA,NA
+"Time_zero_Ym","2006-11-16","Obese II",27,"0.5%",NA,NA
+"Time_zero_Ym","2006-12-01","Obese II",22,"0.4%",NA,NA
+"Time_zero_Ym","2007-01-01","Obese II",13,"0.2%",NA,NA
+"Time_zero_Ym","2007-02-01","Obese II",21,"0.4%",NA,NA
+"Time_zero_Ym","2007-03-01","Obese II",26,"0.5%",NA,NA
+"Time_zero_Ym","2007-04-01","Obese II",16,"0.3%",NA,NA
+"Time_zero_Ym","2007-05-01","Obese II",22,"0.4%",NA,NA
+"Time_zero_Ym","2007-06-01","Obese II",29,"0.5%",NA,NA
+"Time_zero_Ym","2007-07-01","Obese II",22,"0.4%",NA,NA
+"Time_zero_Ym","2007-08-01","Obese II",18,"0.3%",NA,NA
+"Time_zero_Ym","2007-09-01","Obese II",19,"0.4%",NA,NA
+"Time_zero_Ym","2007-10-01","Obese II",26,"0.5%",NA,NA
+"Time_zero_Ym","2007-11-01","Obese II",17,"0.3%",NA,NA
+"Time_zero_Ym","2007-12-01","Obese II",21,"0.4%",NA,NA
+"Time_zero_Ym","2008-01-01","Obese II",20,"0.4%",NA,NA
+"Time_zero_Ym","2008-02-01","Obese II",17,"0.3%",NA,NA
+"Time_zero_Ym","2008-03-01","Obese II",19,"0.4%",NA,NA
+"Time_zero_Ym","2008-04-01","Obese II",23,"0.4%",NA,NA
+"Time_zero_Ym","2008-05-01","Obese II",17,"0.3%",NA,NA
+"Time_zero_Ym","2008-06-01","Obese II",37,"0.7%",NA,NA
+"Time_zero_Ym","2008-07-01","Obese II",16,"0.3%",NA,NA
+"Time_zero_Ym","2008-08-01","Obese II",21,"0.4%",NA,NA
+"Time_zero_Ym","2008-09-01","Obese II",18,"0.3%",NA,NA
+"Time_zero_Ym","2008-10-01","Obese II",20,"0.4%",NA,NA
+"Time_zero_Ym","2008-11-01","Obese II",26,"0.5%",NA,NA
+"Time_zero_Ym","2008-12-01","Obese II",24,"0.4%",NA,NA
+"Time_zero_Ym","2009-01-01","Obese II",32,"0.6%",NA,NA
+"Time_zero_Ym","2009-02-01","Obese II",19,"0.4%",NA,NA
+"Time_zero_Ym","2009-03-01","Obese II",23,"0.4%",NA,NA
+"Time_zero_Ym","2009-04-01","Obese II",18,"0.3%",NA,NA
+"Time_zero_Ym","2009-05-01","Obese II",36,"0.7%",NA,NA
+"Time_zero_Ym","2009-06-01","Obese II",52,"1.0%",NA,NA
+"Time_zero_Ym","2009-07-01","Obese II",24,"0.4%",NA,NA
+"Time_zero_Ym","2009-08-01","Obese II",18,"0.3%",NA,NA
+"Time_zero_Ym","2009-09-01","Obese II",24,"0.4%",NA,NA
+"Time_zero_Ym","2009-10-01","Obese II",25,"0.5%",NA,NA
+"Time_zero_Ym","2009-11-01","Obese II",29,"0.5%",NA,NA
+"Time_zero_Ym","2009-12-01","Obese II",21,"0.4%",NA,NA
+"Time_zero_Ym","2010-01-01","Obese II",18,"0.3%",NA,NA
+"Time_zero_Ym","2010-02-01","Obese II",35,"0.6%",NA,NA
+"Time_zero_Ym","2010-03-01","Obese II",38,"0.7%",NA,NA
+"Time_zero_Ym","2010-04-01","Obese II",26,"0.5%",NA,NA
+"Time_zero_Ym","2010-04-17","Obese II",49,"0.9%",NA,NA
+"Time_zero_Ym","2010-05-01","Obese II",38,"0.7%",NA,NA
+"Time_zero_Ym","2010-06-01","Obese II",60,"1.1%",NA,NA
+"Time_zero_Ym","2010-07-01","Obese II",65,"1.2%",NA,NA
+"Time_zero_Ym","2010-08-01","Obese II",23,"0.4%",NA,NA
+"Time_zero_Ym","2010-09-01","Obese II",36,"0.7%",NA,NA
+"Time_zero_Ym","2010-10-01","Obese II",35,"0.6%",NA,NA
+"Time_zero_Ym","2010-11-01","Obese II",33,"0.6%",NA,NA
+"Time_zero_Ym","2010-12-01","Obese II",24,"0.4%",NA,NA
+"Time_zero_Ym","2011-01-01","Obese II",31,"0.6%",NA,NA
+"Time_zero_Ym","2011-02-01","Obese II",31,"0.6%",NA,NA
+"Time_zero_Ym","2011-03-01","Obese II",26,"0.5%",NA,NA
+"Time_zero_Ym","2011-04-01","Obese II",44,"0.8%",NA,NA
+"Time_zero_Ym","2011-05-01","Obese II",27,"0.5%",NA,NA
+"Time_zero_Ym","2011-06-01","Obese II",249,"4.6%",NA,NA
+"Time_zero_Ym","2011-07-01","Obese II",68,"1.3%",NA,NA
+"Time_zero_Ym","2011-08-01","Obese II",31,"0.6%",NA,NA
+"Time_zero_Ym","2011-09-01","Obese II",36,"0.7%",NA,NA
+"Time_zero_Ym","2011-10-01","Obese II",33,"0.6%",NA,NA
+"Time_zero_Ym","2011-11-01","Obese II",32,"0.6%",NA,NA
+"Time_zero_Ym","2011-12-01","Obese II",26,"0.5%",NA,NA
+"Time_zero_Ym","2012-01-01","Obese II",31,"0.6%",NA,NA
+"Time_zero_Ym","2012-02-01","Obese II",43,"0.8%",NA,NA
+"Time_zero_Ym","2012-03-01","Obese II",29,"0.5%",NA,NA
+"Time_zero_Ym","2012-04-01","Obese II",49,"0.9%",NA,NA
+"Time_zero_Ym","2012-05-01","Obese II",38,"0.7%",NA,NA
+"Time_zero_Ym","2012-06-01","Obese II",253,"4.7%",NA,NA
+"Time_zero_Ym","2012-07-01","Obese II",44,"0.8%",NA,NA
+"Time_zero_Ym","2012-08-01","Obese II",40,"0.7%",NA,NA
+"Time_zero_Ym","2012-09-01","Obese II",37,"0.7%",NA,NA
+"Time_zero_Ym","2012-10-01","Obese II",44,"0.8%",NA,NA
+"Time_zero_Ym","2012-11-01","Obese II",30,"0.6%",NA,NA
+"Time_zero_Ym","2012-12-01","Obese II",41,"0.8%",NA,NA
+"Time_zero_Ym","2013-01-01","Obese II",47,"0.9%",NA,NA
+"Time_zero_Ym","2013-02-01","Obese II",37,"0.7%",NA,NA
+"Time_zero_Ym","2013-03-01","Obese II",33,"0.6%",NA,NA
+"Time_zero_Ym","2013-04-01","Obese II",33,"0.6%",NA,NA
+"Time_zero_Ym","2013-05-01","Obese II",40,"0.7%",NA,NA
+"Time_zero_Ym","2013-06-01","Obese II",140,"2.6%",NA,NA
+"Time_zero_Ym","2013-07-01","Obese II",31,"0.6%",NA,NA
+"Time_zero_Ym","2013-08-01","Obese II",38,"0.7%",NA,NA
+"Time_zero_Ym","2013-09-01","Obese II",32,"0.6%",NA,NA
+"Time_zero_Ym","2013-10-01","Obese II",42,"0.8%",NA,NA
+"Time_zero_Ym","2013-11-01","Obese II",25,"0.5%",NA,NA
+"Time_zero_Ym","2013-12-01","Obese II",45,"0.8%",NA,NA
+"Time_zero_Ym","2014-01-01","Obese II",35,"0.6%",NA,NA
+"Time_zero_Ym","2014-02-01","Obese II",42,"0.8%",NA,NA
+"Time_zero_Ym","2014-03-01","Obese II",45,"0.8%",NA,NA
+"Time_zero_Ym","2014-04-01","Obese II",35,"0.6%",NA,NA
+"Time_zero_Ym","2014-05-01","Obese II",38,"0.7%",NA,NA
+"Time_zero_Ym","2014-06-01","Obese II",31,"0.6%",NA,NA
+"Time_zero_Ym","2014-07-01","Obese II",28,"0.5%",NA,NA
+"Time_zero_Ym","2014-08-01","Obese II",32,"0.6%",NA,NA
+"Time_zero_Ym","2014-09-01","Obese II",35,"0.6%",NA,NA
+"Time_zero_Ym","2014-10-01","Obese II",35,"0.6%",NA,NA
+"Time_zero_Ym","2014-11-01","Obese II",34,"0.6%",NA,NA
+"Time_zero_Ym","2014-12-01","Obese II",45,"0.8%",NA,NA
+"Time_zero_Ym","2015-01-01","Obese II",45,"0.8%",NA,NA
+"Time_zero_Ym","2015-02-01","Obese II",40,"0.7%",NA,NA
+"Time_zero_Ym","2015-03-01","Obese II",43,"0.8%",NA,NA
+"Time_zero_Ym","2015-04-01","Obese II",31,"0.6%",NA,NA
+"Time_zero_Ym","2015-05-01","Obese II",46,"0.8%",NA,NA
+"Time_zero_Ym","2015-06-01","Obese II",42,"0.8%",NA,NA
+"Time_zero_Ym","2015-07-01","Obese II",53,"1.0%",NA,NA
+"Time_zero_Ym","2015-08-01","Obese II",34,"0.6%",NA,NA
+"Time_zero_Ym","2015-09-01","Obese II",32,"0.6%",NA,NA
+"Time_zero_Ym","2015-10-01","Obese II",42,"0.8%",NA,NA
+"Time_zero_Ym","2015-11-01","Obese II",44,"0.8%",NA,NA
+"Time_zero_Ym","2015-12-01","Obese II",49,"0.9%",NA,NA
+"Time_zero_Ym","2016-01-01","Obese II",47,"0.9%",NA,NA
+"Time_zero_Ym","2016-02-01","Obese II",38,"0.7%",NA,NA
+"Time_zero_Ym","2016-03-01","Obese II",33,"0.6%",NA,NA
+"Time_zero_Ym","2016-04-01","Obese II",39,"0.7%",NA,NA
+"Time_zero_Ym","2016-05-01","Obese II",53,"1.0%",NA,NA
+"Time_zero_Ym","2016-06-01","Obese II",42,"0.8%",NA,NA
+"Time_zero_Ym","2016-07-01","Obese II",42,"0.8%",NA,NA
+"Time_zero_Ym","2016-08-01","Obese II",23,"0.4%",NA,NA
+"Time_zero_Ym","2016-09-01","Obese II",41,"0.8%",NA,NA
+"Time_zero_Ym","2016-10-01","Obese II",29,"0.5%",NA,NA
+"Time_zero_Ym","2016-11-01","Obese II",35,"0.6%",NA,NA
+"Time_zero_Ym","2016-12-01","Obese II",43,"0.8%",NA,NA
+"Time_zero_Ym","2017-01-01","Obese II",49,"0.9%",NA,NA
+"Time_zero_Ym","2017-02-01","Obese II",41,"0.8%",NA,NA
+"Time_zero_Ym","2017-03-01","Obese II",40,"0.7%",NA,NA
+"Time_zero_Ym","2017-04-01","Obese II",30,"0.6%",NA,NA
+"Time_zero_Ym","2017-05-01","Obese II",35,"0.6%",NA,NA
+"Time_zero_Ym","2017-06-01","Obese II",44,"0.8%",NA,NA
+"Time_zero_Ym","2017-07-01","Obese II",31,"0.6%",NA,NA
+"Time_zero_Ym","2017-08-01","Obese II",46,"0.8%",NA,NA
+"Time_zero_Ym","2017-09-01","Obese II",40,"0.7%",NA,NA
+"Time_zero_Ym","2017-10-01","Obese II",54,"1.0%",NA,NA
+"Time_zero_Ym","2017-11-01","Obese II",39,"0.7%",NA,NA
+"Time_zero_Ym","2017-12-01","Obese II",36,"0.7%",NA,NA
+"Time_zero_Ym","2018-01-01","Obese II",4,"0.1%",NA,NA
+"Time_zero_Ym","2018-02-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","2018-04-01","Obese II",2,"0.0%",NA,NA
+"Time_zero_Ym","2018-06-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","2018-10-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","2019-01-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","2019-05-01","Obese II",2,"0.0%",NA,NA
+"Time_zero_Ym","2019-12-01","Obese II",1,"0.0%",NA,NA
+"Time_zero_Ym","2020-01-01","Obese II",2,"0.0%",NA,NA
+"ACE_inhibitor","No","Obese III",718,"39.4%",8.67e-09,1.44e-08
+"ACE_inhibitor","Yes","Obese III",1055,"57.9%",8.67e-09,1.44e-08
+"ACE_inhibitor",NA,"Obese III",49,"2.7%",8.67e-09,1.44e-08
+"ACE_inhibitor_ARB","No","Obese III",305,"16.7%",2.86e-164,1.08e-163
+"ACE_inhibitor_ARB","Yes","Obese III",1508,"82.8%",2.86e-164,1.08e-163
+"ACE_inhibitor_ARB",NA,"Obese III",9,"0.5%",2.86e-164,1.08e-163
+"AF_atrial_flutter","No","Obese III",1490,"81.8%",3.24e-20,7.15e-20
+"AF_atrial_flutter","Yes","Obese III",278,"15.3%",3.24e-20,7.15e-20
+"AF_atrial_flutter",NA,"Obese III",54,"3.0%",3.24e-20,7.15e-20
+"ARB","No","Obese III",1313,"72.1%",3.38e-192,1.49e-191
+"ARB","Yes","Obese III",439,"24.1%",3.38e-192,1.49e-191
+"ARB",NA,"Obese III",70,"3.8%",3.38e-192,1.49e-191
+"AV_block","No","Obese III",301,"16.5%",0.13,0.146
+"AV_block","Yes","Obese III",46,"2.5%",0.13,0.146
+"AV_block",NA,"Obese III",1475,"81.0%",0.13,0.146
+"AV_block_II_or_III","No","Obese III",338,"18.6%",0.839,0.839
+"AV_block_II_or_III","Yes","Obese III",1,"0.1%",0.839,0.839
+"AV_block_II_or_III",NA,"Obese III",1483,"81.4%",0.839,0.839
+"Alcohol","No","Obese III",128,"7.0%",0.00104,0.00138
+"Alcohol","Yes","Obese III",191,"10.5%",0.00104,0.00138
+"Alcohol",NA,"Obese III",1503,"82.5%",0.00104,0.00138
+"Aldosterone_antagonist","No","Obese III",1101,"60.4%",3.46e-15,6.79e-15
+"Aldosterone_antagonist","Yes","Obese III",134,"7.4%",3.46e-15,6.79e-15
+"Aldosterone_antagonist",NA,"Obese III",587,"32.2%",3.46e-15,6.79e-15
+"Anti_anginal","No","Obese III",1233,"67.7%",1.61e-09,2.75e-09
+"Anti_anginal","Yes","Obese III",198,"10.9%",1.61e-09,2.75e-09
+"Anti_anginal",NA,"Obese III",391,"21.5%",1.61e-09,2.75e-09
+"Anti_arrhythmic_III","No","Obese III",444,"24.4%",0.05,0.0616
+"Anti_arrhythmic_III","Yes","Obese III",12,"0.7%",0.05,0.0616
+"Anti_arrhythmic_III",NA,"Obese III",1366,"75.0%",0.05,0.0616
+"Anti_coagulant","No","Obese III",1270,"69.7%",1.13e-06,1.66e-06
+"Anti_coagulant","Yes","Obese III",178,"9.8%",1.13e-06,1.66e-06
+"Anti_coagulant",NA,"Obese III",374,"20.5%",1.13e-06,1.66e-06
+"Anti_diabetic","No","Obese III",1052,"57.7%",0,0
+"Anti_diabetic","Yes","Obese III",547,"30.0%",0,0
+"Anti_diabetic",NA,"Obese III",223,"12.2%",0,0
+"Anti_diabetic_insulin","No","Obese III",1246,"68.4%",0,0
+"Anti_diabetic_insulin","Yes","Obese III",357,"19.6%",0,0
+"Anti_diabetic_insulin",NA,"Obese III",219,"12.0%",0,0
+"Anti_diabetic_oral","No","Obese III",1251,"68.7%",0,0
+"Anti_diabetic_oral","Yes","Obese III",373,"20.5%",0,0
+"Anti_diabetic_oral",NA,"Obese III",198,"10.9%",0,0
+"Anti_platelet","No","Obese III",93,"5.1%",2.75e-28,6.63e-28
+"Anti_platelet","Yes","Obese III",1418,"77.8%",2.75e-28,6.63e-28
+"Anti_platelet",NA,"Obese III",311,"17.1%",2.75e-28,6.63e-28
+"Baseline_type","MI","Obese III",1362,"74.8%",0,0
+"Baseline_type","MI40d","Obese III",335,"18.4%",0,0
+"Baseline_type",NA,"Obese III",125,"6.9%",0,0
+"Beta_blockers","No","Obese III",172,"9.4%",2.61e-34,6.92e-34
+"Beta_blockers","Yes","Obese III",1645,"90.3%",2.61e-34,6.92e-34
+"Beta_blockers",NA,"Obese III",5,"0.3%",2.61e-34,6.92e-34
+"CABG","No","Obese III",1574,"86.4%",3.76e-34,9.5e-34
+"CABG","Yes","Obese III",175,"9.6%",3.76e-34,9.5e-34
+"CABG",NA,"Obese III",73,"4.0%",3.76e-34,9.5e-34
+"CABG_acute","No","Obese III",921,"50.5%",0.676,0.703
+"CABG_acute","Yes","Obese III",6,"0.3%",0.676,0.703
+"CABG_acute",NA,"Obese III",895,"49.1%",0.676,0.703
+"COPD","No","Obese III",327,"17.9%",1.54e-14,2.92e-14
+"COPD","Yes","Obese III",56,"3.1%",1.54e-14,2.92e-14
+"COPD",NA,"Obese III",1439,"79.0%",1.54e-14,2.92e-14
+"CVD_risk_region","1","Obese III",18,"1.0%",1.05e-292,6.96e-292
+"CVD_risk_region","2","Obese III",1350,"74.1%",1.05e-292,6.96e-292
+"CVD_risk_region","3","Obese III",438,"24.0%",1.05e-292,6.96e-292
+"CVD_risk_region","4","Obese III",16,"0.9%",1.05e-292,6.96e-292
+"Calcium_antagonists","No","Obese III",1094,"60.0%",9.66e-149,3.41e-148
+"Calcium_antagonists","Yes","Obese III",338,"18.6%",9.66e-149,3.41e-148
+"Calcium_antagonists",NA,"Obese III",390,"21.4%",9.66e-149,3.41e-148
+"Cancer","No","Obese III",16,"0.9%",0.612,0.662
+"Cancer",NA,"Obese III",1806,"99.1%",0.612,0.662
+"Diabetes","No","Obese III",964,"52.9%",0,0
+"Diabetes","Yes","Obese III",851,"46.7%",0,0
+"Diabetes",NA,"Obese III",7,"0.4%",0,0
+"Digitalis_glycosides","No","Obese III",1437,"78.9%",9.89e-19,2.02e-18
+"Digitalis_glycosides","Yes","Obese III",46,"2.5%",9.89e-19,2.02e-18
+"Digitalis_glycosides",NA,"Obese III",339,"18.6%",9.89e-19,2.02e-18
+"Diseased_arteries_num_cat","0","Obese III",5,"0.3%",0.000863,0.00117
+"Diseased_arteries_num_cat","1","Obese III",17,"0.9%",0.000863,0.00117
+"Diseased_arteries_num_cat","2","Obese III",12,"0.7%",0.000863,0.00117
+"Diseased_arteries_num_cat","geq3","Obese III",8,"0.4%",0.000863,0.00117
+"Diseased_arteries_num_cat",NA,"Obese III",1780,"97.7%",0.000863,0.00117
+"Diuretics","No","Obese III",960,"52.7%",1.46e-247,8.59999999999999e-247
+"Diuretics","Yes","Obese III",856,"47.0%",1.46e-247,8.59999999999999e-247
+"Diuretics",NA,"Obese III",6,"0.3%",1.46e-247,8.59999999999999e-247
+"FH_CAD","No","Obese III",137,"7.5%",1.05e-09,1.86e-09
+"FH_CAD","Yes","Obese III",177,"9.7%",1.05e-09,1.86e-09
+"FH_CAD",NA,"Obese III",1508,"82.8%",1.05e-09,1.86e-09
+"FH_SCD","No","Obese III",225,"12.3%",0.0195,0.0252
+"FH_SCD","Yes","Obese III",90,"4.9%",0.0195,0.0252
+"FH_SCD",NA,"Obese III",1507,"82.7%",0.0195,0.0252
+"HF","No","Obese III",1185,"65.0%",1.47e-26,3.4e-26
+"HF","Yes","Obese III",145,"8.0%",1.47e-26,3.4e-26
+"HF",NA,"Obese III",492,"27.0%",1.47e-26,3.4e-26
+"HasMRI","No","Obese III",1789,"98.2%",9.24e-06,1.32e-05
+"HasMRI","Yes","Obese III",33,"1.8%",9.24e-06,1.32e-05
+"Hypertension","No","Obese III",522,"28.6%",0,0
+"Hypertension","Yes","Obese III",1267,"69.5%",0,0
+"Hypertension",NA,"Obese III",33,"1.8%",0,0
+"IsSWHR","0","Obese III",360,"19.8%",4.11e-207,1.98e-206
+"IsSWHR","1","Obese III",1337,"73.4%",4.11e-207,1.98e-206
+"IsSWHR",NA,"Obese III",125,"6.9%",4.11e-207,1.98e-206
+"LBBB","No","Obese III",1593,"87.4%",1.52e-05,2.11e-05
+"LBBB","Yes","Obese III",90,"4.9%",1.52e-05,2.11e-05
+"LBBB",NA,"Obese III",139,"7.6%",1.52e-05,2.11e-05
+"Lipid_lowering","No","Obese III",128,"7.0%",3.26e-240,1.73e-239
+"Lipid_lowering","Yes","Obese III",1688,"92.6%",3.26e-240,1.73e-239
+"Lipid_lowering",NA,"Obese III",6,"0.3%",3.26e-240,1.73e-239
+"MI_history","No","Obese III",1097,"60.2%",3.41e-07,5.32e-07
+"MI_history","Yes","Obese III",263,"14.4%",3.41e-07,5.32e-07
+"MI_history",NA,"Obese III",462,"25.4%",3.41e-07,5.32e-07
+"MI_location_anterior","No","Obese III",238,"13.1%",5.42e-07,8.2e-07
+"MI_location_anterior","Yes","Obese III",110,"6.0%",5.42e-07,8.2e-07
+"MI_location_anterior",NA,"Obese III",1474,"80.9%",5.42e-07,8.2e-07
+"MI_location_inferior","No","Obese III",216,"11.9%",0.0649,0.0764
+"MI_location_inferior","Yes","Obese III",132,"7.2%",0.0649,0.0764
+"MI_location_inferior",NA,"Obese III",1474,"80.9%",0.0649,0.0764
+"MI_location_lateral","No","Obese III",298,"16.4%",0.639,0.678
+"MI_location_lateral","Yes","Obese III",41,"2.3%",0.639,0.678
+"MI_location_lateral",NA,"Obese III",1483,"81.4%",0.639,0.678
+"MI_location_posterior","No","Obese III",318,"17.5%",0.0247,0.0311
+"MI_location_posterior","Yes","Obese III",3,"0.2%",0.0247,0.0311
+"MI_location_posterior",NA,"Obese III",1501,"82.4%",0.0247,0.0311
+"MI_type","NSTEMI","Obese III",1005,"55.2%",1.71e-19,3.63e-19
+"MI_type","STEMI","Obese III",343,"18.8%",1.71e-19,3.63e-19
+"MI_type",NA,"Obese III",474,"26.0%",1.71e-19,3.63e-19
+"MR","Moderate","Obese III",3,"0.2%",0.0886,0.102
+"MR","None or mild","Obese III",28,"1.5%",0.0886,0.102
+"MR",NA,"Obese III",1791,"98.3%",0.0886,0.102
+"NSVT","No","Obese III",51,"2.8%",0.0609,0.0733
+"NSVT","Yes","Obese III",4,"0.2%",0.0609,0.0733
+"NSVT",NA,"Obese III",1767,"97.0%",0.0609,0.0733
+"NYHA","I","Obese III",233,"12.8%",2.21e-07,3.55e-07
+"NYHA","II","Obese III",145,"8.0%",2.21e-07,3.55e-07
+"NYHA","III","Obese III",73,"4.0%",2.21e-07,3.55e-07
+"NYHA","IV","Obese III",4,"0.2%",2.21e-07,3.55e-07
+"NYHA",NA,"Obese III",1367,"75.0%",2.21e-07,3.55e-07
+"PCI","No","Obese III",1230,"67.5%",1.74e-175,7.08e-175
+"PCI","Yes","Obese III",454,"24.9%",1.74e-175,7.08e-175
+"PCI",NA,"Obese III",138,"7.6%",1.74e-175,7.08e-175
+"PCI_acute","No","Obese III",997,"54.7%",8.41e-41,2.34e-40
+"PCI_acute","Yes","Obese III",369,"20.3%",8.41e-41,2.34e-40
+"PCI_acute",NA,"Obese III",456,"25.0%",8.41e-41,2.34e-40
+"RBBB","No","Obese III",1574,"86.4%",0.808,0.823
+"RBBB","Yes","Obese III",82,"4.5%",0.808,0.823
+"RBBB",NA,"Obese III",166,"9.1%",0.808,0.823
+"Revascularisation_acute","No","Obese III",975,"53.5%",4.27e-43,1.26e-42
+"Revascularisation_acute","Yes","Obese III",391,"21.5%",4.27e-43,1.26e-42
+"Revascularisation_acute",NA,"Obese III",456,"25.0%",4.27e-43,1.26e-42
+"Sex","Female","Obese III",809,"44.4%",0,0
+"Sex","Male","Obese III",1013,"55.6%",0,0
+"Smoking","No","Obese III",595,"32.7%",4.99e-66,1.65e-65
+"Smoking","Yes","Obese III",1132,"62.1%",4.99e-66,1.65e-65
+"Smoking",NA,"Obese III",95,"5.2%",4.99e-66,1.65e-65
+"Stroke_TIA","No","Obese III",1570,"86.2%",2.99e-12,5.46e-12
+"Stroke_TIA","Yes","Obese III",110,"6.0%",2.99e-12,5.46e-12
+"Stroke_TIA",NA,"Obese III",142,"7.8%",2.99e-12,5.46e-12
+"Thrombolysis_acute","No","Obese III",1339,"73.5%",0.546,0.603
+"Thrombolysis_acute","Yes","Obese III",16,"0.9%",0.546,0.603
+"Thrombolysis_acute",NA,"Obese III",467,"25.6%",0.546,0.603
+"Time_zero_Y","1996","Obese III",1,"0.1%",3.2e-44,9.97e-44
+"Time_zero_Y","1997","Obese III",2,"0.1%",3.2e-44,9.97e-44
+"Time_zero_Y","1998","Obese III",7,"0.4%",3.2e-44,9.97e-44
+"Time_zero_Y","1999","Obese III",8,"0.4%",3.2e-44,9.97e-44
+"Time_zero_Y","2000","Obese III",8,"0.4%",3.2e-44,9.97e-44
+"Time_zero_Y","2001","Obese III",11,"0.6%",3.2e-44,9.97e-44
+"Time_zero_Y","2003","Obese III",3,"0.2%",3.2e-44,9.97e-44
+"Time_zero_Y","2005","Obese III",4,"0.2%",3.2e-44,9.97e-44
+"Time_zero_Y","2006","Obese III",80,"4.4%",3.2e-44,9.97e-44
+"Time_zero_Y","2007","Obese III",84,"4.6%",3.2e-44,9.97e-44
+"Time_zero_Y","2008","Obese III",92,"5.0%",3.2e-44,9.97e-44
+"Time_zero_Y","2009","Obese III",99,"5.4%",3.2e-44,9.97e-44
+"Time_zero_Y","2010","Obese III",166,"9.1%",3.2e-44,9.97e-44
+"Time_zero_Y","2011","Obese III",230,"12.6%",3.2e-44,9.97e-44
+"Time_zero_Y","2012","Obese III",247,"13.6%",3.2e-44,9.97e-44
+"Time_zero_Y","2013","Obese III",195,"10.7%",3.2e-44,9.97e-44
+"Time_zero_Y","2014","Obese III",142,"7.8%",3.2e-44,9.97e-44
+"Time_zero_Y","2015","Obese III",163,"8.9%",3.2e-44,9.97e-44
+"Time_zero_Y","2016","Obese III",126,"6.9%",3.2e-44,9.97e-44
+"Time_zero_Y","2017","Obese III",151,"8.3%",3.2e-44,9.97e-44
+"Time_zero_Y","2018","Obese III",1,"0.1%",3.2e-44,9.97e-44
+"Time_zero_Y","2019","Obese III",2,"0.1%",3.2e-44,9.97e-44
+"Time_zero_Ym","1996-06-01","Obese III",1,"0.1%",NA,NA
+"Time_zero_Ym","1997-07-01","Obese III",2,"0.1%",NA,NA
+"Time_zero_Ym","1998-05-01","Obese III",1,"0.1%",NA,NA
+"Time_zero_Ym","1998-07-01","Obese III",5,"0.3%",NA,NA
+"Time_zero_Ym","1998-10-01","Obese III",1,"0.1%",NA,NA
+"Time_zero_Ym","1999-02-01","Obese III",1,"0.1%",NA,NA
+"Time_zero_Ym","1999-07-01","Obese III",6,"0.3%",NA,NA
+"Time_zero_Ym","1999-12-01","Obese III",1,"0.1%",NA,NA
+"Time_zero_Ym","2000-02-01","Obese III",1,"0.1%",NA,NA
+"Time_zero_Ym","2000-03-01","Obese III",1,"0.1%",NA,NA
+"Time_zero_Ym","2000-07-01","Obese III",3,"0.2%",NA,NA
+"Time_zero_Ym","2000-08-01","Obese III",1,"0.1%",NA,NA
+"Time_zero_Ym","2000-10-01","Obese III",1,"0.1%",NA,NA
+"Time_zero_Ym","2000-11-01","Obese III",1,"0.1%",NA,NA
+"Time_zero_Ym","2001-03-01","Obese III",1,"0.1%",NA,NA
+"Time_zero_Ym","2001-07-01","Obese III",8,"0.4%",NA,NA
+"Time_zero_Ym","2001-09-01","Obese III",1,"0.1%",NA,NA
+"Time_zero_Ym","2001-12-01","Obese III",1,"0.1%",NA,NA
+"Time_zero_Ym","2003-06-01","Obese III",1,"0.1%",NA,NA
+"Time_zero_Ym","2003-07-01","Obese III",2,"0.1%",NA,NA
+"Time_zero_Ym","2005-01-01","Obese III",2,"0.1%",NA,NA
+"Time_zero_Ym","2005-10-01","Obese III",1,"0.1%",NA,NA
+"Time_zero_Ym","2005-11-01","Obese III",1,"0.1%",NA,NA
+"Time_zero_Ym","2006-02-01","Obese III",4,"0.2%",NA,NA
+"Time_zero_Ym","2006-03-01","Obese III",4,"0.2%",NA,NA
+"Time_zero_Ym","2006-04-01","Obese III",5,"0.3%",NA,NA
+"Time_zero_Ym","2006-05-01","Obese III",4,"0.2%",NA,NA
+"Time_zero_Ym","2006-06-01","Obese III",5,"0.3%",NA,NA
+"Time_zero_Ym","2006-06-16","Obese III",2,"0.1%",NA,NA
+"Time_zero_Ym","2006-07-01","Obese III",5,"0.3%",NA,NA
+"Time_zero_Ym","2006-08-01","Obese III",5,"0.3%",NA,NA
+"Time_zero_Ym","2006-09-01","Obese III",3,"0.2%",NA,NA
+"Time_zero_Ym","2006-10-01","Obese III",5,"0.3%",NA,NA
+"Time_zero_Ym","2006-11-01","Obese III",6,"0.3%",NA,NA
+"Time_zero_Ym","2006-11-16","Obese III",22,"1.2%",NA,NA
+"Time_zero_Ym","2006-12-01","Obese III",10,"0.5%",NA,NA
+"Time_zero_Ym","2007-01-01","Obese III",4,"0.2%",NA,NA
+"Time_zero_Ym","2007-02-01","Obese III",4,"0.2%",NA,NA
+"Time_zero_Ym","2007-03-01","Obese III",5,"0.3%",NA,NA
+"Time_zero_Ym","2007-04-01","Obese III",8,"0.4%",NA,NA
+"Time_zero_Ym","2007-05-01","Obese III",9,"0.5%",NA,NA
+"Time_zero_Ym","2007-06-01","Obese III",11,"0.6%",NA,NA
+"Time_zero_Ym","2007-07-01","Obese III",6,"0.3%",NA,NA
+"Time_zero_Ym","2007-08-01","Obese III",4,"0.2%",NA,NA
+"Time_zero_Ym","2007-09-01","Obese III",10,"0.5%",NA,NA
+"Time_zero_Ym","2007-10-01","Obese III",9,"0.5%",NA,NA
+"Time_zero_Ym","2007-11-01","Obese III",6,"0.3%",NA,NA
+"Time_zero_Ym","2007-12-01","Obese III",8,"0.4%",NA,NA
+"Time_zero_Ym","2008-01-01","Obese III",12,"0.7%",NA,NA
+"Time_zero_Ym","2008-02-01","Obese III",5,"0.3%",NA,NA
+"Time_zero_Ym","2008-03-01","Obese III",6,"0.3%",NA,NA
+"Time_zero_Ym","2008-04-01","Obese III",4,"0.2%",NA,NA
+"Time_zero_Ym","2008-05-01","Obese III",6,"0.3%",NA,NA
+"Time_zero_Ym","2008-06-01","Obese III",11,"0.6%",NA,NA
+"Time_zero_Ym","2008-07-01","Obese III",2,"0.1%",NA,NA
+"Time_zero_Ym","2008-08-01","Obese III",8,"0.4%",NA,NA
+"Time_zero_Ym","2008-09-01","Obese III",11,"0.6%",NA,NA
+"Time_zero_Ym","2008-10-01","Obese III",10,"0.5%",NA,NA
+"Time_zero_Ym","2008-11-01","Obese III",5,"0.3%",NA,NA
+"Time_zero_Ym","2008-12-01","Obese III",12,"0.7%",NA,NA
+"Time_zero_Ym","2009-01-01","Obese III",4,"0.2%",NA,NA
+"Time_zero_Ym","2009-02-01","Obese III",7,"0.4%",NA,NA
+"Time_zero_Ym","2009-03-01","Obese III",9,"0.5%",NA,NA
+"Time_zero_Ym","2009-04-01","Obese III",6,"0.3%",NA,NA
+"Time_zero_Ym","2009-05-01","Obese III",7,"0.4%",NA,NA
+"Time_zero_Ym","2009-06-01","Obese III",23,"1.3%",NA,NA
+"Time_zero_Ym","2009-07-01","Obese III",9,"0.5%",NA,NA
+"Time_zero_Ym","2009-08-01","Obese III",9,"0.5%",NA,NA
+"Time_zero_Ym","2009-09-01","Obese III",9,"0.5%",NA,NA
+"Time_zero_Ym","2009-10-01","Obese III",6,"0.3%",NA,NA
+"Time_zero_Ym","2009-11-01","Obese III",7,"0.4%",NA,NA
+"Time_zero_Ym","2009-12-01","Obese III",3,"0.2%",NA,NA
+"Time_zero_Ym","2010-01-01","Obese III",10,"0.5%",NA,NA
+"Time_zero_Ym","2010-02-01","Obese III",9,"0.5%",NA,NA
+"Time_zero_Ym","2010-03-01","Obese III",13,"0.7%",NA,NA
+"Time_zero_Ym","2010-04-01","Obese III",12,"0.7%",NA,NA
+"Time_zero_Ym","2010-04-17","Obese III",9,"0.5%",NA,NA
+"Time_zero_Ym","2010-05-01","Obese III",12,"0.7%",NA,NA
+"Time_zero_Ym","2010-06-01","Obese III",24,"1.3%",NA,NA
+"Time_zero_Ym","2010-07-01","Obese III",31,"1.7%",NA,NA
+"Time_zero_Ym","2010-08-01","Obese III",5,"0.3%",NA,NA
+"Time_zero_Ym","2010-09-01","Obese III",6,"0.3%",NA,NA
+"Time_zero_Ym","2010-10-01","Obese III",10,"0.5%",NA,NA
+"Time_zero_Ym","2010-11-01","Obese III",15,"0.8%",NA,NA
+"Time_zero_Ym","2010-12-01","Obese III",10,"0.5%",NA,NA
+"Time_zero_Ym","2011-01-01","Obese III",12,"0.7%",NA,NA
+"Time_zero_Ym","2011-02-01","Obese III",2,"0.1%",NA,NA
+"Time_zero_Ym","2011-03-01","Obese III",10,"0.5%",NA,NA
+"Time_zero_Ym","2011-04-01","Obese III",12,"0.7%",NA,NA
+"Time_zero_Ym","2011-05-01","Obese III",7,"0.4%",NA,NA
+"Time_zero_Ym","2011-06-01","Obese III",115,"6.3%",NA,NA
+"Time_zero_Ym","2011-07-01","Obese III",28,"1.5%",NA,NA
+"Time_zero_Ym","2011-08-01","Obese III",7,"0.4%",NA,NA
+"Time_zero_Ym","2011-09-01","Obese III",4,"0.2%",NA,NA
+"Time_zero_Ym","2011-10-01","Obese III",14,"0.8%",NA,NA
+"Time_zero_Ym","2011-11-01","Obese III",7,"0.4%",NA,NA
+"Time_zero_Ym","2011-12-01","Obese III",12,"0.7%",NA,NA
+"Time_zero_Ym","2012-01-01","Obese III",13,"0.7%",NA,NA
+"Time_zero_Ym","2012-02-01","Obese III",11,"0.6%",NA,NA
+"Time_zero_Ym","2012-03-01","Obese III",14,"0.8%",NA,NA
+"Time_zero_Ym","2012-04-01","Obese III",9,"0.5%",NA,NA
+"Time_zero_Ym","2012-05-01","Obese III",15,"0.8%",NA,NA
+"Time_zero_Ym","2012-06-01","Obese III",119,"6.5%",NA,NA
+"Time_zero_Ym","2012-07-01","Obese III",11,"0.6%",NA,NA
+"Time_zero_Ym","2012-08-01","Obese III",10,"0.5%",NA,NA
+"Time_zero_Ym","2012-09-01","Obese III",12,"0.7%",NA,NA
+"Time_zero_Ym","2012-10-01","Obese III",9,"0.5%",NA,NA
+"Time_zero_Ym","2012-11-01","Obese III",15,"0.8%",NA,NA
+"Time_zero_Ym","2012-12-01","Obese III",9,"0.5%",NA,NA
+"Time_zero_Ym","2013-01-01","Obese III",13,"0.7%",NA,NA
+"Time_zero_Ym","2013-02-01","Obese III",8,"0.4%",NA,NA
+"Time_zero_Ym","2013-03-01","Obese III",8,"0.4%",NA,NA
+"Time_zero_Ym","2013-04-01","Obese III",14,"0.8%",NA,NA
+"Time_zero_Ym","2013-05-01","Obese III",10,"0.5%",NA,NA
+"Time_zero_Ym","2013-06-01","Obese III",79,"4.3%",NA,NA
+"Time_zero_Ym","2013-07-01","Obese III",18,"1.0%",NA,NA
+"Time_zero_Ym","2013-08-01","Obese III",13,"0.7%",NA,NA
+"Time_zero_Ym","2013-09-01","Obese III",8,"0.4%",NA,NA
+"Time_zero_Ym","2013-10-01","Obese III",7,"0.4%",NA,NA
+"Time_zero_Ym","2013-11-01","Obese III",7,"0.4%",NA,NA
+"Time_zero_Ym","2013-12-01","Obese III",10,"0.5%",NA,NA
+"Time_zero_Ym","2014-01-01","Obese III",16,"0.9%",NA,NA
+"Time_zero_Ym","2014-02-01","Obese III",9,"0.5%",NA,NA
+"Time_zero_Ym","2014-03-01","Obese III",15,"0.8%",NA,NA
+"Time_zero_Ym","2014-04-01","Obese III",7,"0.4%",NA,NA
+"Time_zero_Ym","2014-05-01","Obese III",15,"0.8%",NA,NA
+"Time_zero_Ym","2014-06-01","Obese III",20,"1.1%",NA,NA
+"Time_zero_Ym","2014-07-01","Obese III",10,"0.5%",NA,NA
+"Time_zero_Ym","2014-08-01","Obese III",10,"0.5%",NA,NA
+"Time_zero_Ym","2014-09-01","Obese III",10,"0.5%",NA,NA
+"Time_zero_Ym","2014-10-01","Obese III",7,"0.4%",NA,NA
+"Time_zero_Ym","2014-11-01","Obese III",15,"0.8%",NA,NA
+"Time_zero_Ym","2014-12-01","Obese III",8,"0.4%",NA,NA
+"Time_zero_Ym","2015-01-01","Obese III",15,"0.8%",NA,NA
+"Time_zero_Ym","2015-02-01","Obese III",12,"0.7%",NA,NA
+"Time_zero_Ym","2015-03-01","Obese III",12,"0.7%",NA,NA
+"Time_zero_Ym","2015-04-01","Obese III",13,"0.7%",NA,NA
+"Time_zero_Ym","2015-05-01","Obese III",7,"0.4%",NA,NA
+"Time_zero_Ym","2015-06-01","Obese III",17,"0.9%",NA,NA
+"Time_zero_Ym","2015-07-01","Obese III",14,"0.8%",NA,NA
+"Time_zero_Ym","2015-08-01","Obese III",17,"0.9%",NA,NA
+"Time_zero_Ym","2015-09-01","Obese III",18,"1.0%",NA,NA
+"Time_zero_Ym","2015-10-01","Obese III",16,"0.9%",NA,NA
+"Time_zero_Ym","2015-11-01","Obese III",11,"0.6%",NA,NA
+"Time_zero_Ym","2015-12-01","Obese III",11,"0.6%",NA,NA
+"Time_zero_Ym","2016-01-01","Obese III",9,"0.5%",NA,NA
+"Time_zero_Ym","2016-02-01","Obese III",10,"0.5%",NA,NA
+"Time_zero_Ym","2016-03-01","Obese III",5,"0.3%",NA,NA
+"Time_zero_Ym","2016-04-01","Obese III",12,"0.7%",NA,NA
+"Time_zero_Ym","2016-05-01","Obese III",10,"0.5%",NA,NA
+"Time_zero_Ym","2016-06-01","Obese III",10,"0.5%",NA,NA
+"Time_zero_Ym","2016-07-01","Obese III",13,"0.7%",NA,NA
+"Time_zero_Ym","2016-08-01","Obese III",12,"0.7%",NA,NA
+"Time_zero_Ym","2016-09-01","Obese III",13,"0.7%",NA,NA
+"Time_zero_Ym","2016-10-01","Obese III",8,"0.4%",NA,NA
+"Time_zero_Ym","2016-11-01","Obese III",14,"0.8%",NA,NA
+"Time_zero_Ym","2016-12-01","Obese III",10,"0.5%",NA,NA
+"Time_zero_Ym","2017-01-01","Obese III",18,"1.0%",NA,NA
+"Time_zero_Ym","2017-02-01","Obese III",5,"0.3%",NA,NA
+"Time_zero_Ym","2017-03-01","Obese III",15,"0.8%",NA,NA
+"Time_zero_Ym","2017-04-01","Obese III",14,"0.8%",NA,NA
+"Time_zero_Ym","2017-05-01","Obese III",20,"1.1%",NA,NA
+"Time_zero_Ym","2017-06-01","Obese III",9,"0.5%",NA,NA
+"Time_zero_Ym","2017-07-01","Obese III",14,"0.8%",NA,NA
+"Time_zero_Ym","2017-08-01","Obese III",15,"0.8%",NA,NA
+"Time_zero_Ym","2017-09-01","Obese III",9,"0.5%",NA,NA
+"Time_zero_Ym","2017-10-01","Obese III",7,"0.4%",NA,NA
+"Time_zero_Ym","2017-11-01","Obese III",13,"0.7%",NA,NA
+"Time_zero_Ym","2017-12-01","Obese III",12,"0.7%",NA,NA
+"Time_zero_Ym","2018-06-01","Obese III",1,"0.1%",NA,NA
+"Time_zero_Ym","2019-01-01","Obese III",1,"0.1%",NA,NA
+"Time_zero_Ym","2019-09-01","Obese III",1,"0.1%",NA,NA
+"ACE_inhibitor","No",NA,6169,"33.2%",8.67e-09,1.44e-08
+"ACE_inhibitor","Yes",NA,10034,"54.0%",8.67e-09,1.44e-08
+"ACE_inhibitor",NA,NA,2380,"12.8%",8.67e-09,1.44e-08
+"ACE_inhibitor_ARB","No",NA,4053,"21.8%",2.86e-164,1.08e-163
+"ACE_inhibitor_ARB","Yes",NA,13010,"70.0%",2.86e-164,1.08e-163
+"ACE_inhibitor_ARB",NA,NA,1520,"8.2%",2.86e-164,1.08e-163
+"AF_atrial_flutter","No",NA,12506,"67.3%",3.24e-20,7.15e-20
+"AF_atrial_flutter","Yes",NA,3089,"16.6%",3.24e-20,7.15e-20
+"AF_atrial_flutter",NA,NA,2988,"16.1%",3.24e-20,7.15e-20
+"ARB","No",NA,12825,"69.0%",3.38e-192,1.49e-191
+"ARB","Yes",NA,1973,"10.6%",3.38e-192,1.49e-191
+"ARB",NA,NA,3785,"20.4%",3.38e-192,1.49e-191
+"AV_block","No",NA,790,"4.3%",0.13,0.146
+"AV_block","Yes",NA,25,"0.1%",0.13,0.146
+"AV_block",NA,NA,17768,"95.6%",0.13,0.146
+"AV_block_II_or_III","No",NA,1055,"5.7%",0.839,0.839
+"AV_block_II_or_III","Yes",NA,16,"0.1%",0.839,0.839
+"AV_block_II_or_III",NA,NA,17512,"94.2%",0.839,0.839
+"Alcohol","No",NA,671,"3.6%",0.00104,0.00138
+"Alcohol","Yes",NA,123,"0.7%",0.00104,0.00138
+"Alcohol",NA,NA,17789,"95.7%",0.00104,0.00138
+"Aldosterone_antagonist","No",NA,3951,"21.3%",3.46e-15,6.79e-15
+"Aldosterone_antagonist","Yes",NA,741,"4.0%",3.46e-15,6.79e-15
+"Aldosterone_antagonist",NA,NA,13891,"74.8%",3.46e-15,6.79e-15
+"Anti_anginal","No",NA,12334,"66.4%",1.61e-09,2.75e-09
+"Anti_anginal","Yes",NA,2683,"14.4%",1.61e-09,2.75e-09
+"Anti_anginal",NA,NA,3566,"19.2%",1.61e-09,2.75e-09
+"Anti_arrhythmic_III","No",NA,2434,"13.1%",0.05,0.0616
+"Anti_arrhythmic_III","Yes",NA,300,"1.6%",0.05,0.0616
+"Anti_arrhythmic_III",NA,NA,15849,"85.3%",0.05,0.0616
+"Anti_coagulant","No",NA,14533,"78.2%",1.13e-06,1.66e-06
+"Anti_coagulant","Yes",NA,2164,"11.6%",1.13e-06,1.66e-06
+"Anti_coagulant",NA,NA,1886,"10.1%",1.13e-06,1.66e-06
+"Anti_diabetic","No",NA,13573,"73.0%",0,0
+"Anti_diabetic","Yes",NA,2661,"14.3%",0,0
+"Anti_diabetic",NA,NA,2349,"12.6%",0,0
+"Anti_diabetic_insulin","No",NA,14688,"79.0%",0,0
+"Anti_diabetic_insulin","Yes",NA,1562,"8.4%",0,0
+"Anti_diabetic_insulin",NA,NA,2333,"12.6%",0,0
+"Anti_diabetic_oral","No",NA,14622,"78.7%",0,0
+"Anti_diabetic_oral","Yes",NA,1617,"8.7%",0,0
+"Anti_diabetic_oral",NA,NA,2344,"12.6%",0,0
+"Anti_platelet","No",NA,1673,"9.0%",2.75e-28,6.63e-28
+"Anti_platelet","Yes",NA,15516,"83.5%",2.75e-28,6.63e-28
+"Anti_platelet",NA,NA,1394,"7.5%",2.75e-28,6.63e-28
+"Baseline_type","MI",NA,13714,"73.8%",0,0
+"Baseline_type","MI40d",NA,1471,"7.9%",0,0
+"Baseline_type",NA,NA,3398,"18.3%",0,0
+"Beta_blockers","No",NA,2229,"12.0%",2.61e-34,6.92e-34
+"Beta_blockers","Yes",NA,15119,"81.4%",2.61e-34,6.92e-34
+"Beta_blockers",NA,NA,1235,"6.6%",2.61e-34,6.92e-34
+"CABG","No",NA,14254,"76.7%",3.76e-34,9.5e-34
+"CABG","Yes",NA,2002,"10.8%",3.76e-34,9.5e-34
+"CABG",NA,NA,2327,"12.5%",3.76e-34,9.5e-34
+"CABG_acute","No",NA,3253,"17.5%",0.676,0.703
+"CABG_acute","Yes",NA,54,"0.3%",0.676,0.703
+"CABG_acute",NA,NA,15276,"82.2%",0.676,0.703
+"COPD","No",NA,1015,"5.5%",1.54e-14,2.92e-14
+"COPD","Yes",NA,80,"0.4%",1.54e-14,2.92e-14
+"COPD",NA,NA,17488,"94.1%",1.54e-14,2.92e-14
+"CVD_risk_region","1",NA,2961,"15.9%",1.05e-292,6.96e-292
+"CVD_risk_region","2",NA,13454,"72.4%",1.05e-292,6.96e-292
+"CVD_risk_region","3",NA,1705,"9.2%",1.05e-292,6.96e-292
+"CVD_risk_region","4",NA,463,"2.5%",1.05e-292,6.96e-292
+"Calcium_antagonists","No",NA,13951,"75.1%",9.66e-149,3.41e-148
+"Calcium_antagonists","Yes",NA,2107,"11.3%",9.66e-149,3.41e-148
+"Calcium_antagonists",NA,NA,2525,"13.6%",9.66e-149,3.41e-148
+"Cancer","No",NA,1280,"6.9%",0.612,0.662
+"Cancer","Yes",NA,47,"0.3%",0.612,0.662
+"Cancer",NA,NA,17256,"92.9%",0.612,0.662
+"Diabetes","No",NA,12970,"69.8%",0,0
+"Diabetes","Yes",NA,4032,"21.7%",0,0
+"Diabetes",NA,NA,1581,"8.5%",0,0
+"Digitalis_glycosides","No",NA,14982,"80.6%",9.89e-19,2.02e-18
+"Digitalis_glycosides","Yes",NA,1380,"7.4%",9.89e-19,2.02e-18
+"Digitalis_glycosides",NA,NA,2221,"12.0%",9.89e-19,2.02e-18
+"Diseased_arteries_num_cat","0",NA,28,"0.2%",0.000863,0.00117
+"Diseased_arteries_num_cat","1",NA,184,"1.0%",0.000863,0.00117
+"Diseased_arteries_num_cat","2",NA,138,"0.7%",0.000863,0.00117
+"Diseased_arteries_num_cat","geq3",NA,204,"1.1%",0.000863,0.00117
+"Diseased_arteries_num_cat",NA,NA,18029,"97.0%",0.000863,0.00117
+"Diuretics","No",NA,9475,"51.0%",1.46e-247,8.59999999999999e-247
+"Diuretics","Yes",NA,7796,"42.0%",1.46e-247,8.59999999999999e-247
+"Diuretics",NA,NA,1312,"7.1%",1.46e-247,8.59999999999999e-247
+"FH_CAD","No",NA,304,"1.6%",1.05e-09,1.86e-09
+"FH_CAD","Yes",NA,754,"4.1%",1.05e-09,1.86e-09
+"FH_CAD",NA,NA,17525,"94.3%",1.05e-09,1.86e-09
+"FH_SCD","No",NA,1349,"7.3%",0.0195,0.0252
+"FH_SCD","Yes",NA,277,"1.5%",0.0195,0.0252
+"FH_SCD",NA,NA,16957,"91.3%",0.0195,0.0252
+"HF","No",NA,12293,"66.2%",1.47e-26,3.4e-26
+"HF","Yes",NA,1882,"10.1%",1.47e-26,3.4e-26
+"HF",NA,NA,4408,"23.7%",1.47e-26,3.4e-26
+"HasMRI","No",NA,17928,"96.5%",9.24e-06,1.32e-05
+"HasMRI","Yes",NA,655,"3.5%",9.24e-06,1.32e-05
+"Hypertension","No",NA,8388,"45.1%",0,0
+"Hypertension","Yes",NA,7683,"41.3%",0,0
+"Hypertension",NA,NA,2512,"13.5%",0,0
+"IsSWHR","0",NA,1739,"9.4%",4.11e-207,1.98e-206
+"IsSWHR","1",NA,13446,"72.4%",4.11e-207,1.98e-206
+"IsSWHR",NA,NA,3398,"18.3%",4.11e-207,1.98e-206
+"LBBB","No",NA,13070,"70.3%",1.52e-05,2.11e-05
+"LBBB","Yes",NA,977,"5.3%",1.52e-05,2.11e-05
+"LBBB",NA,NA,4536,"24.4%",1.52e-05,2.11e-05
+"Lipid_lowering","No",NA,3127,"16.8%",3.26e-240,1.73e-239
+"Lipid_lowering","Yes",NA,12556,"67.6%",3.26e-240,1.73e-239
+"Lipid_lowering",NA,NA,2900,"15.6%",3.26e-240,1.73e-239
+"MI_history","No",NA,10794,"58.1%",3.41e-07,5.32e-07
+"MI_history","Yes",NA,2794,"15.0%",3.41e-07,5.32e-07
+"MI_history",NA,NA,4995,"26.9%",3.41e-07,5.32e-07
+"MI_location_anterior","No",NA,156,"0.8%",5.42e-07,8.2e-07
+"MI_location_anterior","Yes",NA,127,"0.7%",5.42e-07,8.2e-07
+"MI_location_anterior",NA,NA,18300,"98.5%",5.42e-07,8.2e-07
+"MI_location_inferior","No",NA,160,"0.9%",0.0649,0.0764
+"MI_location_inferior","Yes",NA,123,"0.7%",0.0649,0.0764
+"MI_location_inferior",NA,NA,18300,"98.5%",0.0649,0.0764
+"MI_location_lateral","No",NA,256,"1.4%",0.639,0.678
+"MI_location_lateral","Yes",NA,22,"0.1%",0.639,0.678
+"MI_location_lateral",NA,NA,18305,"98.5%",0.639,0.678
+"MI_location_posterior","No",NA,26,"0.1%",0.0247,0.0311
+"MI_location_posterior","Yes",NA,1,"0.0%",0.0247,0.0311
+"MI_location_posterior",NA,NA,18556,"99.9%",0.0247,0.0311
+"MI_type","NSTEMI",NA,10843,"58.3%",1.71e-19,3.63e-19
+"MI_type","STEMI",NA,2621,"14.1%",1.71e-19,3.63e-19
+"MI_type",NA,NA,5119,"27.5%",1.71e-19,3.63e-19
+"MR","Moderate",NA,3,"0.0%",0.0886,0.102
+"MR","None or mild",NA,20,"0.1%",0.0886,0.102
+"MR",NA,NA,18560,"99.9%",0.0886,0.102
+"NSVT","No",NA,303,"1.6%",0.0609,0.0733
+"NSVT","Yes",NA,93,"0.5%",0.0609,0.0733
+"NSVT",NA,NA,18187,"97.9%",0.0609,0.0733
+"NYHA","I",NA,451,"2.4%",2.21e-07,3.55e-07
+"NYHA","II",NA,2279,"12.3%",2.21e-07,3.55e-07
+"NYHA","III",NA,1006,"5.4%",2.21e-07,3.55e-07
+"NYHA","IV",NA,41,"0.2%",2.21e-07,3.55e-07
+"NYHA",NA,NA,14806,"79.7%",2.21e-07,3.55e-07
+"PCI","No",NA,13665,"73.5%",1.74e-175,7.08e-175
+"PCI","Yes",NA,2487,"13.4%",1.74e-175,7.08e-175
+"PCI",NA,NA,2431,"13.1%",1.74e-175,7.08e-175
+"PCI_acute","No",NA,10181,"54.8%",8.41e-41,2.34e-40
+"PCI_acute","Yes",NA,3537,"19.0%",8.41e-41,2.34e-40
+"PCI_acute",NA,NA,4865,"26.2%",8.41e-41,2.34e-40
+"RBBB","No",NA,12852,"69.2%",0.808,0.823
+"RBBB","Yes",NA,657,"3.5%",0.808,0.823
+"RBBB",NA,NA,5074,"27.3%",0.808,0.823
+"Revascularisation_acute","No",NA,9653,"51.9%",4.27e-43,1.26e-42
+"Revascularisation_acute","Yes",NA,4065,"21.9%",4.27e-43,1.26e-42
+"Revascularisation_acute",NA,NA,4865,"26.2%",4.27e-43,1.26e-42
+"Sex","Female",NA,6077,"32.7%",0,0
+"Sex","Male",NA,12506,"67.3%",0,0
+"Smoking","No",NA,6275,"33.8%",4.99e-66,1.65e-65
+"Smoking","Yes",NA,7347,"39.5%",4.99e-66,1.65e-65
+"Smoking",NA,NA,4961,"26.7%",4.99e-66,1.65e-65
+"Stroke_TIA","No",NA,14109,"75.9%",2.99e-12,5.46e-12
+"Stroke_TIA","Yes",NA,1663,"8.9%",2.99e-12,5.46e-12
+"Stroke_TIA",NA,NA,2811,"15.1%",2.99e-12,5.46e-12
+"Thrombolysis_acute","No",NA,13225,"71.2%",0.546,0.603
+"Thrombolysis_acute","Yes",NA,475,"2.6%",0.546,0.603
+"Thrombolysis_acute",NA,NA,4883,"26.3%",0.546,0.603
+"Time_zero_Y","1994",NA,3,"0.0%",3.2e-44,9.97e-44
+"Time_zero_Y","1995",NA,92,"0.5%",3.2e-44,9.97e-44
+"Time_zero_Y","1996",NA,23,"0.1%",3.2e-44,9.97e-44
+"Time_zero_Y","1997",NA,30,"0.2%",3.2e-44,9.97e-44
+"Time_zero_Y","1998",NA,60,"0.3%",3.2e-44,9.97e-44
+"Time_zero_Y","1999",NA,1212,"6.5%",3.2e-44,9.97e-44
+"Time_zero_Y","2000",NA,30,"0.2%",3.2e-44,9.97e-44
+"Time_zero_Y","2001",NA,34,"0.2%",3.2e-44,9.97e-44
+"Time_zero_Y","2002",NA,11,"0.1%",3.2e-44,9.97e-44
+"Time_zero_Y","2003",NA,59,"0.3%",3.2e-44,9.97e-44
+"Time_zero_Y","2004",NA,95,"0.5%",3.2e-44,9.97e-44
+"Time_zero_Y","2005",NA,153,"0.8%",3.2e-44,9.97e-44
+"Time_zero_Y","2006",NA,2627,"14.1%",3.2e-44,9.97e-44
+"Time_zero_Y","2007",NA,2744,"14.8%",3.2e-44,9.97e-44
+"Time_zero_Y","2008",NA,2671,"14.4%",3.2e-44,9.97e-44
+"Time_zero_Y","2009",NA,2592,"13.9%",3.2e-44,9.97e-44
+"Time_zero_Y","2010",NA,1203,"6.5%",3.2e-44,9.97e-44
+"Time_zero_Y","2011",NA,1113,"6.0%",3.2e-44,9.97e-44
+"Time_zero_Y","2012",NA,816,"4.4%",3.2e-44,9.97e-44
+"Time_zero_Y","2013",NA,677,"3.6%",3.2e-44,9.97e-44
+"Time_zero_Y","2014",NA,615,"3.3%",3.2e-44,9.97e-44
+"Time_zero_Y","2015",NA,619,"3.3%",3.2e-44,9.97e-44
+"Time_zero_Y","2016",NA,516,"2.8%",3.2e-44,9.97e-44
+"Time_zero_Y","2017",NA,448,"2.4%",3.2e-44,9.97e-44
+"Time_zero_Y","2018",NA,54,"0.3%",3.2e-44,9.97e-44
+"Time_zero_Y","2019",NA,80,"0.4%",3.2e-44,9.97e-44
+"Time_zero_Y","2020",NA,6,"0.0%",3.2e-44,9.97e-44
+"Time_zero_Ym","1994-11-01",NA,1,"0.0%",NA,NA
+"Time_zero_Ym","1994-12-01",NA,2,"0.0%",NA,NA
+"Time_zero_Ym","1995-01-01",NA,10,"0.1%",NA,NA
+"Time_zero_Ym","1995-02-01",NA,5,"0.0%",NA,NA
+"Time_zero_Ym","1995-03-01",NA,17,"0.1%",NA,NA
+"Time_zero_Ym","1995-04-01",NA,8,"0.0%",NA,NA
+"Time_zero_Ym","1995-05-01",NA,14,"0.1%",NA,NA
+"Time_zero_Ym","1995-06-01",NA,8,"0.0%",NA,NA
+"Time_zero_Ym","1995-07-01",NA,15,"0.1%",NA,NA
+"Time_zero_Ym","1995-08-01",NA,5,"0.0%",NA,NA
+"Time_zero_Ym","1995-09-01",NA,6,"0.0%",NA,NA
+"Time_zero_Ym","1995-11-01",NA,2,"0.0%",NA,NA
+"Time_zero_Ym","1995-12-01",NA,2,"0.0%",NA,NA
+"Time_zero_Ym","1996-01-01",NA,3,"0.0%",NA,NA
+"Time_zero_Ym","1996-02-01",NA,1,"0.0%",NA,NA
+"Time_zero_Ym","1996-04-01",NA,3,"0.0%",NA,NA
+"Time_zero_Ym","1996-05-01",NA,2,"0.0%",NA,NA
+"Time_zero_Ym","1996-06-01",NA,2,"0.0%",NA,NA
+"Time_zero_Ym","1996-07-01",NA,3,"0.0%",NA,NA
+"Time_zero_Ym","1996-08-01",NA,2,"0.0%",NA,NA
+"Time_zero_Ym","1996-09-01",NA,3,"0.0%",NA,NA
+"Time_zero_Ym","1996-10-01",NA,2,"0.0%",NA,NA
+"Time_zero_Ym","1996-11-01",NA,1,"0.0%",NA,NA
+"Time_zero_Ym","1996-12-01",NA,1,"0.0%",NA,NA
+"Time_zero_Ym","1997-01-01",NA,1,"0.0%",NA,NA
+"Time_zero_Ym","1997-02-01",NA,1,"0.0%",NA,NA
+"Time_zero_Ym","1997-03-01",NA,2,"0.0%",NA,NA
+"Time_zero_Ym","1997-04-01",NA,5,"0.0%",NA,NA
+"Time_zero_Ym","1997-05-01",NA,3,"0.0%",NA,NA
+"Time_zero_Ym","1997-06-01",NA,2,"0.0%",NA,NA
+"Time_zero_Ym","1997-07-01",NA,3,"0.0%",NA,NA
+"Time_zero_Ym","1997-08-01",NA,2,"0.0%",NA,NA
+"Time_zero_Ym","1997-09-01",NA,3,"0.0%",NA,NA
+"Time_zero_Ym","1997-10-01",NA,3,"0.0%",NA,NA
+"Time_zero_Ym","1997-11-01",NA,3,"0.0%",NA,NA
+"Time_zero_Ym","1997-12-01",NA,2,"0.0%",NA,NA
+"Time_zero_Ym","1998-01-01",NA,2,"0.0%",NA,NA
+"Time_zero_Ym","1998-02-01",NA,6,"0.0%",NA,NA
+"Time_zero_Ym","1998-03-01",NA,3,"0.0%",NA,NA
+"Time_zero_Ym","1998-04-01",NA,5,"0.0%",NA,NA
+"Time_zero_Ym","1998-05-01",NA,1,"0.0%",NA,NA
+"Time_zero_Ym","1998-06-01",NA,7,"0.0%",NA,NA
+"Time_zero_Ym","1998-07-01",NA,18,"0.1%",NA,NA
+"Time_zero_Ym","1998-08-01",NA,1,"0.0%",NA,NA
+"Time_zero_Ym","1998-09-01",NA,7,"0.0%",NA,NA
+"Time_zero_Ym","1998-10-01",NA,2,"0.0%",NA,NA
+"Time_zero_Ym","1998-11-01",NA,3,"0.0%",NA,NA
+"Time_zero_Ym","1998-12-01",NA,5,"0.0%",NA,NA
+"Time_zero_Ym","1999-01-01",NA,1,"0.0%",NA,NA
+"Time_zero_Ym","1999-02-01",NA,5,"0.0%",NA,NA
+"Time_zero_Ym","1999-04-01",NA,3,"0.0%",NA,NA
+"Time_zero_Ym","1999-05-01",NA,2,"0.0%",NA,NA
+"Time_zero_Ym","1999-06-01",NA,2,"0.0%",NA,NA
+"Time_zero_Ym","1999-07-01",NA,38,"0.2%",NA,NA
+"Time_zero_Ym","1999-08-01",NA,1,"0.0%",NA,NA
+"Time_zero_Ym","1999-08-17",NA,1156,"6.2%",NA,NA
+"Time_zero_Ym","1999-10-01",NA,3,"0.0%",NA,NA
+"Time_zero_Ym","1999-12-01",NA,1,"0.0%",NA,NA
+"Time_zero_Ym","2000-01-01",NA,1,"0.0%",NA,NA
+"Time_zero_Ym","2000-02-01",NA,1,"0.0%",NA,NA
+"Time_zero_Ym","2000-03-01",NA,3,"0.0%",NA,NA
+"Time_zero_Ym","2000-05-01",NA,1,"0.0%",NA,NA
+"Time_zero_Ym","2000-06-01",NA,1,"0.0%",NA,NA
+"Time_zero_Ym","2000-07-01",NA,20,"0.1%",NA,NA
+"Time_zero_Ym","2000-08-01",NA,1,"0.0%",NA,NA
+"Time_zero_Ym","2000-11-01",NA,2,"0.0%",NA,NA
+"Time_zero_Ym","2001-01-01",NA,2,"0.0%",NA,NA
+"Time_zero_Ym","2001-02-01",NA,3,"0.0%",NA,NA
+"Time_zero_Ym","2001-06-01",NA,1,"0.0%",NA,NA
+"Time_zero_Ym","2001-07-01",NA,25,"0.1%",NA,NA
+"Time_zero_Ym","2001-10-01",NA,1,"0.0%",NA,NA
+"Time_zero_Ym","2001-11-01",NA,2,"0.0%",NA,NA
+"Time_zero_Ym","2002-02-01",NA,1,"0.0%",NA,NA
+"Time_zero_Ym","2002-03-01",NA,1,"0.0%",NA,NA
+"Time_zero_Ym","2002-05-01",NA,1,"0.0%",NA,NA
+"Time_zero_Ym","2002-06-01",NA,1,"0.0%",NA,NA
+"Time_zero_Ym","2002-07-01",NA,1,"0.0%",NA,NA
+"Time_zero_Ym","2002-08-01",NA,1,"0.0%",NA,NA
+"Time_zero_Ym","2002-09-01",NA,2,"0.0%",NA,NA
+"Time_zero_Ym","2002-10-01",NA,1,"0.0%",NA,NA
+"Time_zero_Ym","2002-12-01",NA,2,"0.0%",NA,NA
+"Time_zero_Ym","2003-01-01",NA,3,"0.0%",NA,NA
+"Time_zero_Ym","2003-02-01",NA,3,"0.0%",NA,NA
+"Time_zero_Ym","2003-03-01",NA,6,"0.0%",NA,NA
+"Time_zero_Ym","2003-04-01",NA,5,"0.0%",NA,NA
+"Time_zero_Ym","2003-05-01",NA,6,"0.0%",NA,NA
+"Time_zero_Ym","2003-06-01",NA,5,"0.0%",NA,NA
+"Time_zero_Ym","2003-07-01",NA,4,"0.0%",NA,NA
+"Time_zero_Ym","2003-08-01",NA,4,"0.0%",NA,NA
+"Time_zero_Ym","2003-09-01",NA,5,"0.0%",NA,NA
+"Time_zero_Ym","2003-10-01",NA,6,"0.0%",NA,NA
+"Time_zero_Ym","2003-11-01",NA,5,"0.0%",NA,NA
+"Time_zero_Ym","2003-12-01",NA,7,"0.0%",NA,NA
+"Time_zero_Ym","2004-01-01",NA,8,"0.0%",NA,NA
+"Time_zero_Ym","2004-02-01",NA,9,"0.0%",NA,NA
+"Time_zero_Ym","2004-03-01",NA,12,"0.1%",NA,NA
+"Time_zero_Ym","2004-04-01",NA,12,"0.1%",NA,NA
+"Time_zero_Ym","2004-05-01",NA,6,"0.0%",NA,NA
+"Time_zero_Ym","2004-06-01",NA,9,"0.0%",NA,NA
+"Time_zero_Ym","2004-07-01",NA,5,"0.0%",NA,NA
+"Time_zero_Ym","2004-08-01",NA,3,"0.0%",NA,NA
+"Time_zero_Ym","2004-09-01",NA,9,"0.0%",NA,NA
+"Time_zero_Ym","2004-10-01",NA,6,"0.0%",NA,NA
+"Time_zero_Ym","2004-11-01",NA,8,"0.0%",NA,NA
+"Time_zero_Ym","2004-12-01",NA,8,"0.0%",NA,NA
+"Time_zero_Ym","2005-01-01",NA,19,"0.1%",NA,NA
+"Time_zero_Ym","2005-02-01",NA,12,"0.1%",NA,NA
+"Time_zero_Ym","2005-03-01",NA,17,"0.1%",NA,NA
+"Time_zero_Ym","2005-04-01",NA,16,"0.1%",NA,NA
+"Time_zero_Ym","2005-05-01",NA,15,"0.1%",NA,NA
+"Time_zero_Ym","2005-06-01",NA,12,"0.1%",NA,NA
+"Time_zero_Ym","2005-07-01",NA,13,"0.1%",NA,NA
+"Time_zero_Ym","2005-08-01",NA,9,"0.0%",NA,NA
+"Time_zero_Ym","2005-09-01",NA,10,"0.1%",NA,NA
+"Time_zero_Ym","2005-10-01",NA,8,"0.0%",NA,NA
+"Time_zero_Ym","2005-11-01",NA,9,"0.0%",NA,NA
+"Time_zero_Ym","2005-12-01",NA,13,"0.1%",NA,NA
+"Time_zero_Ym","2006-01-01",NA,24,"0.1%",NA,NA
+"Time_zero_Ym","2006-02-01",NA,174,"0.9%",NA,NA
+"Time_zero_Ym","2006-03-01",NA,276,"1.5%",NA,NA
+"Time_zero_Ym","2006-04-01",NA,249,"1.3%",NA,NA
+"Time_zero_Ym","2006-05-01",NA,249,"1.3%",NA,NA
+"Time_zero_Ym","2006-06-01",NA,243,"1.3%",NA,NA
+"Time_zero_Ym","2006-07-01",NA,275,"1.5%",NA,NA
+"Time_zero_Ym","2006-08-01",NA,232,"1.2%",NA,NA
+"Time_zero_Ym","2006-09-01",NA,232,"1.2%",NA,NA
+"Time_zero_Ym","2006-10-01",NA,237,"1.3%",NA,NA
+"Time_zero_Ym","2006-11-01",NA,223,"1.2%",NA,NA
+"Time_zero_Ym","2006-11-16",NA,1,"0.0%",NA,NA
+"Time_zero_Ym","2006-12-01",NA,212,"1.1%",NA,NA
+"Time_zero_Ym","2007-01-01",NA,252,"1.4%",NA,NA
+"Time_zero_Ym","2007-02-01",NA,243,"1.3%",NA,NA
+"Time_zero_Ym","2007-03-01",NA,237,"1.3%",NA,NA
+"Time_zero_Ym","2007-04-01",NA,236,"1.3%",NA,NA
+"Time_zero_Ym","2007-05-01",NA,253,"1.4%",NA,NA
+"Time_zero_Ym","2007-06-01",NA,216,"1.2%",NA,NA
+"Time_zero_Ym","2007-07-01",NA,235,"1.3%",NA,NA
+"Time_zero_Ym","2007-08-01",NA,202,"1.1%",NA,NA
+"Time_zero_Ym","2007-09-01",NA,205,"1.1%",NA,NA
+"Time_zero_Ym","2007-10-01",NA,235,"1.3%",NA,NA
+"Time_zero_Ym","2007-11-01",NA,193,"1.0%",NA,NA
+"Time_zero_Ym","2007-12-01",NA,237,"1.3%",NA,NA
+"Time_zero_Ym","2008-01-01",NA,225,"1.2%",NA,NA
+"Time_zero_Ym","2008-02-01",NA,233,"1.3%",NA,NA
+"Time_zero_Ym","2008-03-01",NA,197,"1.1%",NA,NA
+"Time_zero_Ym","2008-04-01",NA,223,"1.2%",NA,NA
+"Time_zero_Ym","2008-05-01",NA,243,"1.3%",NA,NA
+"Time_zero_Ym","2008-06-01",NA,235,"1.3%",NA,NA
+"Time_zero_Ym","2008-07-01",NA,199,"1.1%",NA,NA
+"Time_zero_Ym","2008-08-01",NA,237,"1.3%",NA,NA
+"Time_zero_Ym","2008-09-01",NA,209,"1.1%",NA,NA
+"Time_zero_Ym","2008-10-01",NA,220,"1.2%",NA,NA
+"Time_zero_Ym","2008-11-01",NA,246,"1.3%",NA,NA
+"Time_zero_Ym","2008-12-01",NA,204,"1.1%",NA,NA
+"Time_zero_Ym","2009-01-01",NA,223,"1.2%",NA,NA
+"Time_zero_Ym","2009-02-01",NA,190,"1.0%",NA,NA
+"Time_zero_Ym","2009-03-01",NA,256,"1.4%",NA,NA
+"Time_zero_Ym","2009-04-01",NA,220,"1.2%",NA,NA
+"Time_zero_Ym","2009-05-01",NA,242,"1.3%",NA,NA
+"Time_zero_Ym","2009-06-01",NA,215,"1.2%",NA,NA
+"Time_zero_Ym","2009-07-01",NA,202,"1.1%",NA,NA
+"Time_zero_Ym","2009-08-01",NA,206,"1.1%",NA,NA
+"Time_zero_Ym","2009-09-01",NA,196,"1.1%",NA,NA
+"Time_zero_Ym","2009-10-01",NA,251,"1.4%",NA,NA
+"Time_zero_Ym","2009-11-01",NA,223,"1.2%",NA,NA
+"Time_zero_Ym","2009-12-01",NA,168,"0.9%",NA,NA
+"Time_zero_Ym","2010-01-01",NA,75,"0.4%",NA,NA
+"Time_zero_Ym","2010-02-01",NA,95,"0.5%",NA,NA
+"Time_zero_Ym","2010-03-01",NA,107,"0.6%",NA,NA
+"Time_zero_Ym","2010-04-01",NA,97,"0.5%",NA,NA
+"Time_zero_Ym","2010-05-01",NA,85,"0.5%",NA,NA
+"Time_zero_Ym","2010-06-01",NA,85,"0.5%",NA,NA
+"Time_zero_Ym","2010-07-01",NA,98,"0.5%",NA,NA
+"Time_zero_Ym","2010-08-01",NA,128,"0.7%",NA,NA
+"Time_zero_Ym","2010-09-01",NA,93,"0.5%",NA,NA
+"Time_zero_Ym","2010-10-01",NA,117,"0.6%",NA,NA
+"Time_zero_Ym","2010-11-01",NA,106,"0.6%",NA,NA
+"Time_zero_Ym","2010-12-01",NA,117,"0.6%",NA,NA
+"Time_zero_Ym","2011-01-01",NA,120,"0.6%",NA,NA
+"Time_zero_Ym","2011-02-01",NA,134,"0.7%",NA,NA
+"Time_zero_Ym","2011-03-01",NA,108,"0.6%",NA,NA
+"Time_zero_Ym","2011-04-01",NA,108,"0.6%",NA,NA
+"Time_zero_Ym","2011-05-01",NA,112,"0.6%",NA,NA
+"Time_zero_Ym","2011-06-01",NA,80,"0.4%",NA,NA
+"Time_zero_Ym","2011-07-01",NA,95,"0.5%",NA,NA
+"Time_zero_Ym","2011-08-01",NA,82,"0.4%",NA,NA
+"Time_zero_Ym","2011-09-01",NA,82,"0.4%",NA,NA
+"Time_zero_Ym","2011-10-01",NA,60,"0.3%",NA,NA
+"Time_zero_Ym","2011-11-01",NA,69,"0.4%",NA,NA
+"Time_zero_Ym","2011-12-01",NA,63,"0.3%",NA,NA
+"Time_zero_Ym","2012-01-01",NA,88,"0.5%",NA,NA
+"Time_zero_Ym","2012-02-01",NA,76,"0.4%",NA,NA
+"Time_zero_Ym","2012-03-01",NA,74,"0.4%",NA,NA
+"Time_zero_Ym","2012-04-01",NA,77,"0.4%",NA,NA
+"Time_zero_Ym","2012-05-01",NA,65,"0.3%",NA,NA
+"Time_zero_Ym","2012-06-01",NA,57,"0.3%",NA,NA
+"Time_zero_Ym","2012-07-01",NA,71,"0.4%",NA,NA
+"Time_zero_Ym","2012-08-01",NA,61,"0.3%",NA,NA
+"Time_zero_Ym","2012-09-01",NA,60,"0.3%",NA,NA
+"Time_zero_Ym","2012-10-01",NA,52,"0.3%",NA,NA
+"Time_zero_Ym","2012-11-01",NA,80,"0.4%",NA,NA
+"Time_zero_Ym","2012-12-01",NA,55,"0.3%",NA,NA
+"Time_zero_Ym","2013-01-01",NA,73,"0.4%",NA,NA
+"Time_zero_Ym","2013-02-01",NA,48,"0.3%",NA,NA
+"Time_zero_Ym","2013-03-01",NA,58,"0.3%",NA,NA
+"Time_zero_Ym","2013-04-01",NA,53,"0.3%",NA,NA
+"Time_zero_Ym","2013-05-01",NA,62,"0.3%",NA,NA
+"Time_zero_Ym","2013-06-01",NA,51,"0.3%",NA,NA
+"Time_zero_Ym","2013-07-01",NA,58,"0.3%",NA,NA
+"Time_zero_Ym","2013-08-01",NA,67,"0.4%",NA,NA
+"Time_zero_Ym","2013-09-01",NA,57,"0.3%",NA,NA
+"Time_zero_Ym","2013-10-01",NA,54,"0.3%",NA,NA
+"Time_zero_Ym","2013-11-01",NA,44,"0.2%",NA,NA
+"Time_zero_Ym","2013-12-01",NA,52,"0.3%",NA,NA
+"Time_zero_Ym","2014-01-01",NA,67,"0.4%",NA,NA
+"Time_zero_Ym","2014-02-01",NA,50,"0.3%",NA,NA
+"Time_zero_Ym","2014-03-01",NA,48,"0.3%",NA,NA
+"Time_zero_Ym","2014-04-01",NA,42,"0.2%",NA,NA
+"Time_zero_Ym","2014-05-01",NA,47,"0.3%",NA,NA
+"Time_zero_Ym","2014-06-01",NA,53,"0.3%",NA,NA
+"Time_zero_Ym","2014-07-01",NA,51,"0.3%",NA,NA
+"Time_zero_Ym","2014-08-01",NA,43,"0.2%",NA,NA
+"Time_zero_Ym","2014-09-01",NA,67,"0.4%",NA,NA
+"Time_zero_Ym","2014-10-01",NA,46,"0.2%",NA,NA
+"Time_zero_Ym","2014-11-01",NA,58,"0.3%",NA,NA
+"Time_zero_Ym","2014-12-01",NA,43,"0.2%",NA,NA
+"Time_zero_Ym","2015-01-01",NA,58,"0.3%",NA,NA
+"Time_zero_Ym","2015-02-01",NA,56,"0.3%",NA,NA
+"Time_zero_Ym","2015-03-01",NA,56,"0.3%",NA,NA
+"Time_zero_Ym","2015-04-01",NA,49,"0.3%",NA,NA
+"Time_zero_Ym","2015-05-01",NA,51,"0.3%",NA,NA
+"Time_zero_Ym","2015-06-01",NA,48,"0.3%",NA,NA
+"Time_zero_Ym","2015-07-01",NA,55,"0.3%",NA,NA
+"Time_zero_Ym","2015-08-01",NA,56,"0.3%",NA,NA
+"Time_zero_Ym","2015-09-01",NA,46,"0.2%",NA,NA
+"Time_zero_Ym","2015-10-01",NA,48,"0.3%",NA,NA
+"Time_zero_Ym","2015-11-01",NA,50,"0.3%",NA,NA
+"Time_zero_Ym","2015-12-01",NA,46,"0.2%",NA,NA
+"Time_zero_Ym","2016-01-01",NA,56,"0.3%",NA,NA
+"Time_zero_Ym","2016-02-01",NA,50,"0.3%",NA,NA
+"Time_zero_Ym","2016-03-01",NA,44,"0.2%",NA,NA
+"Time_zero_Ym","2016-04-01",NA,41,"0.2%",NA,NA
+"Time_zero_Ym","2016-05-01",NA,42,"0.2%",NA,NA
+"Time_zero_Ym","2016-06-01",NA,47,"0.3%",NA,NA
+"Time_zero_Ym","2016-07-01",NA,41,"0.2%",NA,NA
+"Time_zero_Ym","2016-08-01",NA,40,"0.2%",NA,NA
+"Time_zero_Ym","2016-09-01",NA,50,"0.3%",NA,NA
+"Time_zero_Ym","2016-10-01",NA,32,"0.2%",NA,NA
+"Time_zero_Ym","2016-11-01",NA,31,"0.2%",NA,NA
+"Time_zero_Ym","2016-12-01",NA,42,"0.2%",NA,NA
+"Time_zero_Ym","2017-01-01",NA,25,"0.1%",NA,NA
+"Time_zero_Ym","2017-02-01",NA,41,"0.2%",NA,NA
+"Time_zero_Ym","2017-03-01",NA,35,"0.2%",NA,NA
+"Time_zero_Ym","2017-04-01",NA,29,"0.2%",NA,NA
+"Time_zero_Ym","2017-05-01",NA,49,"0.3%",NA,NA
+"Time_zero_Ym","2017-06-01",NA,42,"0.2%",NA,NA
+"Time_zero_Ym","2017-07-01",NA,35,"0.2%",NA,NA
+"Time_zero_Ym","2017-08-01",NA,44,"0.2%",NA,NA
+"Time_zero_Ym","2017-09-01",NA,35,"0.2%",NA,NA
+"Time_zero_Ym","2017-10-01",NA,45,"0.2%",NA,NA
+"Time_zero_Ym","2017-11-01",NA,33,"0.2%",NA,NA
+"Time_zero_Ym","2017-12-01",NA,35,"0.2%",NA,NA
+"Time_zero_Ym","2018-01-01",NA,7,"0.0%",NA,NA
+"Time_zero_Ym","2018-02-01",NA,5,"0.0%",NA,NA
+"Time_zero_Ym","2018-03-01",NA,3,"0.0%",NA,NA
+"Time_zero_Ym","2018-04-01",NA,4,"0.0%",NA,NA
+"Time_zero_Ym","2018-05-01",NA,8,"0.0%",NA,NA
+"Time_zero_Ym","2018-06-01",NA,5,"0.0%",NA,NA
+"Time_zero_Ym","2018-07-01",NA,2,"0.0%",NA,NA
+"Time_zero_Ym","2018-09-01",NA,1,"0.0%",NA,NA
+"Time_zero_Ym","2018-10-01",NA,5,"0.0%",NA,NA
+"Time_zero_Ym","2018-11-01",NA,6,"0.0%",NA,NA
+"Time_zero_Ym","2018-12-01",NA,8,"0.0%",NA,NA
+"Time_zero_Ym","2019-01-01",NA,11,"0.1%",NA,NA
+"Time_zero_Ym","2019-02-01",NA,3,"0.0%",NA,NA
+"Time_zero_Ym","2019-03-01",NA,9,"0.0%",NA,NA
+"Time_zero_Ym","2019-04-01",NA,7,"0.0%",NA,NA
+"Time_zero_Ym","2019-05-01",NA,3,"0.0%",NA,NA
+"Time_zero_Ym","2019-06-01",NA,10,"0.1%",NA,NA
+"Time_zero_Ym","2019-07-01",NA,6,"0.0%",NA,NA
+"Time_zero_Ym","2019-08-01",NA,6,"0.0%",NA,NA
+"Time_zero_Ym","2019-09-01",NA,8,"0.0%",NA,NA
+"Time_zero_Ym","2019-10-01",NA,5,"0.0%",NA,NA
+"Time_zero_Ym","2019-11-01",NA,8,"0.0%",NA,NA
+"Time_zero_Ym","2019-12-01",NA,4,"0.0%",NA,NA
+"Time_zero_Ym","2020-01-01",NA,6,"0.0%",NA,NA

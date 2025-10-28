@@ -12,7 +12,7 @@ nonicd_reduced <- read.csv("S:/AG/f-dhzc-profid/Data Transfer to Charite/NonICD_
 combined <- read.csv("S:/AG/f-dhzc-profid/Data Transfer to Charite/combined_dataset.csv")
 
 data_dir <- "S:/AG/f-dhzc-profid/Data Transfer to Charite"
-setwd("T:/profid-6/PROFID/Study6")
+setwd("//charite.de/homes/h02/clco10/Dokumente/PROFID/Study6s")
 
 summary(combined$BMI)
 summary(combined$Status)
