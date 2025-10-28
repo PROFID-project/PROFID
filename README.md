@@ -8,11 +8,13 @@ Study 2- Seasonal SCD Patterns Analysis
 Study 3- ICD Shock Rates Analysis
 
 Study 4- Age-Stratified SCD Incidence Analysis
+code1: Harmonisation Data
 [Study4_Harmonisation DATA.txt](https://github.com/user-attachments/files/23105773/Study4_Harmonisation.DATA.txt)
 
-
+Code2: Data Preparation & Quality Assurance Quality Control & Age Stratification Strategy
 [Study4_ Data Preparation and Quality Assurance_Data Quality Control_ Age Stratification Strategy.R.txt](https://github.com/user-attachments/files/23131150/Study4_.Data.Preparation.and.Quality.Assurance_Data.Quality.Control_.Age.Stratification.Strategy.R.txt)
-
+Code 3: Incidence Rate Calculations
+[Inicdence Rate Calculations.R.txt](https://github.com/user-attachments/files/23188723/Inicdence.Rate.Calculations.R.txt)
 
 Study 5- Heart Failure Therapy Adherence Analysis
 
