@@ -12,6 +12,7 @@ nonicd_reduced <- read.csv("S:/AG/f-dhzc-profid/Data Transfer to Charite/NonICD_
 combined <- read.csv("S:/AG/f-dhzc-profid/Data Transfer to Charite/combined_dataset.csv")
 
 data_dir <- "S:/AG/f-dhzc-profid/Data Transfer to Charite"
+setwd("T:/profid-6")
 
 summary(combined$BMI)
 summary(combined$Status)
@@ -24,13 +25,15 @@ combined <- combined %>%
     labels = c("Underweight", "Normal", "Overweight", "Obese I", "Obese II", "Obese III")
   ))
 
+numeric_cols <- sapply(combined, is.numeric)
+
 continuous <- combined[, numeric_cols, drop = FALSE]
 names(continuous)
 
 categorical <- combined[, !numeric_cols, drop = FALSE]
 
 move_to_categorical <- c("X", "Status", "Time_zero_Y", "CVD_risk_region", "IsSWHR")
-categorical[move_to_categorical] <- continuous[move_to_categorical]
+categorical[move_to_categorical] <- combined[move_to_categorical]
 continuous <- continuous[, !(names(continuous) %in% move_to_categorical), drop = FALSE]
 
 
@@ -74,7 +77,7 @@ summary_continuous_by_BMI
 outcome_var <- "Status"
 
 safe_kw_subset <- function(df, var, group_col) {
-  # skip if var missing
+  # Skip if var missing
   if (!(var %in% names(df))) {
     return(tibble(
       Variable = var,
@@ -85,11 +88,15 @@ safe_kw_subset <- function(df, var, group_col) {
     ))
   }
   
-  # outcome groups
+  x <- df[[var]]
   g <- df[[group_col]]
   
-  # need at least 2 unique values to compare
-  if (length(na.omit(unique(g))) < 2) {
+  # convert group to observed character values so factor levels don’t mislead
+  g_char <- as.character(g)
+  g_unique <- unique(na.omit(g_char))
+  
+  # check: at least 2 distinct observed Status values
+  if (length(g_unique) < 2) {
     return(tibble(
       Variable = var,
       statistic = NA_real_,
@@ -99,11 +106,25 @@ safe_kw_subset <- function(df, var, group_col) {
     ))
   }
   
-  # run the test
-  x <- df[[var]]
-  test <- kruskal.test(x ~ g)
-  tidy(test) %>% mutate(Variable = var)
+  # run test safely
+  result <- tryCatch(
+    {
+      test <- kruskal.test(x ~ g_char)
+      broom::tidy(test)
+    },
+    error = function(e) {
+      tibble(
+        statistic = NA_real_,
+        p.value = NA_real_,
+        parameter = NA_real_,
+        method = paste("Error:", conditionMessage(e))
+      )
+    }
+  )
+  
+  result %>% mutate(Variable = var)
 }
+
 
 kruskal_by_BMI <- combined %>%
   group_by(BMI_cat) %>%
@@ -119,12 +140,41 @@ kruskal_by_BMI <- combined %>%
 kruskal_by_BMI
 
 
-final_summary <- summary_continuous_by_BMI %>%
-  left_join(kruskal_by_BMI %>% select(Variable, p.value, p_adj), by = "Variable")
+summary_continuous_by_BMI <- map_dfr(
+  names(continuous),
+  function(var) {
+    combined %>%
+      group_by(BMI_cat) %>%
+      summarise(
+        Median = median(.data[[var]], na.rm = TRUE),
+        IQR = IQR(.data[[var]], na.rm = TRUE),
+        .groups = "drop"
+      ) %>%
+      mutate(Variable = var)
+  }
+)
 
+summary_continuous_by_BMI <- summary_continuous_by_BMI %>%
+  select(Variable, BMI_cat, Median, IQR)
+
+final_summary <- summary_continuous_by_BMI %>%
+  # make absolutely sure types match:
+  mutate(
+    Variable = as.character(Variable),
+    BMI_cat  = as.character(BMI_cat)
+  ) %>%
+  left_join(
+    kruskal_by_BMI %>%
+      mutate(
+        Variable = as.character(Variable),
+        BMI_cat  = as.character(BMI_cat)
+      ) %>%
+      select(Variable, BMI_cat, p.value, p_adj),
+    by = c("Variable", "BMI_cat")
+  )
 
 write.csv(final_summary,
-          file = "final_summary.csv",
+          file = "continuous_descriptors.csv",
           row.names = FALSE)
 
 final_summary
