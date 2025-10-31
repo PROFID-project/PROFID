@@ -36,19 +36,23 @@ missing_summary <- combined %>%
 t(missing_summary)
 
 
-# Count how many rows will be removed
-n_before <- nrow(combined)
 
-# Remove individuals with missing or implausible BMI
+
+# Remove individuals with missing or implausible BMI and missing outcome data 
 combined_clean <- combined %>%
-  mutate(BMI = suppressWarnings(as.numeric(BMI))) %>%
-  filter(!is.na(BMI))
+  mutate(
+    BMI    = suppressWarnings(as.numeric(BMI)),
+    Status = suppressWarnings(as.numeric(Status))
+  ) %>%
+  filter(
+    !is.na(BMI) &                
+      !is.na(Status) &      
+      !is.na(Survival_time)      
+  )
 
-n_after <- nrow(combined_clean)
-message("Removed ", n_before - n_after, " rows due to missing or implausible BMI (",
-        round((n_before - n_after) / n_before * 100, 2), "% of total).")
 
-write.csv(combined_clean, "combined_BMIfiltered.csv", row.names = FALSE)
+
+write.csv(combined_clean, "combined_BMI_outcomefiltered.csv", row.names = FALSE)
 
 
 impute_vars <- c(
@@ -90,6 +94,14 @@ imo <- raw_subset %>%
 
 pred <- make.predictorMatrix(imp_data)
 
+# outcomes as predictors-only
+pred[c("Survival_time","Status"), ] <- 0
+
+# don't impute BMI, but allow it to predict others
+pred["BMI", ] <- 0         # BMI will not be imputed
+pred[, "BMI"] <- 1         # BMI can be used as a predictor
+
+
 complete_cols <- names(imp_data)[colMeans(is.na(imp_data)) == 0]
 if (length(complete_cols)){
   pred[complete_cols, ] <- 0   #  complete rows wont be imputed 
@@ -101,7 +113,7 @@ meth["Survival_time"] <- ""
 meth["Status"] <- ""
 
 
-imp <- mice(imp_data, m = 20, maxit = 20, seed = 123, predictorMatrix = pred, 
+imp <- mice(imp_data, m = 20, maxit = 50, seed = 123, predictorMatrix = pred, 
             method = meth, printFlag = TRUE)
 
 # check some key variables 
