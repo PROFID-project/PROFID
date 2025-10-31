@@ -35,6 +35,22 @@ missing_summary <- combined %>%
 
 t(missing_summary)
 
+
+# Count how many rows will be removed
+n_before <- nrow(combined)
+
+# Remove individuals with missing or implausible BMI
+combined_clean <- combined %>%
+  mutate(BMI = suppressWarnings(as.numeric(BMI))) %>%
+  filter(!is.na(BMI))
+
+n_after <- nrow(combined_clean)
+message("Removed ", n_before - n_after, " rows due to missing or implausible BMI (",
+        round((n_before - n_after) / n_before * 100, 2), "% of total).")
+
+write.csv(combined_clean, "combined_BMIfiltered.csv", row.names = FALSE)
+
+
 impute_vars <- c(
   # Outcome
   "Survival_time", "Status",
@@ -62,8 +78,15 @@ impute_vars <- c(
   "MI_type"
 )
 
+imp_vars <- impute_vars 
 
-imp_data <- combined %>% select(all_of(impute_vars))
+imp_data <- combined_clean %>% select(all_of(impute_vars))
+
+raw_subset <- combined_clean %>% select(all_of(imp_vars))
+
+imo <- raw_subset %>%
+  mutate(BMI = suppressWarnings(as.numeric(BMI))) %>%
+  filter(!is.na(BMI))
 
 pred <- make.predictorMatrix(imp_data)
 
@@ -84,7 +107,7 @@ imp <- mice(imp_data, m = 20, maxit = 20, seed = 123, predictorMatrix = pred,
 # check some key variables 
 plot(imp, c("BMI", "eGFR", "Haemoglobin", "LDL"))
 
-destinyplot(imp, ~ BMI)
+densityplot(imp, ~ BMI)
 densityplot(imp, ~ eGFR)
 stripplot(imp, BMI ~ .imp)
 
