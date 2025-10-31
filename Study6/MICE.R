@@ -18,25 +18,6 @@ combined <- read.csv("S:/AG/f-dhzc-profid/Data Transfer to Charite/combined_data
 data_dir <- "S:/AG/f-dhzc-profid/Data Transfer to Charite"
 setwd("T:/Dokumente/PROFID/Study6")
 
-vars_base <- c(
-  "Survival_time", "Status", "BMI",
-  "Age", "Sex", "Diabetes", "Hypertension", "Smoking", "MI_history",
-  "LVEF", "NYHA",
-  "eGFR", "Haemoglobin",
-  "ACE_inhibitor_ARB", "Beta_blockers", "Lipid_lowering",
-  "Revascularisation_acute"
-)
-
-
-missing_summary <- combined %>%
-  select(all_of(vars_base)) %>%
-  summarise(across(everything(),
-                   ~ mean(is.na(.)) * 100))
-
-t(missing_summary)
-
-
-
 
 # Remove individuals with missing or implausible BMI and missing outcome data 
 combined_clean <- combined %>%
@@ -51,9 +32,7 @@ combined_clean <- combined %>%
   )
 
 
-
 write.csv(combined_clean, "combined_BMI_outcomefiltered.csv", row.names = FALSE)
-
 
 impute_vars <- c(
   # Outcome
@@ -82,6 +61,33 @@ impute_vars <- c(
   "MI_type"
 )
 
+categorical_vars <- c(
+  # Base confounders
+  "Sex",
+  "Diabetes", "Hypertension", "Smoking", "MI_history",
+  "ACE_inhibitor_ARB", "Beta_blockers", "Lipid_lowering",
+  "Revascularisation_acute",
+  
+  #  auxiliary variables
+  "Stroke_TIA", "HF",
+  "Anti_platelet", "Anti_coagulant", "Diuretics", "Anti_anginal", "Calcium_antagonists",
+  "Aldosterone_antagonist", "Digitalis_glycosides",
+  "PCI_acute", "PCI", "CABG_acute", "CABG", "Thrombolysis_acute",
+  "LBBB", "RBBB", "AF_atrial_flutter",
+  "Baseline_type", "HasMRI", "CVD_risk_region", 
+  "Anti_diabetic", "Anti_diabetic_oral", "Anti_diabetic_insulin",
+  "MI_type"
+)
+
+for (v in categorical_vars) {
+  if (v %in% names(combined_clean)) {
+    combined_clean[[v]] <- as.factor(combined_clean[[v]])
+  }
+}
+
+sapply(combined_clean[categorical_vars], class)
+
+
 imp_vars <- impute_vars 
 
 imp_data <- combined_clean %>% select(all_of(impute_vars))
@@ -107,17 +113,53 @@ if (length(complete_cols)){
   pred[complete_cols, ] <- 0   #  complete rows wont be imputed 
 }
 
+# --- Lipid stabilisation ---
+lipids <- intersect(c("Cholesterol", "LDL", "HDL", "Triglycerides"), names(imp_data))
+
+
 # let mice autoselect methods
 meth <- make.method(imp_data)
 meth["Survival_time"] <- ""
 meth["Status"] <- ""
 
+# Use PMM for the lipids
+meth[lipids] <- "pmm"
 
-imp <- mice(imp_data, m = 20, maxit = 50, seed = 123, predictorMatrix = pred, 
-            method = meth, printFlag = TRUE)
+# Restrict lipid predictors (no cross-prediction among lipids)
+pred[lipids, ] <- 0
+lipid_base_preds <- intersect(
+  c("Age","Sex","BMI","Diabetes","Hypertension","Smoking",
+    "Lipid_lowering","ACE_inhibitor","ARB","Beta_blockers",
+    "eGFR","Haemoglobin","MI_history"),
+  names(imp_data)
+)
+pred[lipids, lipid_base_preds] <- 1
+
+set.seed(123)
+imp <- mice(
+  imp_data,
+  m = 20,
+  maxit = 20,       
+  method = meth,
+  predictorMatrix = pred,
+  pmm.k = 10,         # more donor candidates
+  printFlag = TRUE
+)
+
+# Diagnostics
+plot(imp, c(intersect(c("HDL","LDL","Cholesterol"), names(imp$imp)),
+            intersect("logTrig", names(imp$imp))))
+densityplot(imp, ~ HDL + LDL + Cholesterol)
+if ("logTrig" %in% names(imp$data)) densityplot(imp, ~ logTrig)
+
 
 # check some key variables 
-plot(imp, c("BMI", "eGFR", "Haemoglobin", "LDL"))
+plot(imp, c("Age", "eGFR", "Haemoglobin", "LDL", "HDL", "Triglycerides", "LVEF", "Cholesterol"))
+
+stripplot(imp, Diabetes ~ .imp, pch = 20, cex = 1.2)
+stripplot(imp, Sex ~ .imp, pch = 20, cex = 1.2)
+
+densityplot(imp, ~ as.numeric(NYHA))
 
 densityplot(imp, ~ BMI)
 densityplot(imp, ~ eGFR)
