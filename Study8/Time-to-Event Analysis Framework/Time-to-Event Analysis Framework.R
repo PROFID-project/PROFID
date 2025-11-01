@@ -59,5 +59,60 @@ write.csv(cox_summary,
 View(cox_summary)
 
 
+# 1Check proportional hazards assumption using Schoenfeld residuals
+cox_zph <- cox.zph(cox_model)
+print(cox_zph)
+
+# 2️ Plot Schoenfeld residuals for visual inspection
+# (each variable should have a roughly horizontal line if PH assumption holds)
+plot(cox_zph)
+
+
+# Save proportional hazards assumption test results correctly
+ph_results <- as.data.frame(cox_zph$table)  # Extracts the table part
+
+# Save to your study folder
+write.csv(ph_results,
+          "T:/PROFID/Study8/Time-to-Event Analysis Framework/Files/PH_Assumption_Results.csv",
+          row.names = TRUE)
+
+# Save Schoenfeld residuals plot
+# Create separate PNGs for each variable's Schoenfeld residual plot
+
+var_names <- rownames(cox_zph$table)  # Extract variable names (Age, Sex, etc.)
+
+for (i in seq_along(var_names)) {
+  var <- var_names[i]
+  
+  # Skip the GLOBAL test (it has no plot)
+  if (var == "GLOBAL") next
+  
+  print(paste("Saving plot for:", var))
+  
+  # Define the output file path
+  file_path <- paste0("T:/PROFID/Study8/Time-to-Event Analysis Framework/Files/Schoenfeld_", var, ".png")
+  
+  # Save the plot
+  png(file_path, width = 800, height = 600)
+  plot(cox_zph[i], main = paste("Schoenfeld Residuals for", var))
+  dev.off()
+}
+
+# Save log–log survival plot
+
+png("T:/PROFID/Study8/Time-to-Event Analysis Framework/loglog_survival_plot.png", width = 800, height = 600)
+ggsurvplot(
+  
+  survfit(Surv(Survival_time, Status == 1) ~ Group, data = combined),
+  fun = "cloglog",
+  palette = "Dark2",
+  title = "Log–Log Survival Curves by Group",
+  xlab = "Log(Time)",
+  ylab = "Log(-Log(Survival Probability))"
+)
+
+dev.off()
+
+
 
 

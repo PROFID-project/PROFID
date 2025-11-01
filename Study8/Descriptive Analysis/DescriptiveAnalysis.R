@@ -63,4 +63,30 @@ write.csv(med_iqr_table,
           row.names = FALSE)
 
 
+#CATEGORICAL VARIABLES: FREQUENCY + PERCENTAGE
+
+
+# --- 🔟 Identify categorical variables ---
+categorical_vars <- names(combined)[sapply(combined, function(x) is.character(x) | is.factor(x))]
+
+# --- ⃣ Load tidyr for reshaping (install if missing) ---
+# install.packages("tidyr")
+library(tidyr)
+
+# ---  Summarize categorical variables by group ---
+cat_summary <- combined %>%
+  select(Group, all_of(categorical_vars)) %>%
+  pivot_longer(-Group, names_to = "Variable", values_to = "Category") %>%
+  group_by(Group, Variable, Category) %>%
+  summarise(n = n(), .groups = "drop_last") %>%
+  mutate(percent = round(100 * n / sum(n), 1)) %>%
+  arrange(Variable, Group, desc(n))
+
+# View categorical summary
+View(cat_summary)
+
+# ---  Save categorical summary ---
+write.csv(cat_summary, 
+          "T:/PROFID/Study8/Descriptive Analysis/files/categorical_summary.csv",
+          row.names = FALSE)
 
