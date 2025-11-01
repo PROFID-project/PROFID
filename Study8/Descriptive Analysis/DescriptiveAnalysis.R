@@ -66,7 +66,7 @@ write.csv(med_iqr_table,
 #CATEGORICAL VARIABLES: FREQUENCY + PERCENTAGE
 
 
-# --- 🔟 Identify categorical variables ---
+# ---Identify categorical variables ---
 categorical_vars <- names(combined)[sapply(combined, function(x) is.character(x) | is.factor(x))]
 
 # --- ⃣ Load tidyr for reshaping (install if missing) ---
@@ -89,4 +89,94 @@ View(cat_summary)
 write.csv(cat_summary, 
           "T:/PROFID/Study8/Descriptive Analysis/files/categorical_summary.csv",
           row.names = FALSE)
+###############################################################
+
+# BETWEEN-GROUP COMPARISONS
+
+# Mann–Whitney U Test (Continuous) + Chi-Square Test (Categorical)
+
+###############################################################
+
+
+
+library(dplyr)
+
+
+
+
+
+#  Mann–Whitney U Test (Continuous Variables)
+
+
+
+# Identify numeric (continuous) variables
+
+numeric_vars <- names(combined)[sapply(combined, is.numeric)]
+
+
+
+# Run Mann–Whitney U test for each continuous variable between groups
+
+mann_whitney_results <- lapply(numeric_vars, function(var) {
+  data_var <- combined %>%
+    select(Group, all_of(var)) %>%
+    filter(!is.na(.data[[var]]))  # remove NAs
+  
+  # Perform Kruskal-Wallis test (non-parametric version of ANOVA for >2 groups)
+  test <- kruskal.test(reformulate("Group", var), data = data_var)
+  data.frame(
+    Variable = var,
+    p_value = round(test$p.value, 5)
+  )
+  
+}) %>%
+  
+  bind_rows()
+
+
+# Save results
+
+write.csv(mann_whitney_results,
+          "T:/PROFID/Study8/Descriptive Analysis/files/mann_whitney_results.csv",
+          row.names = FALSE)
+
+
+#  Chi-Square Test (Categorical Variables)
+
+
+# Identify categorical variables
+
+categorical_vars <- names(combined)[sapply(combined, function(x) is.character(x) | is.factor(x))]
+
+# Run chi-square test for each categorical variable
+
+chi_square_results <- lapply(categorical_vars, function(var) {
+  tbl <- table(combined[[var]], combined$Group)
+  
+  # Only run if table has >1 level per dimension
+  
+  if (all(dim(tbl) > 1)) {
+    test <- chisq.test(tbl)
+    p_val <- round(test$p.value, 5)
+  } else {
+    p_val <- NA
+    
+  }
+  data.frame(Variable = var, p_value = p_val)
+  
+}) %>%
+  
+  bind_rows()
+# Save results
+
+write.csv(chi_square_results,
+          
+          "T:/PROFID/Study8/Descriptive Analysis/files/chi_square_results.csv",
+          
+          row.names = FALSE)
+
+
+
+
+
 
