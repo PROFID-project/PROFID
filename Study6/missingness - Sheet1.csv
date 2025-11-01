@@ -1,0 +1,9 @@
+Variable,% Missing,Comments
+BMI,13.25%,moderate
+Smoking,8.00%,small-moderate
+NYHA,8.90%,small-moderate
+MI_history,11.85%,moderate
+Revascularisation_acute,11.40%,moderate
+"Haemoglobin, eGFR, LVEF, ACE_inhibitor_ARB, Beta_blockers",~1-6%,low
+"Age, Sex, Diabetes, Hypertension",<5%,very low
+"Survival_time, Status",<0.3%,negligible
