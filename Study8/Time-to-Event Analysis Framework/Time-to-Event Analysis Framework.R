@@ -1,6 +1,6 @@
 # Install once
-# install.packages(c("survival", "survminer", "dplyr", "broom"))
-# if(!"cmprsk" %in% installed.packages()[,"Package"]) install.packages("cmprsk")
+install.packages(c("survival", "survminer", "dplyr", "broom"))
+if(!"cmprsk" %in% installed.packages()[,"Package"]) install.packages("cmprsk")
 
 library(survival)
 library(survminer)
@@ -113,6 +113,46 @@ ggsurvplot(
 
 dev.off()
 
+# Time-varying coefficient model
+
+cox_model_tv <- coxph(Surv(Survival_time, Status == 1) ~ Age * Survival_time + Sex * Survival_time + LVEF * Survival_time + Group * Survival_time, data = combined)
 
 
+
+# Summarize the model
+
+summary(cox_model_tv)
+
+
+# Stratified Cox model
+
+cox_model_strat <- coxph(Surv(Survival_time, Status == 1) ~ Age + Sex + LVEF + strata(Group), data = combined)
+
+
+
+# Summarize the model
+
+summary(cox_model_strat)
+
+
+# --- SAVE TIME-VARYING COEFFICIENT MODEL RESULTS ---
+
+# Convert the summary to a tidy table
+tv_summary <- broom::tidy(cox_model_tv, exponentiate = TRUE, conf.int = TRUE)
+
+# Save to CSV
+write.csv(tv_summary,
+          "T:/PROFID/Study8/Time-to-Event Analysis Framework/Files/Cox_TimeVarying_Model_Results.csv",
+          row.names = FALSE)
+
+
+# --- SAVE STRATIFIED COX MODEL RESULTS ---
+
+# Convert to tidy data frame
+strat_summary <- broom::tidy(cox_model_strat, exponentiate = TRUE, conf.int = TRUE)
+
+# Save to CSV
+write.csv(strat_summary,
+          "T:/PROFID/Study8/Time-to-Event Analysis Framework/Files/Cox_Stratified_Model_Results.csv",
+          row.names = FALSE)
 
