@@ -18,6 +18,8 @@ Code 3: Incidence Rate Calculations
 Code 4:  Survival Analysis
 [Code4_Survival Analysis.R.txt](https://github.com/user-attachments/files/23282358/Code4_Survival.Analysis.R.txt)
 
+Code 5: Risk Factor Identification
+[5__ RISK FACTOR IDENTIFICATION.R.txt](https://github.com/user-attachments/files/23302514/5__.RISK.FACTOR.IDENTIFICATION.R.txt)
 
 Study 5- Heart Failure Therapy Adherence Analysis
 
