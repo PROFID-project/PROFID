@@ -159,7 +159,6 @@ plot(imp, c("Age", "eGFR", "Haemoglobin", "LDL", "HDL", "Triglycerides", "LVEF",
 stripplot(imp, Diabetes ~ .imp, pch = 20, cex = 1.2)
 stripplot(imp, Sex ~ .imp, pch = 20, cex = 1.2)
 
-densityplot(imp, ~ as.numeric(NYHA))
 
 densityplot(imp, ~ BMI)
 densityplot(imp, ~ eGFR)
