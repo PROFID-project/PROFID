@@ -13,7 +13,7 @@ library(dplyr)
 library(rms)
 library(mice)
 
-combined <- read.csv("S:/AG/f-dhzc-profid/Data Transfer to Charite/combined_dataset.csv")
+combined <- read.csv("S:/AG/f-dhzc-profid/Data Transfer to Charite/combined_icd.csv")
 
 data_dir <- "S:/AG/f-dhzc-profid/Data Transfer to Charite"
 setwd("T:/Dokumente/PROFID/Study6")
@@ -51,7 +51,7 @@ impute_vars <- c(
   
   #  auxiliary variables
   "Cholesterol", "LDL", "HDL", "Triglycerides",
-  "Stroke_TIA", "HF",
+  "Stroke_TIA", 
   "Anti_platelet", "Anti_coagulant", "Diuretics", "Anti_anginal", "Calcium_antagonists",
   "Aldosterone_antagonist", "Digitalis_glycosides",
   "PCI_acute", "PCI", "CABG_acute", "CABG", "Thrombolysis_acute",
