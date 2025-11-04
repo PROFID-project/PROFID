@@ -1,10 +1,12 @@
 install.packages("dplyr")  
 install.packages("tidyr")  
 install.packages("broom")
+install.packages("lubridate")
 library(dplyr)
 library(tidyr)
 library(purrr)
 library(broom)
+library(lubridate)
 
 icd <- read.csv("S:/AG/f-dhzc-profid/Data Transfer to Charite/ICD.csv")
 nonicd_preserved <- read.csv("S:/AG/f-dhzc-profid/Data Transfer to Charite/NonICD_preserved.csv")
@@ -12,7 +14,7 @@ nonicd_reduced <- read.csv("S:/AG/f-dhzc-profid/Data Transfer to Charite/NonICD_
 combined <- read.csv("S:/AG/f-dhzc-profid/Data Transfer to Charite/combined_dataset.csv")
 
 data_dir <- "S:/AG/f-dhzc-profid/Data Transfer to Charite"
-setwd("//charite.de/homes/h02/clco10/Dokumente/PROFID/Study6s")
+
 
 summary(combined$BMI)
 summary(combined$Status)
@@ -35,6 +37,42 @@ categorical <- combined[, !numeric_cols, drop = FALSE]
 move_to_categorical <- c("X", "Status", "Time_zero_Y", "CVD_risk_region", "IsSWHR")
 categorical[move_to_categorical] <- combined[move_to_categorical]
 continuous <- continuous[, !(names(continuous) %in% move_to_categorical), drop = FALSE]
+
+
+# Assign cohort-level tags
+icd_tag <- icd %>%
+  transmute(patient_id = patient_id,
+            ICD_status = 1L,
+            source = "ICD",
+            implant_date = suppressWarnings(ymd(implant_date)))
+
+nonicd_pres_tag <- nonicd_preserved %>%
+  transmute(patient_id = patient_id,
+            ICD_status = 0L,
+            source = "NonICD_preserved")
+
+nonicd_red_tag <- nonicd_reduced %>%
+  transmute(patient_id = patient_id,
+            ICD_status = 0L,
+            source = "NonICD_reduced")
+
+# Combine and remove duplicates: keep ICD if conflicts
+cohort_tag <- bind_rows(icd_tag, nonicd_pres_tag, nonicd_red_tag) %>%
+  arrange(desc(ICD_status)) %>%      # ICD=1 rows come first
+  distinct(patient_id, .keep_all = TRUE)
+
+combined <- combined %>%
+  left_join(cohort_tag, by = "patient_id")
+
+# Check for duplicates
+sum(duplicated(combined_clean$patient_id))
+
+# Save cleaned, deduplicated combined dataset
+write.csv(
+  combined,
+  "S:/AG/f-dhzc-profid/Data Transfer to Charite/combined_icd.csv",
+  row.names = FALSE
+)
 
 
 summary_continuous_tidy <- map_dfr(
@@ -179,5 +217,7 @@ write.csv(final_summary,
 
 final_summary
 
-
+length(intersect(icd$patient_id, nonicd_preserved$patient_id))
+length(intersect(icd$patient_id, nonicd_reduced$patient_id))
+length(intersect(nonicd_preserved$patient_id, nonicd_reduced$patient_id))
 
