@@ -1,0 +1,24 @@
+Competing Risks Regression
+
+Call:
+crr(ftime = fg_sample$Survival_time, fstatus = fg_sample$Status, 
+    cov1 = model.matrix(~Age + Sex + LVEF + Group, data = fg_sample)[, 
+        -1], failcode = 1, cencode = 0, variance = TRUE)
+
+                          coef exp(coef) se(coef)      z p-value
+Age                   -0.00946     0.991  0.00411  -2.30 2.1e-02
+SexMale                0.39638     1.486  0.13184   3.01 2.6e-03
+LVEF                  -0.04264     0.958  0.00737  -5.78 7.3e-09
+GroupNonICD_preserved -1.83388     0.160  0.25135  -7.30 3.0e-13
+GroupNonICD_reduced   -1.56754     0.209  0.14285 -10.97 0.0e+00
+
+                      exp(coef) exp(-coef)   2.5% 97.5%
+Age                       0.991      1.010 0.9826 0.999
+SexMale                   1.486      0.673 1.1480 1.925
+LVEF                      0.958      1.044 0.9445 0.972
+GroupNonICD_preserved     0.160      6.258 0.0976 0.262
+GroupNonICD_reduced       0.209      4.795 0.1576 0.276
+
+Num. cases = 13983
+Pseudo Log-likelihood = -3523 
+Pseudo likelihood ratio test = 604  on 5 df,

@@ -1,0 +1,26 @@
+Fine–Gray Model for Non-Sudden Cardiac Death (Non-SCD, failcode = 2)
+
+Competing Risks Regression
+
+Call:
+crr(ftime = data$Survival_time, fstatus = data$Status, cov1 = model.matrix(~Age + 
+    Sex + LVEF + Group, data = data)[, -1], failcode = 2, cencode = 0, 
+    variance = TRUE)
+
+                         coef exp(coef) se(coef)      z p-value
+Age                    0.0901     1.094  0.00219 41.132   0.000
+SexMale               -0.0284     0.972  0.03872 -0.732   0.460
+LVEF                  -0.0249     0.975  0.00272 -9.138   0.000
+GroupNonICD_preserved  0.2460     1.279  0.13592  1.810   0.070
+GroupNonICD_reduced    0.2956     1.344  0.11812  2.503   0.012
+
+                      exp(coef) exp(-coef)  2.5% 97.5%
+Age                       1.094      0.914 1.090 1.099
+SexMale                   0.972      1.029 0.901 1.049
+LVEF                      0.975      1.025 0.970 0.981
+GroupNonICD_preserved     1.279      0.782 0.980 1.669
+GroupNonICD_reduced       1.344      0.744 1.066 1.694
+
+Num. cases = 13983
+Pseudo Log-likelihood = -25742 
+Pseudo likelihood ratio test = 3090  on 5 df,

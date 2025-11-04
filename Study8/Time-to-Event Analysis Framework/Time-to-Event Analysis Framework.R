@@ -156,3 +156,96 @@ write.csv(strat_summary,
           "T:/PROFID/Study8/Time-to-Event Analysis Framework/Files/Cox_Stratified_Model_Results.csv",
           row.names = FALSE)
 
+
+# Competing risks analysis (Fine-Gray subdistribution hazards for non-SCD mortality)
+
+table(combined$Status, useNA = "ifany")
+
+
+# Clean data for Fine–Gray model
+fg_data <- combined %>%
+  select(Survival_time, Status, Age, Sex, LVEF, Group) %>%
+  filter(complete.cases(.))
+
+# Check how many rows remain
+nrow(fg_data)
+
+# Fine–Gray Competing Risks Model
+library(cmprsk)
+
+
+
+# Step 2: Create a 10% random sample
+set.seed(42)  # for reproducibility
+fg_data_10 <- fg_data %>% sample_frac(0.10)
+nrow(fg_data_10)
+
+
+# Step 3: Define a reusable model-running function
+run_fg_models <- function(data, label) {
+  message("Running Fine–Gray models for: ", label)
+  
+  # --- Fine–Gray for SCD (failcode = 1)
+  fg_scd <- crr(
+    ftime = data$Survival_time,
+    fstatus = data$Status,
+    cov1 = model.matrix(~ Age + Sex + LVEF + Group, data = data)[, -1],
+    failcode = 1,   # SCD
+    cencode = 0,
+    variance = TRUE
+  )
+  
+  # --- Fine–Gray for non-SCD (failcode = 2)
+  fg_nonscd <- crr(
+    ftime = data$Survival_time,
+    fstatus = data$Status,
+    cov1 = model.matrix(~ Age + Sex + LVEF + Group, data = data)[, -1],
+    failcode = 2,   # Non-SCD
+    cencode = 0,
+    variance = TRUE
+  )
+  
+  # Step 4: Save model summaries as text files
+  sink(paste0("T:/PROFID/Study8/Time-to-Event Analysis Framework/Files/FineGray_", label, "_SCD_Summary.txt"))
+  cat("Fine–Gray Model for Sudden Cardiac Death (SCD, failcode = 1)\n\n")
+  print(summary(fg_scd))
+  sink()
+  
+  sink(paste0("T:/PROFID/Study8/Time-to-Event Analysis Framework/Files/FineGray_", label, "_NonSCD_Summary.txt"))
+  cat("Fine–Gray Model for Non-Sudden Cardiac Death (Non-SCD, failcode = 2)\n\n")
+  print(summary(fg_nonscd))
+  sink()
+  
+  # Step 5: Create tidy data frames for easy comparison
+  tidy_fg <- function(model) {
+    data.frame(
+      Variable = names(model$coef),
+      Estimate = model$coef,
+      sHR = exp(model$coef),
+      SE = sqrt(diag(model$var)),
+      Z = model$coef / sqrt(diag(model$var)),
+      P_value = 1 - pchisq((model$coef / sqrt(diag(model$var)))^2, df = 1)
+    )
+  }
+  
+  fg_scd_tbl <- tidy_fg(fg_scd)
+  fg_nonscd_tbl <- tidy_fg(fg_nonscd)
+  
+  # Step 6: Save results to CSV
+  write.csv(fg_scd_tbl,
+            paste0("T:/PROFID/Study8/Time-to-Event Analysis Framework/Files/FineGray_", label, "_SCD.csv"),
+            row.names = FALSE)
+  
+  write.csv(fg_nonscd_tbl,
+            paste0("T:/PROFID/Study8/Time-to-Event Analysis Framework/Files/FineGray_", label, "_NonSCD.csv"),
+            row.names = FALSE)
+  
+  message("Models completed and saved for: ", label)
+}
+
+
+# Step 7: Run on 10% subset (fast check)
+run_fg_models(fg_data_10, "10pct")
+
+# step 8: Run on full dataset (final model — may take longer)
+run_fg_models(fg_data, "100pct")
