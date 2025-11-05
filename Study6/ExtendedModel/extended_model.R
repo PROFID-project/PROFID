@@ -20,6 +20,9 @@ library(dplyr)
 
 #  Read pre-imputation data; keep only id + ICD_status
 preimp <- read.csv("combined_BMI_outcomefiltered.csv")
+ 
+# Load the imputed object
+imp <- readRDS("mice_imputed_data.RDS")
 
 # Make sure the columns are named consistently
 # (adjust these two names if your file uses different ones)
@@ -47,9 +50,6 @@ imp$data <- imp$data %>%
 cat("N missing ICD_status after join:", sum(is.na(imp$data$ICD_status)), "\n")
 cat("Distinct ICD_status values:", paste(sort(unique(imp$data$ICD_status)), collapse=", "), "\n")
 
-
-# Load the imputed object
-imp <- readRDS("mice_imputed_data.RDS")
 
 # Quick checks
 imp
@@ -219,11 +219,8 @@ write.csv(viol_rate, "PH_violation_rate_extended.csv",         row.names = FALSE
 # Quick on-screen view (largest violation rates first)
 viol_rate
 
-
-
 # assumes: vars_extended, BND, K3, K5, fit_list_cs1 already defined
 # and imp$data$Status_cs1 exists (1 = event of interest, 0 = otherwise)
-
 
 # Fit 3-knot and 5-knot models (cause-specific)
 fit_k3 <- with(imp, {
@@ -267,3 +264,43 @@ write.csv(
 write.csv(aic_summary, "AIC_summary_K3_K4_K5_extended.csv", row.names = FALSE)
 
 aic_summary
+
+# compare base and extended model visually 
+# Load curves
+curve_base <- read.csv("cox_RCS_BMI_curve_cs1.csv")
+curve_ext  <- read.csv("cox_RCS_BMI_curve_cs1_extended.csv")
+
+# Export high-quality PDF
+pdf("BMI_curve_comparison_base_vs_extended_shaded.pdf", width = 7, height = 5)
+
+# Base plot setup
+plot(curve_base$BMI, curve_base$HR, type = "n",
+     ylim = range(c(curve_base$LCL, curve_base$UCL,
+                    curve_ext$LCL, curve_ext$UCL)),
+     xlab = "BMI (kg/m²)",
+     ylab = "Hazard ratio (ref = 25)",
+     main = "Restricted cubic spline: Base vs Extended models")
+
+# Add shaded 95% CI for base model (blue)
+polygon(c(curve_base$BMI, rev(curve_base$BMI)),
+        c(curve_base$LCL, rev(curve_base$UCL)),
+        col = adjustcolor("darkblue", alpha.f = 0.15), border = NA)
+
+# Add shaded 95% CI for extended model (red)
+polygon(c(curve_ext$BMI, rev(curve_ext$BMI)),
+        c(curve_ext$LCL, rev(curve_ext$UCL)),
+        col = adjustcolor("firebrick", alpha.f = 0.15), border = NA)
+
+# Add the mean HR curves
+lines(curve_base$BMI, curve_base$HR, col = "darkblue", lwd = 2)
+lines(curve_ext$BMI, curve_ext$HR, col = "firebrick", lwd = 2)
+
+# Reference lines
+abline(h = 1, lty = 3, col = "gray50")
+abline(v = 25, lty = 3, col = "gray50")
+
+# Legend
+legend("topleft", legend = c("Base model", "Extended model"),
+       col = c("darkblue", "firebrick"), lwd = 2, bty = "n")
+
+dev.off()
