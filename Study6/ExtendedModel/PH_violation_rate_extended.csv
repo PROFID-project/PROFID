@@ -1,0 +1,21 @@
+"term","prop_p_lt_0.05"
+"Age",1
+"Revascularisation_acute",1
+"Hypertension",0.5
+"MI_history",0.5
+"ns(BMI, knots = K4, Boundary.knots = BND)",0
+"Sex",0
+"Diabetes",0
+"Smoking",0
+"LVEF",0
+"eGFR",0
+"Haemoglobin",0
+"ACE_inhibitor_ARB",0
+"Beta_blockers",0
+"Lipid_lowering",0
+"Cholesterol",0
+"HDL",0
+"LDL",0
+"Triglycerides",0
+"Stroke_TIA",0
+"ICD_status",0
