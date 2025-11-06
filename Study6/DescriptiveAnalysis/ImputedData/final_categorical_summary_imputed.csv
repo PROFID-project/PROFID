@@ -1,0 +1,169 @@
+"Variable","Level","BMI_cat","Count","Percent","p.value_rounded","p_adj_rounded"
+"ACE_inhibitor_ARB","No","Underweight",492,"31.5%",1.74e-164,3.24e-164
+"ACE_inhibitor_ARB","Yes","Underweight",1068,"68.5%",1.74e-164,3.24e-164
+"Baseline_type","MI","Underweight",1499,"96.1%",0,0
+"Baseline_type","MI40d","Underweight",61,"3.9%",0,0
+"Beta_blockers","No","Underweight",249,"16.0%",1.12e-34,1.45e-34
+"Beta_blockers","Yes","Underweight",1311,"84.0%",1.12e-34,1.45e-34
+"CVD_risk_region","1","Underweight",15,"1.0%",2.02e-294,5.26e-294
+"CVD_risk_region","2","Underweight",1442,"92.4%",2.02e-294,5.26e-294
+"CVD_risk_region","3","Underweight",96,"6.2%",2.02e-294,5.26e-294
+"CVD_risk_region","4","Underweight",7,"0.4%",2.02e-294,5.26e-294
+"Diabetes","No","Underweight",1412,"90.5%",0,0
+"Diabetes","Yes","Underweight",148,"9.5%",0,0
+"Hypertension","No","Underweight",905,"58.0%",0,0
+"Hypertension","Yes","Underweight",655,"42.0%",0,0
+"Lipid_lowering","No","Underweight",411,"26.3%",7.46e-241,1.62e-240
+"Lipid_lowering","Yes","Underweight",1149,"73.7%",7.46e-241,1.62e-240
+"MI_history","No","Underweight",1266,"81.2%",1.41e-24,1.66e-24
+"MI_history","Yes","Underweight",294,"18.8%",1.41e-24,1.66e-24
+"MI_type","NSTEMI","Underweight",1092,"70.0%",1.63e-21,1.77e-21
+"MI_type","STEMI","Underweight",468,"30.0%",1.63e-21,1.77e-21
+"Revascularisation_acute","No","Underweight",1112,"71.3%",2.97e-40,4.28e-40
+"Revascularisation_acute","Yes","Underweight",448,"28.7%",2.97e-40,4.28e-40
+"Sex","Female","Underweight",1090,"69.9%",0,0
+"Sex","Male","Underweight",470,"30.1%",0,0
+"Smoking","No","Underweight",578,"37.1%",1.5e-65,2.44e-65
+"Smoking","Yes","Underweight",982,"62.9%",1.5e-65,2.44e-65
+"Stroke_TIA","No","Underweight",1402,"89.9%",2.08e-11,2.08e-11
+"Stroke_TIA","Yes","Underweight",158,"10.1%",2.08e-11,2.08e-11
+"ACE_inhibitor_ARB","No","Normal",9519,"24.0%",1.74e-164,3.24e-164
+"ACE_inhibitor_ARB","Yes","Normal",30173,"76.0%",1.74e-164,3.24e-164
+"Baseline_type","MI","Normal",37712,"95.0%",0,0
+"Baseline_type","MI40d","Normal",1980,"5.0%",0,0
+"Beta_blockers","No","Normal",4968,"12.5%",1.12e-34,1.45e-34
+"Beta_blockers","Yes","Normal",34724,"87.5%",1.12e-34,1.45e-34
+"CVD_risk_region","1","Normal",384,"1.0%",2.02e-294,5.26e-294
+"CVD_risk_region","2","Normal",36456,"91.8%",2.02e-294,5.26e-294
+"CVD_risk_region","3","Normal",2631,"6.6%",2.02e-294,5.26e-294
+"CVD_risk_region","4","Normal",221,"0.6%",2.02e-294,5.26e-294
+"Diabetes","No","Normal",33893,"85.4%",0,0
+"Diabetes","Yes","Normal",5799,"14.6%",0,0
+"Hypertension","No","Normal",21902,"55.2%",0,0
+"Hypertension","Yes","Normal",17790,"44.8%",0,0
+"Lipid_lowering","No","Normal",4543,"11.4%",7.46e-241,1.62e-240
+"Lipid_lowering","Yes","Normal",35149,"88.6%",7.46e-241,1.62e-240
+"MI_history","No","Normal",32150,"81.0%",1.41e-24,1.66e-24
+"MI_history","Yes","Normal",7542,"19.0%",1.41e-24,1.66e-24
+"MI_type","NSTEMI","Normal",26101,"65.8%",1.63e-21,1.77e-21
+"MI_type","STEMI","Normal",13591,"34.2%",1.63e-21,1.77e-21
+"Revascularisation_acute","No","Normal",24197,"61.0%",2.97e-40,4.28e-40
+"Revascularisation_acute","Yes","Normal",15495,"39.0%",2.97e-40,4.28e-40
+"Sex","Female","Normal",14195,"35.8%",0,0
+"Sex","Male","Normal",25497,"64.2%",0,0
+"Smoking","No","Normal",17012,"42.9%",1.5e-65,2.44e-65
+"Smoking","Yes","Normal",22680,"57.1%",1.5e-65,2.44e-65
+"Stroke_TIA","No","Normal",36701,"92.5%",2.08e-11,2.08e-11
+"Stroke_TIA","Yes","Normal",2991,"7.5%",2.08e-11,2.08e-11
+"ACE_inhibitor_ARB","No","Overweight",10105,"19.4%",1.74e-164,3.24e-164
+"ACE_inhibitor_ARB","Yes","Overweight",41994,"80.6%",1.74e-164,3.24e-164
+"Baseline_type","MI","Overweight",48576,"93.2%",0,0
+"Baseline_type","MI40d","Overweight",3523,"6.8%",0,0
+"Beta_blockers","No","Overweight",5601,"10.8%",1.12e-34,1.45e-34
+"Beta_blockers","Yes","Overweight",46498,"89.2%",1.12e-34,1.45e-34
+"CVD_risk_region","1","Overweight",529,"1.0%",2.02e-294,5.26e-294
+"CVD_risk_region","2","Overweight",46659,"89.6%",2.02e-294,5.26e-294
+"CVD_risk_region","3","Overweight",4528,"8.7%",2.02e-294,5.26e-294
+"CVD_risk_region","4","Overweight",383,"0.7%",2.02e-294,5.26e-294
+"Diabetes","No","Overweight",41059,"78.8%",0,0
+"Diabetes","Yes","Overweight",11040,"21.2%",0,0
+"Hypertension","No","Overweight",25582,"49.1%",0,0
+"Hypertension","Yes","Overweight",26517,"50.9%",0,0
+"Lipid_lowering","No","Overweight",3944,"7.6%",7.46e-241,1.62e-240
+"Lipid_lowering","Yes","Overweight",48155,"92.4%",7.46e-241,1.62e-240
+"MI_history","No","Overweight",41823,"80.3%",1.41e-24,1.66e-24
+"MI_history","Yes","Overweight",10276,"19.7%",1.41e-24,1.66e-24
+"MI_type","NSTEMI","Overweight",34228,"65.7%",1.63e-21,1.77e-21
+"MI_type","STEMI","Overweight",17871,"34.3%",1.63e-21,1.77e-21
+"Revascularisation_acute","No","Overweight",30322,"58.2%",2.97e-40,4.28e-40
+"Revascularisation_acute","Yes","Overweight",21777,"41.8%",2.97e-40,4.28e-40
+"Sex","Female","Overweight",13274,"25.5%",0,0
+"Sex","Male","Overweight",38825,"74.5%",0,0
+"Smoking","No","Overweight",20993,"40.3%",1.5e-65,2.44e-65
+"Smoking","Yes","Overweight",31106,"59.7%",1.5e-65,2.44e-65
+"Stroke_TIA","No","Overweight",48677,"93.4%",2.08e-11,2.08e-11
+"Stroke_TIA","Yes","Overweight",3422,"6.6%",2.08e-11,2.08e-11
+"ACE_inhibitor_ARB","No","Obese I",3446,"16.5%",1.74e-164,3.24e-164
+"ACE_inhibitor_ARB","Yes","Obese I",17463,"83.5%",1.74e-164,3.24e-164
+"Baseline_type","MI","Obese I",18731,"89.6%",0,0
+"Baseline_type","MI40d","Obese I",2178,"10.4%",0,0
+"Beta_blockers","No","Obese I",2047,"9.8%",1.12e-34,1.45e-34
+"Beta_blockers","Yes","Obese I",18862,"90.2%",1.12e-34,1.45e-34
+"CVD_risk_region","1","Obese I",231,"1.1%",2.02e-294,5.26e-294
+"CVD_risk_region","2","Obese I",18030,"86.2%",2.02e-294,5.26e-294
+"CVD_risk_region","3","Obese I",2421,"11.6%",2.02e-294,5.26e-294
+"CVD_risk_region","4","Obese I",227,"1.1%",2.02e-294,5.26e-294
+"Diabetes","No","Obese I",14229,"68.1%",0,0
+"Diabetes","Yes","Obese I",6680,"31.9%",0,0
+"Hypertension","No","Obese I",8380,"40.1%",0,0
+"Hypertension","Yes","Obese I",12529,"59.9%",0,0
+"Lipid_lowering","No","Obese I",1456,"7.0%",7.46e-241,1.62e-240
+"Lipid_lowering","Yes","Obese I",19453,"93.0%",7.46e-241,1.62e-240
+"MI_history","No","Obese I",16442,"78.6%",1.41e-24,1.66e-24
+"MI_history","Yes","Obese I",4467,"21.4%",1.41e-24,1.66e-24
+"MI_type","NSTEMI","Obese I",14178,"67.8%",1.63e-21,1.77e-21
+"MI_type","STEMI","Obese I",6731,"32.2%",1.63e-21,1.77e-21
+"Revascularisation_acute","No","Obese I",12249,"58.6%",2.97e-40,4.28e-40
+"Revascularisation_acute","Yes","Obese I",8660,"41.4%",2.97e-40,4.28e-40
+"Sex","Female","Obese I",6332,"30.3%",0,0
+"Sex","Male","Obese I",14577,"69.7%",0,0
+"Smoking","No","Obese I",7697,"36.8%",1.5e-65,2.44e-65
+"Smoking","Yes","Obese I",13212,"63.2%",1.5e-65,2.44e-65
+"Stroke_TIA","No","Obese I",19500,"93.3%",2.08e-11,2.08e-11
+"Stroke_TIA","Yes","Obese I",1409,"6.7%",2.08e-11,2.08e-11
+"ACE_inhibitor_ARB","No","Obese II",818,"15.1%",1.74e-164,3.24e-164
+"ACE_inhibitor_ARB","Yes","Obese II",4583,"84.9%",1.74e-164,3.24e-164
+"Baseline_type","MI","Obese II",4536,"84.0%",0,0
+"Baseline_type","MI40d","Obese II",865,"16.0%",0,0
+"Beta_blockers","No","Obese II",547,"10.1%",1.12e-34,1.45e-34
+"Beta_blockers","Yes","Obese II",4854,"89.9%",1.12e-34,1.45e-34
+"CVD_risk_region","1","Obese II",69,"1.3%",2.02e-294,5.26e-294
+"CVD_risk_region","2","Obese II",4373,"81.0%",2.02e-294,5.26e-294
+"CVD_risk_region","3","Obese II",892,"16.5%",2.02e-294,5.26e-294
+"CVD_risk_region","4","Obese II",67,"1.2%",2.02e-294,5.26e-294
+"Diabetes","No","Obese II",3145,"58.2%",0,0
+"Diabetes","Yes","Obese II",2256,"41.8%",0,0
+"Hypertension","No","Obese II",1747,"32.3%",0,0
+"Hypertension","Yes","Obese II",3654,"67.7%",0,0
+"Lipid_lowering","No","Obese II",410,"7.6%",7.46e-241,1.62e-240
+"Lipid_lowering","Yes","Obese II",4991,"92.4%",7.46e-241,1.62e-240
+"MI_history","No","Obese II",4105,"76.0%",1.41e-24,1.66e-24
+"MI_history","Yes","Obese II",1296,"24.0%",1.41e-24,1.66e-24
+"MI_type","NSTEMI","Obese II",3780,"70.0%",1.63e-21,1.77e-21
+"MI_type","STEMI","Obese II",1621,"30.0%",1.63e-21,1.77e-21
+"Revascularisation_acute","No","Obese II",3092,"57.2%",2.97e-40,4.28e-40
+"Revascularisation_acute","Yes","Obese II",2309,"42.8%",2.97e-40,4.28e-40
+"Sex","Female","Obese II",2032,"37.6%",0,0
+"Sex","Male","Obese II",3369,"62.4%",0,0
+"Smoking","No","Obese II",1875,"34.7%",1.5e-65,2.44e-65
+"Smoking","Yes","Obese II",3526,"65.3%",1.5e-65,2.44e-65
+"Stroke_TIA","No","Obese II",5024,"93.0%",2.08e-11,2.08e-11
+"Stroke_TIA","Yes","Obese II",377,"7.0%",2.08e-11,2.08e-11
+"ACE_inhibitor_ARB","No","Obese III",305,"16.8%",1.74e-164,3.24e-164
+"ACE_inhibitor_ARB","Yes","Obese III",1515,"83.2%",1.74e-164,3.24e-164
+"Baseline_type","MI","Obese III",1406,"77.3%",0,0
+"Baseline_type","MI40d","Obese III",414,"22.7%",0,0
+"Beta_blockers","No","Obese III",172,"9.5%",1.12e-34,1.45e-34
+"Beta_blockers","Yes","Obese III",1648,"90.5%",1.12e-34,1.45e-34
+"CVD_risk_region","1","Obese III",18,"1.0%",2.02e-294,5.26e-294
+"CVD_risk_region","2","Obese III",1350,"74.2%",2.02e-294,5.26e-294
+"CVD_risk_region","3","Obese III",436,"24.0%",2.02e-294,5.26e-294
+"CVD_risk_region","4","Obese III",16,"0.9%",2.02e-294,5.26e-294
+"Diabetes","No","Obese III",965,"53.0%",0,0
+"Diabetes","Yes","Obese III",855,"47.0%",0,0
+"Hypertension","No","Obese III",530,"29.1%",0,0
+"Hypertension","Yes","Obese III",1290,"70.9%",0,0
+"Lipid_lowering","No","Obese III",128,"7.0%",7.46e-241,1.62e-240
+"Lipid_lowering","Yes","Obese III",1692,"93.0%",7.46e-241,1.62e-240
+"MI_history","No","Obese III",1390,"76.4%",1.41e-24,1.66e-24
+"MI_history","Yes","Obese III",430,"23.6%",1.41e-24,1.66e-24
+"MI_type","NSTEMI","Obese III",1318,"72.4%",1.63e-21,1.77e-21
+"MI_type","STEMI","Obese III",502,"27.6%",1.63e-21,1.77e-21
+"Revascularisation_acute","No","Obese III",992,"54.5%",2.97e-40,4.28e-40
+"Revascularisation_acute","Yes","Obese III",828,"45.5%",2.97e-40,4.28e-40
+"Sex","Female","Obese III",809,"44.5%",0,0
+"Sex","Male","Obese III",1011,"55.5%",0,0
+"Smoking","No","Obese III",633,"34.8%",1.5e-65,2.44e-65
+"Smoking","Yes","Obese III",1187,"65.2%",1.5e-65,2.44e-65
+"Stroke_TIA","No","Obese III",1702,"93.5%",2.08e-11,2.08e-11
+"Stroke_TIA","Yes","Obese III",118,"6.5%",2.08e-11,2.08e-11
