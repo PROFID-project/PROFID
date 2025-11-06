@@ -138,7 +138,6 @@ overall_missing <- function(var) {
 }
 
 # Build the table blocks to match the reference groups -------------------
-# (Section order & variables mirror the screenshot)
 sections <- list(
   "Demographics" = c(canon$Age, canon$Sex),
   "Medical history" = c(canon$PCI, canon$CABG, canon$Smoking, canon$Diabetes),
@@ -196,3 +195,4 @@ gtsave(gt_tbl, "Table1.html")
 
 # Console preview --------------------------------------------------------
 print(gt_tbl)
+
