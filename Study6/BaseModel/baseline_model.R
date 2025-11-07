@@ -321,3 +321,15 @@ data.frame(model=c("Full base","Simplified base"),
            sd_C   = c(sd(cidx_full),   sd(cidx_simpl)))
 
 
+# Extract and average AIC per model across imputations
+aic_full <- sapply(fit_list_cs1$analyses, AIC)
+aic_simpl <- sapply(fit_list_cs1_simpl$analyses, AIC)
+
+# Summarise results
+aic_summary <- data.frame(
+  model = c("Full base", "Simplified base"),
+  mean_AIC = c(mean(aic_full), mean(aic_simpl)),
+  sd_AIC   = c(sd(aic_full), sd(aic_simpl))
+)
+
+print(aic_summary)
