@@ -20,6 +20,7 @@ Code 4:  Survival Analysis
 
 Code 5: Risk Factor Identification
 [5__ RISK FACTOR IDENTIFICATION.R.txt](https://github.com/user-attachments/files/23302514/5__.RISK.FACTOR.IDENTIFICATION.R.txt)
+code 7: Sensitivity analyses[7__ SENSITIVITY ANALYSES.R.txt](https://github.com/user-attachments/files/23423133/7__.SENSITIVITY.ANALYSES.R.txt)
 
 Study 5- Heart Failure Therapy Adherence Analysis
 
