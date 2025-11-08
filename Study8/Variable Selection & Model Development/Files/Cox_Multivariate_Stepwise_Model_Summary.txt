@@ -1,0 +1,86 @@
+Call:
+coxph(formula = Surv(Survival_time, Status == 1) ~ Sex + BMI + 
+    LVEF + eGFR + LBBB + Stroke_TIA + Anti_platelet + Beta_blockers + 
+    Diuretics + PCI + CABG + Haemoglobin + RBBB + AF_atrial_flutter + 
+    Smoking + Aldosterone_antagonist + Anti_diabetic_insulin + 
+    Anti_diabetic_oral + Calcium_antagonists + Digitalis_glycosides + 
+    HF + Anti_diabetic + Lipid_lowering + CVD_risk_region + Group + 
+    Baseline_type + LDL + PCI_acute + MI_history, data = vs_data_complete)
+
+  n= 139917, number of events= 4071 
+
+                                coef  exp(coef)   se(coef)       z Pr(>|z|)    
+SexMale                    0.4269980  1.5326496  0.0423681  10.078  < 2e-16 ***
+BMI                        0.0144426  1.0145474  0.0033375   4.327 1.51e-05 ***
+LVEF                      -0.0334656  0.9670882  0.0023415 -14.292  < 2e-16 ***
+eGFR                      -0.0045294  0.9954808  0.0007949  -5.698 1.21e-08 ***
+LBBBYes                    0.2679484  1.3072797  0.0506319   5.292 1.21e-07 ***
+Stroke_TIAYes              0.1252392  1.1334196  0.0522617   2.396 0.016558 *  
+Anti_plateletYes          -0.1193971  0.8874554  0.0488180  -2.446 0.014455 *  
+Beta_blockersYes          -0.1325784  0.8758342  0.0468484  -2.830 0.004656 ** 
+DiureticsYes               0.2434425  1.2756330  0.0376638   6.464 1.02e-10 ***
+PCIYes                    -0.0700903  0.9323096  0.0412594  -1.699 0.089362 .  
+CABGYes                    0.1354140  1.1450107  0.0404849   3.345 0.000823 ***
+Haemoglobin               -0.0240090  0.9762769  0.0095967  -2.502 0.012357 *  
+RBBBYes                    0.1148237  1.1216756  0.0628901   1.826 0.067883 .  
+AF_atrial_flutterYes       0.0891196  1.0932114  0.0402557   2.214 0.026840 *  
+SmokingYes                 0.1283123  1.1369080  0.0335205   3.828 0.000129 ***
+Aldosterone_antagonistYes -0.0728880  0.9297050  0.0448093  -1.627 0.103817    
+Anti_diabetic_insulinYes   0.1831216  1.2009605  0.0920978   1.988 0.046774 *  
+Anti_diabetic_oralYes     -0.1958783  0.8221123  0.0929525  -2.107 0.035092 *  
+Calcium_antagonistsYes     0.1315936  1.1406447  0.0468386   2.810 0.004962 ** 
+Digitalis_glycosidesYes    0.1312208  1.1402196  0.0560132   2.343 0.019146 *  
+HFYes                      0.1449528  1.1559850  0.0479076   3.026 0.002481 ** 
+Anti_diabeticYes           0.3394253  1.4041404  0.1083014   3.134 0.001724 ** 
+Lipid_loweringYes         -0.2174337  0.8045809  0.0457123  -4.757 1.97e-06 ***
+CVD_risk_region2          -0.5673804  0.5670088  0.0967525  -5.864 4.51e-09 ***
+CVD_risk_region3           0.0951979  1.0998765  0.0629569   1.512 0.130505    
+CVD_risk_region4           0.3275544  1.3875705  0.0916594   3.574 0.000352 ***
+GroupNonICD_preserved     -1.3177905  0.2677262  0.0862407 -15.280  < 2e-16 ***
+GroupNonICD_reduced       -1.0287373  0.3574581  0.0661006 -15.563  < 2e-16 ***
+Baseline_typeMI40d         0.2916607  1.3386488  0.0628616   4.640 3.49e-06 ***
+LDL                       -0.0007287  0.9992716  0.0003847  -1.894 0.058227 .  
+PCI_acuteYes              -0.3416929  0.7105664  0.0474155  -7.206 5.75e-13 ***
+MI_historyYes              0.6288998  1.8755459  0.0497536  12.640  < 2e-16 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+                          exp(coef) exp(-coef) lower .95 upper .95
+SexMale                      1.5326     0.6525    1.4105    1.6654
+BMI                          1.0145     0.9857    1.0079    1.0212
+LVEF                         0.9671     1.0340    0.9627    0.9715
+eGFR                         0.9955     1.0045    0.9939    0.9970
+LBBBYes                      1.3073     0.7649    1.1838    1.4437
+Stroke_TIAYes                1.1334     0.8823    1.0231    1.2557
+Anti_plateletYes             0.8875     1.1268    0.8065    0.9766
+Beta_blockersYes             0.8758     1.1418    0.7990    0.9601
+DiureticsYes                 1.2756     0.7839    1.1849    1.3734
+PCIYes                       0.9323     1.0726    0.8599    1.0108
+CABGYes                      1.1450     0.8734    1.0577    1.2396
+Haemoglobin                  0.9763     1.0243    0.9581    0.9948
+RBBBYes                      1.1217     0.8915    0.9916    1.2688
+AF_atrial_flutterYes         1.0932     0.9147    1.0103    1.1830
+SmokingYes                   1.1369     0.8796    1.0646    1.2141
+Aldosterone_antagonistYes    0.9297     1.0756    0.8515    1.0150
+Anti_diabetic_insulinYes     1.2010     0.8327    1.0026    1.4385
+Anti_diabetic_oralYes        0.8221     1.2164    0.6852    0.9864
+Calcium_antagonistsYes       1.1406     0.8767    1.0406    1.2503
+Digitalis_glycosidesYes      1.1402     0.8770    1.0217    1.2725
+HFYes                        1.1560     0.8651    1.0524    1.2698
+Anti_diabeticYes             1.4041     0.7122    1.1356    1.7362
+Lipid_loweringYes            0.8046     1.2429    0.7356    0.8800
+CVD_risk_region2             0.5670     1.7636    0.4691    0.6854
+CVD_risk_region3             1.0999     0.9092    0.9722    1.2443
+CVD_risk_region4             1.3876     0.7207    1.1594    1.6606
+GroupNonICD_preserved        0.2677     3.7352    0.2261    0.3170
+GroupNonICD_reduced          0.3575     2.7975    0.3140    0.4069
+Baseline_typeMI40d           1.3386     0.7470    1.1835    1.5142
+LDL                          0.9993     1.0007    0.9985    1.0000
+PCI_acuteYes                 0.7106     1.4073    0.6475    0.7798
+MI_historyYes                1.8755     0.5332    1.7013    2.0677
+
+Concordance= 0.836  (se = 0.003 )
+Likelihood ratio test= 6908  on 32 df,   p=<2e-16
+Wald test            = 7611  on 32 df,   p=<2e-16
+Score (logrank) test = 13295  on 32 df,   p=<2e-16
+
