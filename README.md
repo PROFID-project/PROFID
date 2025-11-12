@@ -8,21 +8,15 @@ Study 2- Seasonal SCD Patterns Analysis
 Study 3- ICD Shock Rates Analysis
 
 Study 4- Age-Stratified SCD Incidence Analysis
-code1: Harmonisation Data
-[Study4_Harmonisation DATA.txt](https://github.com/user-attachments/files/23105773/Study4_Harmonisation.DATA.txt)
-
-Code2: Data Preparation & Quality Assurance Quality Control & Age Stratification Strategy
-[Study4_ Data Preparation and Quality Assurance_Data Quality Control_ Age Stratification Strategy.R.txt](https://github.com/user-attachments/files/23131150/Study4_.Data.Preparation.and.Quality.Assurance_Data.Quality.Control_.Age.Stratification.Strategy.R.txt)
-Code 3: Incidence Rate Calculations
-[Inicdence Rate Calculations.R.txt](https://github.com/user-attachments/files/23192991/Inicdence.Rate.Calculations.R.txt)
-
-Code 4:  Survival Analysis
-[Code4_Survival Analysis.R.txt](https://github.com/user-attachments/files/23282358/Code4_Survival.Analysis.R.txt)
-
-Code 5: Risk Factor Identification
-[5__ RISK FACTOR IDENTIFICATION.R.txt](https://github.com/user-attachments/files/23302514/5__.RISK.FACTOR.IDENTIFICATION.R.txt)
-code 7: Sensitivity analyses[7__ SENSITIVITY ANALYSES.R.txt](https://github.com/user-attachments/files/23423133/7__.SENSITIVITY.ANALYSES.R.txt)
-Code8: [8_ Handling of complex variables.R.txt](https://github.com/user-attachments/files/23431909/8_.Handling.of.complex.variables.R.txt)
+[9_ Sensitivity analyses_CC.R.txt](https://github.com/user-attachments/files/23505889/9_.Sensitivity.analyses_CC.R.txt)
+[8_Validation COX model  1 performance.R.txt](https://github.com/user-attachments/files/23505887/8_Validation.COX.model.1.performance.R.txt)
+[7_Validation FG Model & Performance.R.txt](https://github.com/user-attachments/files/23505886/7_Validation.FG.Model.Performance.R.txt)
+[6_Risk_factors_identification.R.txt](https://github.com/user-attachments/files/23505880/6_Risk_factors_identification.R.txt)
+[5_ Survival analysis fromwark.R.txt](https://github.com/user-attachments/files/23505879/5_.Survival.analysis.fromwark.R.txt)
+[4_ Competing risk  analysis.R.txt](https://github.com/user-attachments/files/23505878/4_.Competing.risk.analysis.R.txt)
+[3__ Incidence Rate calculations.R.txt](https://github.com/user-attachments/files/23505877/3__.Incidence.Rate.calculations.R.txt)
+[2_ Handlign of complex variables_df_handled.R.txt](https://github.com/user-attachments/files/23505875/2_.Handlign.of.complex.variables_df_handled.R.txt)
+[1_Study_Hamonisation Data_ Quality Control_Age Stratification.R.txt](https://github.com/user-attachments/files/23505874/1_Study_Hamonisation.Data_.Quality.Control_Age.Stratification.R.txt)
 
 Study 5- Heart Failure Therapy Adherence Analysis
 
