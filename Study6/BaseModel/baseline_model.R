@@ -411,39 +411,39 @@ library(ggplot2)
 
 .calib_from_fitlist <- function(fit_list, t0, nbins = 10) {
   # For each imputation-specific Cox model in fit_list$analyses:
-  #  * compute predicted risk at time t0
+  #  * compute predicted risk at time t0 using basehaz + linear predictors
   #  * bin predictions
-  #  * compute mean predicted and KM observed risk per bin
-  # Returns a data.frame with columns: bin, pred_mean, obs_mean
+  #  * compute mean predicted + KM observed risk per bin
+  # Returns a data.frame with bin, pred_mean, obs_mean pooled across imputations.
   
   all_bins <- lapply(fit_list$analyses, function(fm) {
-    y <- fm$y
-    time   <- y[, 1]
-    status <- y[, 2]
+    y     <- fm$y
+    time  <- y[, 1]
+    status<- y[, 2]
     
-    # Linear predictor
-    lp <- predict(fm, type = "lp")
-    
-    # Baseline cumulative hazard and survival at t0
+    ## 1) Baseline cumulative hazard at t0 (covariates = 0)
     bh <- basehaz(fm, centered = FALSE)
     idx <- which(bh$time <= t0)
     if (length(idx) == 0) return(NULL)
     H0_t0 <- bh$hazard[max(idx)]
-    S0_t0 <- exp(-H0_t0)
     
-    # Individual survival and risk at t0
-    S_i_t0   <- S0_t0 ^ exp(lp)
-    pred_risk <- 1 - S_i_t0
+    ## 2) Un-centre the linear predictor
+    lp_centered <- fm$linear.predictors
+    const       <- sum(fm$means * coef(fm))   # centering constant
+    lp_unc      <- lp_centered + const        # η (not centered)
     
-    # If no variation, bail out
+    ## 3) Predicted survival & risk at t0
+    surv_t0  <- exp(- H0_t0 * exp(lp_unc))
+    pred_risk <- 1 - surv_t0
+    
     if (all(is.na(pred_risk)) || length(unique(na.omit(pred_risk))) < 2) {
       return(NULL)
     }
     
-    # Define bins based on quantiles of predicted risk
+    ## 4) Define bins based on quantiles of predicted risk
     q <- quantile(pred_risk, probs = seq(0, 1, length.out = nbins + 1),
                   na.rm = TRUE)
-    q <- unique(q)  # in case some quantiles coincide
+    q <- unique(q)
     if (length(q) < 2) return(NULL)
     
     bin <- cut(pred_risk, breaks = q, include.lowest = TRUE, labels = FALSE)
@@ -453,14 +453,14 @@ library(ggplot2)
     df <- df[!is.na(df$bin), ]
     if (nrow(df) == 0) return(NULL)
     
-    # Mean predicted risk per bin
+    ## 5) Mean predicted risk per bin
     pred_mean <- tapply(df$pred, df$bin, mean)
     
-    # KM observed risk per bin at t0
+    ## 6) KM observed risk per bin at t0
     obs_mean <- sapply(split(df, df$bin), function(dbin) {
       sf <- survfit(Surv(time, status) ~ 1, data = dbin)
-      surv_t0 <- summary(sf, times = t0, extend = TRUE)$surv
-      1 - surv_t0[length(surv_t0)]
+      s_t0 <- summary(sf, times = t0, extend = TRUE)$surv
+      1 - s_t0[length(s_t0)]
     })
     
     data.frame(
@@ -473,7 +473,8 @@ library(ggplot2)
   res <- do.call(rbind, all_bins)
   res
 }
- 
+
+
 time_horizons <- c(30, 60, 90, 120, 150, 180)   # adjust if we want to 
 nb <- 10                               # test 10, change to 5 if bins are sparse
 
