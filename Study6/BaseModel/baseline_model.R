@@ -345,7 +345,7 @@ write.csv(aic_summary, "AIC_comparison_base.csv", row.names = FALSE)
 ## Calibration (slope & intercept)for all models 
 
 ## Load in the extended model 
-fit_list_ext <- readRDS("cox_RCS_pooled_fit_extended.RDS")
+fit_list_ext <- readRDS("fit_list_cs1_extended.RDS")
 
 
 # Simple recalibration by fitting a Cox model of y ~ lp per imputation
@@ -409,6 +409,71 @@ library(ggplot2)
 library(dplyr)
 library(ggplot2)
 
+.calib_from_fitlist <- function(fit_list, t0, nbins = 10) {
+  # For each imputation-specific Cox model in fit_list$analyses:
+  #  * compute predicted risk at time t0
+  #  * bin predictions
+  #  * compute mean predicted and KM observed risk per bin
+  # Returns a data.frame with columns: bin, pred_mean, obs_mean
+  
+  all_bins <- lapply(fit_list$analyses, function(fm) {
+    y <- fm$y
+    time   <- y[, 1]
+    status <- y[, 2]
+    
+    # Linear predictor
+    lp <- predict(fm, type = "lp")
+    
+    # Baseline cumulative hazard and survival at t0
+    bh <- basehaz(fm, centered = FALSE)
+    idx <- which(bh$time <= t0)
+    if (length(idx) == 0) return(NULL)
+    H0_t0 <- bh$hazard[max(idx)]
+    S0_t0 <- exp(-H0_t0)
+    
+    # Individual survival and risk at t0
+    S_i_t0   <- S0_t0 ^ exp(lp)
+    pred_risk <- 1 - S_i_t0
+    
+    # If no variation, bail out
+    if (all(is.na(pred_risk)) || length(unique(na.omit(pred_risk))) < 2) {
+      return(NULL)
+    }
+    
+    # Define bins based on quantiles of predicted risk
+    q <- quantile(pred_risk, probs = seq(0, 1, length.out = nbins + 1),
+                  na.rm = TRUE)
+    q <- unique(q)  # in case some quantiles coincide
+    if (length(q) < 2) return(NULL)
+    
+    bin <- cut(pred_risk, breaks = q, include.lowest = TRUE, labels = FALSE)
+    
+    df <- data.frame(time = time, status = status,
+                     pred = pred_risk, bin = bin)
+    df <- df[!is.na(df$bin), ]
+    if (nrow(df) == 0) return(NULL)
+    
+    # Mean predicted risk per bin
+    pred_mean <- tapply(df$pred, df$bin, mean)
+    
+    # KM observed risk per bin at t0
+    obs_mean <- sapply(split(df, df$bin), function(dbin) {
+      sf <- survfit(Surv(time, status) ~ 1, data = dbin)
+      surv_t0 <- summary(sf, times = t0, extend = TRUE)$surv
+      1 - surv_t0[length(surv_t0)]
+    })
+    
+    data.frame(
+      bin       = as.numeric(names(pred_mean)),
+      pred_mean = as.vector(pred_mean),
+      obs_mean  = as.vector(obs_mean)
+    )
+  })
+  
+  res <- do.call(rbind, all_bins)
+  res
+}
+ 
 time_horizons <- c(30, 60, 90, 120, 150, 180)   # adjust if we want to 
 nb <- 10                               # test 10, change to 5 if bins are sparse
 
