@@ -342,7 +342,11 @@ print(aic_summary)
 write.csv(aic_summary, "AIC_comparison_base.csv", row.names = FALSE)
 
 
-## Calibration (slope & intercept)
+## Calibration (slope & intercept)for all models 
+
+## Load in the extended model 
+fit_list_ext <- readRDS("cox_RCS_pooled_fit_extended.RDS")
+
 
 # Simple recalibration by fitting a Cox model of y ~ lp per imputation
 # slope ~ 1 is good; intercept ~ 0 is good.
@@ -372,36 +376,47 @@ get_calib <- function(fit_list){
 
 cal_full  <- get_calib(fit_list_cs1)
 cal_simpl <- get_calib(fit_list_cs1_simpl)
+cal_ext   <- get_calib(fit_list_ext)
 
 calibration_summary <- data.frame(
-  model          = c("Full base","Simplified base"),
-  mean_slope     = c(mean(cal_full$cal_slope),     mean(cal_simpl$cal_slope)),
-  sd_slope       = c(sd(cal_full$cal_slope),       sd(cal_simpl$cal_slope)),
-  mean_intercept = c(mean(cal_full$cal_intercept), mean(cal_simpl$cal_intercept)),
-  sd_intercept   = c(sd(cal_full$cal_intercept),   sd(cal_simpl$cal_intercept)),
-  n_imps         = nrow(cal_full)
+  model          = c("Full base","Simplified base","Extended"),
+  mean_slope     = c(mean(cal_full$cal_slope),
+                     mean(cal_simpl$cal_slope),
+                     mean(cal_ext$cal_slope)),
+  sd_slope       = c(sd(cal_full$cal_slope),
+                     sd(cal_simpl$cal_slope),
+                     sd(cal_ext$cal_slope)),
+  mean_intercept = c(mean(cal_full$cal_intercept),
+                     mean(cal_simpl$cal_intercept),
+                     mean(cal_ext$cal_intercept)),
+  sd_intercept   = c(sd(cal_full$cal_intercept),
+                     sd(cal_simpl$cal_intercept),
+                     sd(cal_ext$cal_intercept)),
+  n_imps         = nrow(cal_full)  # same m for all
 )
 
-write.csv(cal_full,  "Calibration_per_imputation_full.csv",  row.names = FALSE)
+write.csv(cal_full,  "Calibration_per_imputation_full.csv",       row.names = FALSE)
 write.csv(cal_simpl, "Calibration_per_imputation_simplified.csv", row.names = FALSE)
-write.csv(calibration_summary, "Calibration_comparison_base.csv", row.names = FALSE)
+write.csv(cal_ext,   "Calibration_per_imputation_extended.csv",   row.names = FALSE)
+write.csv(calibration_summary, "Calibration_comparison_all.csv",  row.names = FALSE)
 
 
-# Calibration plots across all imputations 
+
+# Calibration plots across all imputations for all models 
 # deps 
 library(dplyr)
 library(ggplot2)
 library(dplyr)
 library(ggplot2)
 
-time_horizons <- c(150)   # adjust if we want to 
+time_horizons <- c(30, 60, 90, 120, 150, 180)   # adjust if we want to 
 nb <- 10                               # test 10, change to 5 if bins are sparse
 
 for (t0 in time_horizons) {
   cal_full  <- .calib_from_fitlist(fit_list_cs1,       t0 = t0, nbins = nb)
   cal_simpl <- .calib_from_fitlist(fit_list_cs1_simpl, t0 = t0, nbins = nb)
+  cal_ext   <- .calib_from_fitlist(fit_list_ext,       t0 = t0, nbins = nb)
   
-  # Standardize column names (handles either pred/obs or pred_mean/obs_mean)
   std <- function(df) {
     if ("pred" %in% names(df))  df <- rename(df, pred_mean = pred)
     if ("obs"  %in% names(df))  df <- rename(df, obs_mean  = obs)
@@ -409,12 +424,14 @@ for (t0 in time_horizons) {
   }
   cal_full  <- std(cal_full)
   cal_simpl <- std(cal_simpl)
+  cal_ext   <- std(cal_ext)
   
   cal_plot_df <- bind_rows(
     mutate(cal_full,  Model = "Full base"),
-    mutate(cal_simpl, Model = "Simplified base")
+    mutate(cal_simpl, Model = "Simplified base"),
+    mutate(cal_ext,   Model = "Extended")
   ) %>%
-    filter(!is.na(pred_mean) & !is.na(obs_mean))   # drop empty bins
+    filter(!is.na(pred_mean) & !is.na(obs_mean))
   
   if (nrow(cal_plot_df) == 0) {
     message(sprintf("t0 = %d: no usable bins (try a smaller t0 or fewer bins).", t0))
@@ -432,26 +449,30 @@ for (t0 in time_horizons) {
     coord_equal() +
     theme_bw()
   
-  ggsave(sprintf("calibration_plot_t%d.pdf", t0), p, width = 7, height = 5)
+  ggsave(sprintf("calibration_plot_all_models_t%d.pdf", t0),
+         p, width = 7, height = 5)
 }
 
-
-# (Optional) also print to the device
 print(p)
 
+
+  
 
 ## One combined summary table 
 library(dplyr)
 variable_selection_summary <- cindex_summary %>%
-  left_join(aic_summary, by = "model") %>%
+  left_join(aic_summary,        by = "model") %>%
   left_join(calibration_summary, by = "model")
 
 write.csv(variable_selection_summary,
-          "Variable_selection_summary_base.csv",
+          "Variable_selection_summary_all_models.csv",
           row.names = FALSE)
+
 
 ##  Save the retained variables 
 write.csv(data.frame(retained_variable = keep),
           "Simplified_base_retained_variables.csv",
           row.names = FALSE)
+
+
 
