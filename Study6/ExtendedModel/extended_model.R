@@ -29,7 +29,7 @@ imp <- readRDS("mice_imputed_data.RDS")
 id_col <- "ID"
 icd_col <- "ICD_status"
 cancer_col <- "Cancer"
-stroke_col <- "Stroke_TIA"
+COPD_col <- "COPD"
 
 stopifnot(id_col %in% names(preimp), icd_col %in% names(preimp))
 
@@ -45,19 +45,19 @@ cs_map <- preimp %>%
                      0L,
                      as.integer(.data[[cancer_col]])),
     
-    # Stroke: keep original 0/1, but also build a 3-level factor
-    Stroke_TIA_raw = .data[[stroke_col]],
+    # COPD: keep original 0/1, but also build a 3-level factor
+    COPD_raw = .data[[COPD_col]],
     
-    Stroke_cat = case_when(
-      is.na(.data[[stroke_col]]) ~ "missing",
-      .data[[stroke_col]] == 1   ~ "yes",
-      TRUE                       ~ "no"
+    COPD_cat = case_when(
+      is.na(.data[[COPD_col]]) ~ "missing",
+      .data[[COPD_col]] == 1   ~ "Yes",
+      TRUE                       ~ "No"
     )
   ) %>%
   distinct(ID, .keep_all = TRUE) %>%
   mutate(
-    Stroke_cat = factor(Stroke_cat,
-                        levels = c("no", "yes", "missing"))
+    COPD_cat = factor(COPD_cat,
+                        levels = c("No", "Yes", "missing"))
   )
 
 
@@ -69,7 +69,7 @@ if (!"ID" %in% names(imp$data)) {
 
 # Merge into imp$data (no imputation needed)
 imp$data <- imp$data %>%
-  left_join(cs_map %>% select(ID, ICD_status, Cancer, Stroke_cat),
+  left_join(cs_map %>% select(ID, ICD_status, Cancer, COPD_cat),
             by = "ID")
 
 
@@ -77,7 +77,7 @@ imp$data <- imp$data %>%
 cat("N missing ICD_status after join:", sum(is.na(imp$data$ICD_status)), "\n")
 cat("Distinct ICD_status values:", paste(sort(unique(imp$data$ICD_status)), collapse=", "), "\n")
 cat("Cancer table:\n"); print(table(imp$data$Cancer, useNA = "ifany"))
-cat("Stroke_cat table:\n"); print(table(imp$data$Stroke_cat, useNA = "ifany"))
+cat("COPD_cat table:\n"); print(table(imp$data$COPD_cat, useNA = "ifany"))
 
 
 # Quick checks
@@ -92,7 +92,7 @@ vars_extended <- c(
   "LVEF",
   "eGFR","Haemoglobin",
   "ACE_inhibitor_ARB","Beta_blockers","Lipid_lowering",
-  "Revascularisation_acute", "Cholesterol", "HDL", "LDL", "Triglycerides", "Stroke_TIA", "ICD_status"
+  "Revascularisation_acute", "Cholesterol", "HDL", "LDL", "Triglycerides", "Stroke_TIA", "ICD_status", "Cancer", "COPD_cat"
 )
 
 # Fixed knots from observed BMI in the original data inside imp$data 
@@ -120,7 +120,7 @@ fit_list_cs1 <- with(
       LVEF  + eGFR + Haemoglobin +
       ACE_inhibitor_ARB + Beta_blockers + Lipid_lowering +
       Revascularisation_acute + Cholesterol + HDL + LDL + Triglycerides +
-      Cancer + Stroke_cat + ICD_status,
+      COPD_cat + Cancer + Stroke_TIA + ICD_status,
     x = TRUE, y = TRUE
   )
 )
@@ -261,7 +261,7 @@ fit_k3 <- with(imp, {
       LVEF  + eGFR + Haemoglobin +
       ACE_inhibitor_ARB + Beta_blockers + Lipid_lowering +
       Revascularisation_acute + Cholesterol + HDL + LDL + Triglycerides +
-      Cancer + Stroke_cat + ICD_status,
+      COPD_cat + Cancer + Stroke_TIA + ICD_status,
     x = TRUE, y = TRUE
   )
 })
@@ -274,7 +274,7 @@ fit_k5 <- with(imp, {
       LVEF  + eGFR + Haemoglobin +
       ACE_inhibitor_ARB + Beta_blockers + Lipid_lowering +
       Revascularisation_acute + Cholesterol + HDL + LDL + Triglycerides +
-      Cancer + Stroke_cat + ICD_status,
+      COPD_cat + Cancer + Stroke_TIA + ICD_status,
     x = TRUE, y = TRUE
   )
 })
