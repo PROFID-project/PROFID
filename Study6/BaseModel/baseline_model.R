@@ -24,6 +24,9 @@ imp
 names(imp$data)
 imp$method[imp$method != ""]   # which vars were imputed
 
+# Load the baseline data 
+
+
 # Variables in the base model
 vars_base <- c(
   "Age","Sex",
@@ -316,9 +319,12 @@ cidx_simpl <- sapply(fit_list_cs1_simpl$analyses, function(fm){
   y <- fm$y; lp <- predict(fm, type="lp")
   survival::survConcordance(Surv(y[,1], y[,2]) ~ lp)$concordance
 })
-data.frame(model=c("Full base","Simplified base"),
+cindex_summary <- data.frame(model=c("Full base","Simplified base"),
            mean_C = c(mean(cidx_full), mean(cidx_simpl)),
            sd_C   = c(sd(cidx_full),   sd(cidx_simpl)))
+write.csv(cindex_summary, "Cindex_comparison_base.csv", row.names = FALSE)
+
+
 
 
 # Extract and average AIC per model across imputations
@@ -333,3 +339,119 @@ aic_summary <- data.frame(
 )
 
 print(aic_summary)
+write.csv(aic_summary, "AIC_comparison_base.csv", row.names = FALSE)
+
+
+## Calibration (slope & intercept)
+
+# Simple recalibration by fitting a Cox model of y ~ lp per imputation
+# slope ~ 1 is good; intercept ~ 0 is good.
+get_calib <- function(fit_list){
+  do.call(rbind, lapply(fit_list$analyses, function(fm){
+    y  <- fm$y
+    lp <- predict(fm, type = "lp")
+    
+    # Calibration slope: fit y ~ lp
+    fit_slope <- coxph(Surv(y[,1], y[,2]) ~ lp)
+    
+    # Calibration intercept: 
+    # compute baseline log cumulative hazard difference
+    # (average observed - average predicted)
+    basehaz_df <- basehaz(fm, centered = FALSE)
+    max_time <- max(y[,1])
+    H0 <- basehaz_df$hazard[which.max(basehaz_df$time <= max_time)]
+    intercept_est <- log(mean(y[,2])) - log(mean(exp(lp)))  # approximate intercept
+    
+    data.frame(
+      cal_slope = unname(coef(fit_slope)["lp"]),
+      cal_intercept = intercept_est
+    )
+  }))
+}
+
+
+cal_full  <- get_calib(fit_list_cs1)
+cal_simpl <- get_calib(fit_list_cs1_simpl)
+
+calibration_summary <- data.frame(
+  model          = c("Full base","Simplified base"),
+  mean_slope     = c(mean(cal_full$cal_slope),     mean(cal_simpl$cal_slope)),
+  sd_slope       = c(sd(cal_full$cal_slope),       sd(cal_simpl$cal_slope)),
+  mean_intercept = c(mean(cal_full$cal_intercept), mean(cal_simpl$cal_intercept)),
+  sd_intercept   = c(sd(cal_full$cal_intercept),   sd(cal_simpl$cal_intercept)),
+  n_imps         = nrow(cal_full)
+)
+
+write.csv(cal_full,  "Calibration_per_imputation_full.csv",  row.names = FALSE)
+write.csv(cal_simpl, "Calibration_per_imputation_simplified.csv", row.names = FALSE)
+write.csv(calibration_summary, "Calibration_comparison_base.csv", row.names = FALSE)
+
+
+# Calibration plots across all imputations 
+# deps 
+library(dplyr)
+library(ggplot2)
+library(dplyr)
+library(ggplot2)
+
+time_horizons <- c(150)   # adjust if we want to 
+nb <- 10                               # test 10, change to 5 if bins are sparse
+
+for (t0 in time_horizons) {
+  cal_full  <- .calib_from_fitlist(fit_list_cs1,       t0 = t0, nbins = nb)
+  cal_simpl <- .calib_from_fitlist(fit_list_cs1_simpl, t0 = t0, nbins = nb)
+  
+  # Standardize column names (handles either pred/obs or pred_mean/obs_mean)
+  std <- function(df) {
+    if ("pred" %in% names(df))  df <- rename(df, pred_mean = pred)
+    if ("obs"  %in% names(df))  df <- rename(df, obs_mean  = obs)
+    df
+  }
+  cal_full  <- std(cal_full)
+  cal_simpl <- std(cal_simpl)
+  
+  cal_plot_df <- bind_rows(
+    mutate(cal_full,  Model = "Full base"),
+    mutate(cal_simpl, Model = "Simplified base")
+  ) %>%
+    filter(!is.na(pred_mean) & !is.na(obs_mean))   # drop empty bins
+  
+  if (nrow(cal_plot_df) == 0) {
+    message(sprintf("t0 = %d: no usable bins (try a smaller t0 or fewer bins).", t0))
+    next
+  }
+  
+  p <- ggplot(cal_plot_df, aes(x = pred_mean, y = obs_mean, color = Model)) +
+    geom_point() + geom_line() +
+    geom_abline(slope = 1, intercept = 0, linetype = "dotted") +
+    labs(
+      x = sprintf("Predicted risk by %d days", t0),
+      y = sprintf("Observed risk by %d days (KM)", t0),
+      title = "Calibration plot (pooled across imputations)"
+    ) +
+    coord_equal() +
+    theme_bw()
+  
+  ggsave(sprintf("calibration_plot_t%d.pdf", t0), p, width = 7, height = 5)
+}
+
+
+# (Optional) also print to the device
+print(p)
+
+
+## One combined summary table 
+library(dplyr)
+variable_selection_summary <- cindex_summary %>%
+  left_join(aic_summary, by = "model") %>%
+  left_join(calibration_summary, by = "model")
+
+write.csv(variable_selection_summary,
+          "Variable_selection_summary_base.csv",
+          row.names = FALSE)
+
+##  Save the retained variables 
+write.csv(data.frame(retained_variable = keep),
+          "Simplified_base_retained_variables.csv",
+          row.names = FALSE)
+
