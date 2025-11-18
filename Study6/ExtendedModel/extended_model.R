@@ -28,13 +28,38 @@ imp <- readRDS("mice_imputed_data.RDS")
 # (adjust these two names if your file uses different ones)
 id_col <- "ID"
 icd_col <- "ICD_status"
+cancer_col <- "Cancer"
+stroke_col <- "Stroke_TIA"
 
 stopifnot(id_col %in% names(preimp), icd_col %in% names(preimp))
 
-icd_map <- preimp %>%
-  transmute(ID = .data[[id_col]],
-            ICD_status = .data[[icd_col]]) %>%
-  distinct(ID, .keep_all = TRUE)
+cs_map <- preimp %>%
+  transmute(
+    ID = .data[[id_col]],
+    
+    # ICD status as before
+    ICD_status = .data[[icd_col]],
+    
+    # Cancer: treat missing as "no" (0)
+    Cancer = if_else(is.na(.data[[cancer_col]]),
+                     0L,
+                     as.integer(.data[[cancer_col]])),
+    
+    # Stroke: keep original 0/1, but also build a 3-level factor
+    Stroke_TIA_raw = .data[[stroke_col]],
+    
+    Stroke_cat = case_when(
+      is.na(.data[[stroke_col]]) ~ "missing",
+      .data[[stroke_col]] == 1   ~ "yes",
+      TRUE                       ~ "no"
+    )
+  ) %>%
+  distinct(ID, .keep_all = TRUE) %>%
+  mutate(
+    Stroke_cat = factor(Stroke_cat,
+                        levels = c("no", "yes", "missing"))
+  )
+
 
 #  Ensure imp$data has ID; if not, copy from the same preimp (row-aligned)
 if (!"ID" %in% names(imp$data)) {
@@ -42,13 +67,17 @@ if (!"ID" %in% names(imp$data)) {
   imp$data$ID <- preimp[[id_col]]
 }
 
-# Merge ICD_status into imp$data (no imputation needed)
+# Merge into imp$data (no imputation needed)
 imp$data <- imp$data %>%
-  left_join(icd_map, by = "ID")
+  left_join(cs_map %>% select(ID, ICD_status, Cancer, Stroke_cat),
+            by = "ID")
+
 
 # Sanity checks
 cat("N missing ICD_status after join:", sum(is.na(imp$data$ICD_status)), "\n")
 cat("Distinct ICD_status values:", paste(sort(unique(imp$data$ICD_status)), collapse=", "), "\n")
+cat("Cancer table:\n"); print(table(imp$data$Cancer, useNA = "ifany"))
+cat("Stroke_cat table:\n"); print(table(imp$data$Stroke_cat, useNA = "ifany"))
 
 
 # Quick checks
@@ -90,7 +119,8 @@ fit_list_cs1 <- with(
       Age + Sex + Diabetes + Hypertension + Smoking + MI_history +
       LVEF  + eGFR + Haemoglobin +
       ACE_inhibitor_ARB + Beta_blockers + Lipid_lowering +
-      Revascularisation_acute + Cholesterol + HDL + LDL + Triglycerides + Stroke_TIA + ICD_status,
+      Revascularisation_acute + Cholesterol + HDL + LDL + Triglycerides +
+      Cancer + Stroke_cat + ICD_status,
     x = TRUE, y = TRUE
   )
 )
@@ -224,23 +254,29 @@ viol_rate
 
 # Fit 3-knot and 5-knot models (cause-specific)
 fit_k3 <- with(imp, {
-  coxph(Surv(Survival_time, Status_cs1) ~ 
-          ns(BMI, knots = K3, Boundary.knots = BND) + 
-          Age + Sex + Diabetes + Hypertension + Smoking + MI_history +
-          LVEF  + eGFR + Haemoglobin +
-          ACE_inhibitor_ARB + Beta_blockers + Lipid_lowering +
-          Revascularisation_acute + Cholesterol + HDL + LDL + Triglycerides + Stroke_TIA + ICD_status,
-        x = TRUE, y = TRUE)
+  coxph(
+    Surv(Survival_time, Status_cs1) ~
+      ns(BMI, knots = K4, Boundary.knots = BND) +
+      Age + Sex + Diabetes + Hypertension + Smoking + MI_history +
+      LVEF  + eGFR + Haemoglobin +
+      ACE_inhibitor_ARB + Beta_blockers + Lipid_lowering +
+      Revascularisation_acute + Cholesterol + HDL + LDL + Triglycerides +
+      Cancer + Stroke_cat + ICD_status,
+    x = TRUE, y = TRUE
+  )
 })
 
 fit_k5 <- with(imp, {
-  coxph(Surv(Survival_time, Status_cs1) ~ 
-          ns(BMI, knots = K5, Boundary.knots = BND) + 
-          Age + Sex + Diabetes + Hypertension + Smoking + MI_history +
-          LVEF  + eGFR + Haemoglobin +
-          ACE_inhibitor_ARB + Beta_blockers + Lipid_lowering +
-          Revascularisation_acute + Cholesterol + HDL + LDL + Triglycerides + Stroke_TIA + ICD_status,
-        x = TRUE, y = TRUE)
+  coxph(
+    Surv(Survival_time, Status_cs1) ~
+      ns(BMI, knots = K4, Boundary.knots = BND) +
+      Age + Sex + Diabetes + Hypertension + Smoking + MI_history +
+      LVEF  + eGFR + Haemoglobin +
+      ACE_inhibitor_ARB + Beta_blockers + Lipid_lowering +
+      Revascularisation_acute + Cholesterol + HDL + LDL + Triglycerides +
+      Cancer + Stroke_cat + ICD_status,
+    x = TRUE, y = TRUE
+  )
 })
 
 
