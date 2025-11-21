@@ -1,0 +1,7 @@
+"strata","t90_days","t120_days","t150_days"
+"BMI_cat=Underweight",142,36,0
+"BMI_cat=Normal",7195,2278,4
+"BMI_cat=Overweight",11016,3563,4
+"BMI_cat=Obese I",4307,1249,0
+"BMI_cat=Obese II",1074,268,0
+"BMI_cat=Obese III",374,83,1
