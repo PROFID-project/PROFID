@@ -1,0 +1,19 @@
+DB,Registry,Country_City,Coord_Type,Latitude,Longitude,Environmental_resolution,Climate_strategy
+ASTN,Aston Research Database,"Birmingham, UK",single-centre,52.48,-1.89,city-level,Use ERA5 city-level daily weather
+DRVT,Monzino Registry,"Milan, Italy",single-centre,45.46,9.19,city-level,Use ERA5 city-level daily weather
+DOIT,DO-IT,Netherlands,multi-centre-national,,,country-seasonal-average,Use national seasonal climate means
+ATMS,ARTEMIS,"Oulu, Finland",single-centre,65.01,25.47,city-level,Use ERA5 city-level daily weather
+FREN,DAI-PP,France,multi-centre-national,,,country-seasonal-average,Use national seasonal climate means
+CERT,EU-CERT-ICD,Multi-country Europe,multi-centre-international,,,season-only,Season-only (no point climate)
+HELS,Heart Center Leipzig,"Leipzig, Germany",single-centre,51.34,12.37,city-level,Use ERA5 city-level daily weather
+ISAR,ISAR-RISK,"Munich, Germany",single-centre,48.14,11.58,city-level,Use ERA5 city-level daily weather
+ISRL,Israeli National ICD Registry,Israel,multi-centre-national,,,country-seasonal-average,Use national seasonal climate means
+MDII,MADIT II,USA/Europe,multi-centre-international,,,season-only,Season-only (no point climate)
+MDRT,MADIT-RIT,USA/Canada/Europe/Israel/Japan,multi-centre-international,,,season-only,Season-only (no point climate)
+NANC,Nancy Database,"Nancy, France",single-centre,48.69,6.18,city-level,Use ERA5 city-level daily weather
+OLMC,Olomouc ICD Registry,"Olomouc, Czech Republic",single-centre,49.59,17.25,city-level,Use ERA5 city-level daily weather
+PRDT,PRE-DETERMINE,USA,multi-centre-national,,,country-seasonal-average,Use national seasonal climate means
+PRSE,PROSe-ICD,USA,multi-centre-national,,,country-seasonal-average,Use national seasonal climate means
+SHFT,SCD-HeFT,North America/Australia/NZ,multi-centre-international,,,season-only,Season-only (no point climate)
+SLSN,Silesian Registry,"Silesia, Poland",multi-centre-national,,,country-seasonal-average,Use national seasonal climate means
+SWHR,Swedish Heart Registry,Sweden,multi-centre-national,,,country-seasonal-average,Use national seasonal climate means
