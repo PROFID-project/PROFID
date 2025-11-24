@@ -8,6 +8,8 @@ Study 2- Seasonal SCD Patterns Analysis
 Study 3- ICD Shock Rates Analysis
 
 Study 4- Age-Stratified SCD Incidence Analysis
+[10_ Multiple Imputation strategy.R.txt](https://github.com/user-attachments/files/23731807/10_.Multiple.Imputation.strategy.R.txt)
+
 [9_ Sensitivity analyses_CC.R.txt](https://github.com/user-attachments/files/23505889/9_.Sensitivity.analyses_CC.R.txt)
 [8_Validation COX model  1 performance.R.txt](https://github.com/user-attachments/files/23505887/8_Validation.COX.model.1.performance.R.txt)
 [7_Validation FG Model & Performance.R.txt](https://github.com/user-attachments/files/23505886/7_Validation.FG.Model.Performance.R.txt)
