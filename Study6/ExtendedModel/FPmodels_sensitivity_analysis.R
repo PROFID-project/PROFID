@@ -3,6 +3,7 @@ install.packages("mice")
 
 library(survival)
 library(dplyr)
+library(splines)
 library(mice)
 
 setwd("T:/Dokumente/PROFID/Study6")
@@ -197,4 +198,134 @@ cat("Best FP2 spec:",       best_fp2,     "\n")
 # Save fits for best overall model
 saveRDS(fp_fits[[best_overall]],
         paste0("fit_list_cs1_extended_", best_overall, ".RDS"))
+
+
+#  Load pre-imputation data (for BMI distribution)
+preimp <- read.csv("combined_BMI_outcomefiltered.csv")
+
+#  Load FP AIC summary and find best spec
+fp_aic_summary <- read.csv("FP_AIC_summary_extended.csv")
+
+best_overall <- fp_aic_summary$spec[which.min(fp_aic_summary$mean_AIC)]
+cat("Best overall FP spec (from CSV):", best_overall, "\n")
+
+# Load the saved fits for that spec
+fit_file  <- paste0("fit_list_cs1_extended_", best_overall, ".RDS")
+mods_best <- readRDS(fit_file)   # list of coxph objects, one per imputation
+m_best    <- length(mods_best)
+
+#  Parse the FP spec name, e.g. "FP1_0" or "FP2_-1_-1"
+make_fp_numeric_terms <- function(bmi, p, q = NULL) {
+  if (is.null(q)) {
+    # FP1
+    if (p == 0) {
+      return(log(bmi))
+    } else {
+      return(bmi^p)
+    }
+  } else {
+    # FP2 (diagonal p = q)
+    if (p == 0) {
+      return(c(log(bmi), log(bmi)^2))
+    } else {
+      return(c(bmi^p, bmi^p * log(bmi)))
+    }
+  }
+}
+
+parts <- strsplit(best_overall, "_")[[1]]
+
+if (parts[1] == "FP1") {
+  p_best <- as.numeric(parts[2])
+  q_best <- NULL
+} else if (parts[1] == "FP2") {
+  p_best <- as.numeric(parts[2])
+  q_best <- as.numeric(parts[3])
+} else {
+  stop("Unrecognised best_overall spec format: ", best_overall)
+}
+
+cat("Using powers p =", p_best,
+    ifelse(is.null(q_best), "", paste("and q =", q_best)),
+    "\n")
+
+#  BMI grid (e.g. 5th–95th percentile range)
+q_bmi    <- quantile(preimp$BMI, probs = c(0.05, 0.95), na.rm = TRUE)
+bmi_grid <- seq(q_bmi[1], q_bmi[2], length.out = 300)
+
+# Build FP term matrix for each BMI
+n_terms <- if (is.null(q_best)) 1 else 2
+
+Lmat <- t(vapply(
+  bmi_grid,
+  function(b) as.numeric(make_fp_numeric_terms(b, p_best, q_best)),
+  numeric(n_terms)
+))
+
+# Reference at BMI = 25
+ref_terms <- as.numeric(make_fp_numeric_terms(25, p_best, q_best))
+
+# Contrast matrix vs ref BMI = 25
+Lcontr <- sweep(Lmat, 2, ref_terms, FUN = "-")
+
+#  Identify BMI-related coefficient positions in the model
+coef_names <- names(coef(mods_best[[1]]))
+sidx <- grep("BMI", coef_names)
+
+if (length(sidx) != ncol(Lcontr)) {
+  stop("Number of BMI FP coefficients (", length(sidx),
+       ") does not match contrast matrix columns (", ncol(Lcontr), ").")
+}
+
+#  Rubin-style pooling of log-HR for each BMI value
+pool_contrast <- function(Lrow) {
+  qi <- vapply(mods_best, function(fm) {
+    as.numeric(Lrow %*% coef(fm)[sidx])
+  }, numeric(1))
+  
+  ui <- vapply(mods_best, function(fm) {
+    V <- vcov(fm)[sidx, sidx, drop = FALSE]
+    as.numeric(Lrow %*% V %*% Lrow)
+  }, numeric(1))
+  
+  qbar <- mean(qi)
+  ubar <- mean(ui)
+  bvar <- if (length(qi) > 1) var(qi) else 0
+  Tvar <- ubar + (1 + 1/m_best) * bvar
+  
+  c(logHR = qbar, se = sqrt(Tvar))
+}
+
+res   <- t(apply(Lcontr, 1, pool_contrast))
+HR    <- exp(res[, "logHR"])
+LCL   <- exp(res[, "logHR"] - 1.96 * res[, "se"])
+UCL   <- exp(res[, "logHR"] + 1.96 * res[, "se"])
+
+fp_curve <- data.frame(
+  BMI = bmi_grid,
+  HR  = HR,
+  LCL = LCL,
+  UCL = UCL
+)
+
+# 8. Save curve and plot
+curve_csv_name <- paste0("FP_BMI_curve_", best_overall, "_extended.csv")
+curve_pdf_name <- paste0("FP_BMI_curve_", best_overall, "_extended.pdf")
+
+write.csv(fp_curve, curve_csv_name, row.names = FALSE)
+
+pdf(curve_pdf_name, width = 7, height = 5)
+plot(fp_curve$BMI, fp_curve$HR, type = "l",
+     xlab = "BMI (kg/m²)",
+     ylab = "Hazard ratio (ref = BMI 25)",
+     ylim = range(c(fp_curve$LCL, fp_curve$UCL)),
+     lwd = 2,
+     main = paste("Fractional polynomial model:", best_overall))
+lines(fp_curve$BMI, fp_curve$LCL, lty = 2)
+lines(fp_curve$BMI, fp_curve$UCL, lty = 2)
+abline(h = 1,  lty = 3, col = "gray60")
+abline(v = 25, lty = 3, col = "gray60")
+dev.off()
+
+cat("FP BMI curve saved to:\n  ", curve_csv_name, "\n  ", curve_pdf_name, "\n")
 
