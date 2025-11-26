@@ -383,7 +383,7 @@ lines(curve_ext$BMI,  curve_ext$HR,  col = "firebrick", lwdf = 2)
 abline(h = 1,  lty = 3, col = "gray50")
 abline(v = 25, lty = 3, col = "gray80")
 
-## ---- Mark the minimum-risk BMI for each model ----
+## Mark the minimum-risk BMI for each model
 
 # 1) Points at the minimum
 points(opt_base$BMI, opt_base$HR, pch = 19, col = "darkblue")

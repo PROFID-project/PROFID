@@ -309,3 +309,75 @@ ggsave(
   dpi = 300
 
 )
+
+library(dplyr)
+
+cohort_retention <- data.frame(
+  Cohort = c("Full dataset", "Complete-case"),
+  N = c(nrow(preimp_cc), nrow(cca_data)),
+  Events = c(sum(preimp_cc$Status_cs1 == 1), sum(cca_data$Status_cs1 == 1))
+)
+
+cohort_retention <- cohort_retention %>%
+  mutate(
+    Percent_N = round(100 * N / N[1], 2),
+    Percent_events = round(100 * Events / Events[1], 2)
+  )
+
+cohort_retention
+write.csv(cohort_retention, "table_cohort_retention.csv", row.names = FALSE)
+
+cont_vars <- c("Age","BMI","LVEF","eGFR","Haemoglobin",
+               "Cholesterol","HDL","LDL","Triglycerides")
+
+cont_summary <- preimp_cc %>%
+  group_by(complete_case) %>%
+  summarise(across(
+    all_of(cont_vars),
+    list(
+      mean = ~mean(., na.rm = TRUE),
+      sd = ~sd(., na.rm = TRUE),
+      nmiss = ~sum(is.na(.))
+    ),
+    .names = "{.col}_{.fn}"
+  ))
+
+cont_summary
+write.csv(cont_summary, "table_continuous_summary.csv", row.names = FALSE)
+
+
+library(dplyr)
+
+cat_vars <- c("Sex","Diabetes","Hypertension","Smoking",
+              "COPD_cat","Stroke_TIA","MI_history")
+
+cat_summary_long <- lapply(cat_vars, function(v) {
+  preimp_cc %>%
+    group_by(complete_case, !!sym(v)) %>%              # one row per level per group
+    summarise(n = n(), .groups = "drop") %>%
+    group_by(complete_case) %>%
+    mutate(pct = 100 * n / sum(n)) %>%                 # % within complete_case group
+    ungroup() %>%
+    rename(Level = !!sym(v)) %>%
+    mutate(Variable = v) %>%
+    select(Variable, complete_case, Level, n, pct)
+}) %>%
+  bind_rows()
+
+cat_summary_long
+write.csv(cat_summary_long,
+          "table_categorical_summary_long.csv",
+          row.names = FALSE)
+
+
+
+perf_table <- data.frame(
+  Model = c("MICE (pooled)", "Complete-case"),
+  C_index = c(0.814, 0.771),
+  CI95 = c("0.813-0.815", "0.75-0.79"),
+  N = c(nrow(preimp_cc), nrow(cca_data)),
+  Events = c(sum(preimp_cc$Status_cs1==1), sum(cca_data$Status_cs1==1))
+)
+
+write.csv(perf_table, "table_model_performance.csv", row.names = FALSE)
+
