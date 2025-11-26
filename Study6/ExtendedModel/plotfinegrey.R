@@ -1,13 +1,11 @@
-## plot_FineGray_BMI_SCD.R
-## Uses the already-fitted Fine–Gray model to plot BMI spline curve
-## WITHOUT refitting the expensive model.
+## Uses the already-fitted Fine-Gray model to plot BMI spline curve
 
 library(mice)
 library(splines)
 
 setwd("T:/Dokumente/PROFID/Study6")
 
-# ---- Load data + model ------------------------------------------------------
+# Load data + model 
 
 # Extended imputed object (used only to get BMI distribution + Sex levels)
 imp_ext  <- readRDS("mice_imputed_data_extended.RDS")
@@ -18,7 +16,7 @@ fg_small <- readRDS("FineGray_fg_small_BMI_AgeSex.RDS")
 # Take first completed dataset to get Age/Sex structure
 dat1 <- complete(imp_ext, 1)
 
-# ---- Recreate knots exactly as in original analysis -------------------------
+# Recreate knots as in original analysis
 
 q <- quantile(
   dat1$BMI,
@@ -29,7 +27,7 @@ q <- quantile(
 BND <- as.numeric(q[c(1, 6)])      # 5th & 95th
 K4  <- as.numeric(q[c(2, 3, 4, 5)])# 10th, 35th, 65th, 90th
 
-# ---- Build prediction grid --------------------------------------------------
+# Build prediction grid
 
 bmi_grid <- seq(18, 40, length.out = 400)
 
@@ -51,7 +49,7 @@ X <- model.matrix(
 )
 X <- X[, -1, drop = FALSE]
 
-# ---- Predict subdistribution hazard ratios vs BMI ---------------------------
+# Predict subdistribution hazard ratios vs BMI
 
 lp <- as.vector(X %*% fg_small$coef)
 
@@ -59,11 +57,11 @@ lp <- as.vector(X %*% fg_small$coef)
 ref_idx <- which.min(abs(bmi_grid - 25))
 HR <- exp(lp - lp[ref_idx])
 
-# Optional: save curve data for reproducibility / plotting elsewhere
+# save curve data for reproducibility / plotting elsewhere
 curve_fg <- data.frame(BMI = bmi_grid, HR = HR)
 write.csv(curve_fg, "FineGray_BMI_SCD_curve_data.csv", row.names = FALSE)
 
-# ---- Make and save the plot -------------------------------------------------
+# Make and save the plot
 
 pdf("FineGray_BMI_SCD_curve.pdf", width = 7, height = 5)
 
@@ -80,12 +78,12 @@ abline(v = 25, lty = 3, col = "gray40")
 
 dev.off()
 
-## compare_Cox_vs_FG_BMI.R
+
 ## Overlay cause-specific Cox RCS curve and Fine–Gray subdistribution curve
 
 setwd("T:/Dokumente/PROFID/Study6")
 
-# ---- Load previously saved curves ------------------------------------------
+# Load previously saved curves 
 
 # Cause-specific Cox RCS curve (extended model)
 cox_curve <- read.csv("cox_RCS_BMI_curve_cs1_extended.csv")
@@ -100,7 +98,7 @@ bmi_max <- min(max(cox_curve$BMI), max(fg_curve$BMI))
 cox_sub <- subset(cox_curve, BMI >= bmi_min & BMI <= bmi_max)
 fg_sub  <- subset(fg_curve,  BMI >= bmi_min & BMI <= bmi_max)
 
-# ---- Overlay plot ----------------------------------------------------------
+#  Overlay plot 
 
 pdf("Cox_vs_FineGray_BMI_overlay.pdf", width = 7, height = 5)
 
