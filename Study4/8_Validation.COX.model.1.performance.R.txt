@@ -1,0 +1,293 @@
+##################################################################################################
+##################################################################################################
+# projet: UmBIZO- PROFID_Study4 (SCD post-MI, age- stratified)
+# Script: 08_Validation_Cox_model_and_performance.R
+# Author: Amina Boudamaana
+# ================================================================================================
+## ===============================================================================================
+
+## VALIDATION Cox model an performance (complete cases) — Cox (years)
+
+## ===============================================================================================
+suppressPackageStartupMessages({
+  library(survival) # coxph, survfit
+  library(prodlim) # Hist(), predictRisk backend
+  library(riskRegression) 
+  library(timeROC) # time-dependent AUC (Cox & CR)
+  library(pec) # Brier for Cox
+  library(cmprsk) # cuminc (observed CIF)
+  library(data.table)
+})
+## ---- I/O
+ROOT_DIR <- "T:/studyears_4"
+OUT_TAB <- file.path(ROOT_DIR, "Results_tables")
+dir.create(OUT_TAB, recursive = TRUE, showWarnings = FALSE)
+wcsv <- function(x, name) if (is.data.frame(x)) write.csv(x, file.path(OUT_TAB, name), row.names = FALSE)
+
+## ---- Data (complete cases object)
+stopifnot(exists("df_handled_cc"), is.data.frame(df_handled_cc))
+df <- df_handled_cc
+
+## Cox time & event (years)
+stopifnot(all(c("ftime_mo_int","fstatus") %in% names(df)))
+df$time_years <- as.numeric(df$ftime_mo_int)/12
+df$event_scd <- as.integer(df$fstatus == 1L) # 1 = SCD (interest), 0 = censored or non-SCD
+
+## Times to evaluate
+time_years <- c(1, 3, 5) # Cox
+## ---- Ensure models exist (refit if missing)
+canon <- c("<=50","51-65","66-75",">75")
+if ("age_group" %in% names(df)) df$age_group <- factor(as.character(df$age_group), levels = canon)
+scale_if <- function(x) if (x %in% names(df)) df[[x]] <<- as.numeric(scale(df[[x]]))
+
+rhs_vars <- c("age_group","LVEF","eGFR","BMI","Haemoglobin",
+              "Diabetes","Hypertension","ACE_inhibitor","ARB","Anti_coagulant")
+for (v in c("LVEF","eGFR","BMI","Haemoglobin")) scale_if(v)
+
+if (!exists("cox_multi") || !"coxph" %in% class(cox_multi)) {
+  vars_in <- intersect(rhs_vars, names(df))
+  f_cox <- as.formula(paste("Surv(time_years, event_scd) ~", paste(vars_in, collapse = " + ")))
+  cox_multi <- coxph(f_cox, data = df, ties = "efron", x = TRUE, years = TRUE, model = TRUE)
+}
+
+## =========================================================================================
+## 1) DISCRIMINATION
+## =========================================================================================
+
+## 1a) Cox — Harrell’s C (concordance)
+cox_lp <- predict(cox_multi, tyearspe = "lp")
+c_har <- survival::concordance(Surv(df$time_years, df$event_scd) ~ cox_lp)
+harrell_tab <- data.frame(model = "Cox", Harrell_C = unname(c_har$concordance))
+print(harrell_tab); wcsv(harrell_tab, "Cox_Harrell_Cindex.csv")
+         # model Harrell_C : Cox 0.2562451
+## 1b) Cox — time-dependent ROC AUC (timeROC)
+library(timeROC)
+
+tr_cox <- timeROC(
+  T = df$time_years,
+  delta = df$event_scd,
+  marker = cox_lp,
+  cause = 1,
+  times = time_years, # ex: c(1,3,5)
+  iid = FALSE 
+)
+
+cox_auc <- data.frame(time_years = tr_cox$times, AUC = tr_cox$AUC)
+print(cox_auc); wcsv(cox_auc, "Cox_timeROC_AUC.csv")
+ #     time_years       AUC
+ #      t=1          1 0.7599869
+ #      t=3          3 0.7669015
+ #      t=5          5 0.7760376
+
+plot(cox_auc$time_years, cox_auc$AUC, tyearspe="b", lwd=3.5,
+     xlab="Follow-up (years)", yearslab="AUC (Cox)", main="Cox time-dependent AUC", grid(col="greyears90"))
+# =====================================================================================================
+# CALIBRATION :
+# Calibration plot
+# Hosmer-Lemeshow test
+
+#======================================================================================================
+suppressPackageStartupMessages({
+  library(survival); library(data.table)
+  library(ggplot2); library(ggrepel); library(scales)
+})
+##
+cox_fit <- cox_multi 
+df_cox <- df 
+
+if (!"Status" %in% names(df_cox) && "fstatus" %in% names(df_cox))
+  df_cox$Status <- as.integer(df_cox$fstatus)
+if (!"time_years" %in% names(df_cox)) {
+  if ("time_months" %in% names(df_cox)) df_cox$time_years <- df_cox$time_months/12
+  else if ("ftime_mo_int" %in% names(df_cox)) df_cox$time_years <- as.numeric(df_cox$ftime_mo_int)/12
+}
+stopifnot(inherits(cox_fit, "coxph"),
+          all(c("time_years","Status") %in% names(df_cox)))
+#
+df_cox$event01 <- as.integer(df_cox$Status == 1)
+df_cox <- subset(df_cox, is.finite(time_years) & time_years > 0 & event01 %in% 0:1)
+# Horizons at years
+times_y <- c(1,3,5)
+times_y <- times_y[times_y <= max(df_cox$time_years, na.rm=TRUE)]
+stopifnot(length(times_y) > 0)
+#Cox predicted risk at t (years)
+pred_risk_cox <- function(fit, data, t_years){
+  lp <- predict(fit, newdata = data, type = "lp")
+  bh <- basehaz(fit, centered = FALSE) # H0(t) dans la même unité que le fit
+  H0t <- stats::approx(bh$time, bh$hazard, xout = t_years, rule = 2)$y
+  S <- exp(-H0t * exp(lp))
+  pmax(pmin(1 - S, 1), 0)
+}
+#Calibration table in K groups (here 3)
+calib_groups_cox <- function(fit, data, t_years, K = 3){
+  pr <- pred_risk_cox(fit, data, t_years) # 0..1
+  keep <- is.finite(pr) & is.finite(data$time_years) & !is.na(data$event01)
+  pr <- pr[keep]; d <- data[keep, , drop=FALSE]
+  if (!length(pr)) return(NULL)
+  
+  qs <- unique(quantile(pr, probs = seq(0,1,length.out = K+1), na.rm=TRUE))
+  if (length(qs) < 2L) return(NULL)
+  grp <- cut(pr, breaks = qs, include.lowest = TRUE, labels = paste0("D", seq_len(length(qs)-1)))
+  if (nlevels(grp) < 2L) return(NULL)
+  
+  one_grp <- function(id){
+    n <- length(id); if (!n) return(data.frame(n=0,pred=NA,obs=NA,LCL=NA,UCL=NA))
+    pe <- mean(pr[id], na.rm=TRUE)
+    sf <- survfit(Surv(d$time_years[id], d$event01[id]) ~ 1)
+    S_t <- summary(sf, times = t_years, extend = TRUE)$surv
+    oe <- 1 - as.numeric(S_t) # KM observed
+    se <- sqrt(pmax(oe*(1-oe),0)/pmax(n,1)) # approx binomiale
+    data.frame(n=n, pred=pe, obs=oe,
+               LCL=pmax(0, oe - 1.96*se),
+               UCL=pmin(1, oe + 1.96*se))
+  }
+  
+  tab_list <- by(seq_along(pr), grp, function(ii) one_grp(ii))
+  out <- do.call(rbind, tab_list); out$decile <- rownames(out); rownames(out) <- NULL
+  out$time_years <- t_years
+  transform(out, pred=100*pred, obs=100*obs, LCL=100*LCL, UCL=100*UCL)[,
+                                                                       c("time_years","decile","n","pred","obs","LCL","UCL")]
+}
+
+# Tables 1/3/5 years
+cal_list_cox <- lapply(times_y, function(t) calib_groups_cox(cox_fit, df_cox, t, K=3))
+cal_cox <- data.table::rbindlist(cal_list_cox, use.names=TRUE, fill=TRUE)
+
+# Plot calibration_COX
+cal_plot <- subset(cal_cox, is.finite(pred) & is.finite(obs) & is.finite(n) & n>0)
+if (is.numeric(cal_plot$decile)) cal_plot$decile <- paste0("D", cal_plot$decile)
+rng <- range(c(cal_plot$pred, cal_plot$obs), na.rm=TRUE)
+rng <- c(0, max(2, ceiling(rng[2]*1.10))) # min 2%
+fmt1 <- function(x) sub("\\.0$", "", sprintf("%.1f", x))
+
+gg_cox <- ggplot(cal_plot, aes(x=pred, y=obs)) +
+  geom_abline(slope=1, intercept=0, linetype=2, linewidth=0.5, alpha=0.7) +
+  {if (all(c("LCL","UCL") %in% names(cal_plot)))
+    geom_errorbar(aes(ymin=LCL, ymax=UCL), width=0, alpha=0.6)} +
+  geom_point(aes(size=n), shape=16, alpha=0.9) +
+  ggrepel::geom_text_repel(aes(label=decile), size=2.8,
+                           box.padding=0.15, min.segment.length=0,
+                           max.overlaps=Inf, seed=1) +
+  coord_equal(xlim=rng, ylim=rng, expand=FALSE, clip="off") +
+  facet_wrap(~ time_years, nrow=1,
+             labeller = labeller(time_years = function(x) paste0(x," years"))) +
+  scale_x_continuous("Predicted risk (Cox) (%)", breaks=pretty(rng,6), labels=fmt1) +
+  scale_y_continuous("Observed risk (KM) (%)", breaks=pretty(rng,6), labels=fmt1) +
+  guides(size = guide_legend(title="n", override.aes = list(alpha=1))) +
+  theme_minimal(base_size=12) +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major = element_line(linewidth=0.25, colour="grey85"),
+        strip.text = element_text(face="bold"),
+        plot.title = element_text(face="bold"),
+        legend.position="bottom") +
+  labs(title="Cox calibration by risk groups (D1–D3)")
+print(gg_cox)
+# ===================================================================================
+# HL-Like 
+# ===================================================================================
+# HL-like per time horizon from cal_cox (in %)
+hl_like_cox <- do.call(rbind, lapply(split(cal_cox, cal_cox$time_years), function(d){
+  d <- subset(d, is.finite(pred) & is.finite(obs) & is.finite(n) & n > 0)
+  p <- d$pred/100; o <- d$obs/100; n <- d$n
+  V <- p*(1-p) / pmax(n, 1) # variance approx
+  chisq <- sum((o - p)^2 / pmax(V, 1e-12))
+  G <- length(o)
+  df <- max(G - 2L, 1L) # df ≈ G - 2
+  data.frame(time_years = unique(d$time_years)[1],
+             groups = G, chisq = chisq, df = df,
+             p_value = pchisq(chisq, df = df, lower.tail = FALSE))
+}))
+print(hl_like_cox, digits = 4)
+data.table::fwrite(hl_like_cox, "cox_calibration_HL_like.csv")
+
+# ====================================================================================================
+# Validation internal: Bootstrap resemaping (n=1000)
+# ====================================================================================================
+run_boot_cox <- function(B = 10, seed = 2025,
+                         times_eval = c(1,3,5),
+                         out_dir = "T:/study4/Results_tables",
+                         ckpt = "cox_boot_ckpt.csv",
+                         out = "cox_boot_summary.csv"){
+  dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+  set.seed(seed)
+  y_t <- df$time_years; y_s <- df$event_scd
+  X <- model.matrix(cox_form, data = df)[, -1, drop = FALSE]
+  
+  # helpers
+  harrell_c <- function(tt, ss, lp){
+    ok <- is.finite(tt) & is.finite(lp) & ss %in% 0:1
+    if (!any(ok)) return(NA_real_)
+    as.numeric(unclass(survival::concordance(Surv(tt[ok], ss[ok]) ~ lp[ok], timefix = TRUE)$concordance))
+  }
+  safe_timeROC <- function(tt, ss, lp, times){
+    out <- setNames(rep(NA_real_, length(times)), paste0(times, "y"))
+    tr <- try(timeROC(T = tt, delta = ss, marker = lp, cause = 1,
+                      times = times, iid = FALSE, weighting = "marginal"), silent = TRUE)
+    if (inherits(tr,"try-error")) return(out)
+    auc <- suppressWarnings(if (!is.null(tr$AUC)) as.numeric(tr$AUC) else tr$AUC_1)
+    names(auc) <- paste0(times, "y"); out[names(auc)] <- auc; out
+  }
+  
+  # apparent sur jeu original
+  lp0 <- drop(predict(cox_multi, type = "lp"))
+  appC <- harrell_c(y_t, y_s, lp0)
+  appA <- safe_timeROC(y_t, y_s, lp0, times_eval)
+  
+  # stockage
+  res <- data.frame(optC = rep(NA_real_, B),
+                    matrix(NA_real_, nrow=B, ncol=length(times_eval),
+                           dimnames=list(NULL, paste0("optAUC_", times_eval,"y"))))
+  
+  pb <- utils::txtProgressBar(min = 0, max = B, style = 3)
+  for(b in 1:B){
+    idb <- sample.int(nrow(df), replace = TRUE)
+    db <- df[idb, , drop = FALSE]
+    
+    fitb <- try(coxph(cox_form, data = db, ties="efron", x=TRUE, y=TRUE), silent=TRUE)
+    if (inherits(fitb,"try-error")) { utils::setTxtProgressBar(pb, b); next }
+    
+    lp_app <- drop(predict(fitb, type = "lp"))
+    C_app <- harrell_c(db$time_years, db$event_scd, lp_app)
+    A_app <- safe_timeROC(db$time_years, db$event_scd, lp_app, times_eval)
+    
+    lp_tst <- drop(predict(fitb, newdata = df, type = "lp"))
+    C_tst <- harrell_c(y_t, y_s, lp_tst)
+    A_tst <- safe_timeROC(y_t, y_s, lp_tst, times_eval)
+    
+    res$optC[b] <- C_app - C_tst
+    for(tt in times_eval){
+      nm <- paste0("optAUC_",tt,"y")
+      res[b, nm] <- A_app[paste0(tt,"y")] - A_tst[paste0(tt,"y")]
+    }
+    
+    if (b %% 10 == 0){
+      utils::write.csv(res, file.path(out_dir, ckpt), row.names = FALSE)
+    }
+    utils::setTxtProgressBar(pb, b)
+  }
+  close(pb)
+  
+  mean_optC <- mean(res$optC, na.rm = TRUE)
+  mean_optA <- colMeans(res[, grep("^optAUC_", names(res)), drop = FALSE], na.rm = TRUE)
+  
+  out_tab <- data.frame(
+    metric = c("HarrellC", paste0("AUC_",times_eval,"y")),
+    apparent = c(appC, unname(appA[paste0(times_eval,"y")])),
+    optimism = c(mean_optC, unname(mean_optA)),
+    optimism_corrected = c(appC - mean_optC,
+                           unname(appA[paste0(times_eval,"y")] - mean_optA)),
+    row.names = NULL
+  )
+  write.csv(out_tab, file.path(out_dir, out), row.names = FALSE)
+  write.csv(res, file.path(out_dir, sub("\\.csv$","_raw.csv", out)), row.names = FALSE)
+  out_tab
+}
+run_boot_cox(B = 200, seed = 2025,
+            ckpt = "cox_boot_ckpt_200.csv",
+            out = "cox_boot_summary_200.csv")
+
+run_boot_cox(B = 1000, seed = 2025,
+            ckpt = "cox_boot_ckpt_1000.csv",
+            out = "cox_boot_summary_1000.csv")
+
+#=======================================================================================================================

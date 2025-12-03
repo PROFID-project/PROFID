@@ -1,0 +1,566 @@
+
+##################################################################################################################
+##################################################################################################################
+# projet: UmBIZO- PROFID_Study4 (SCD post-MI, age- stratified)
+# Script: 10_Multiple_Imputation_strategy.R
+# Author: Amina Boudamaana
+#  ================================================================================================================
+## ================= MI EXPORT  & chatty (uses df_handled_cc) =================
+suppressPackageStartupMessages({
+  library(mice); library(survival)
+  suppressWarnings(try(library(cmprsk), silent = TRUE))
+})
+
+## ---- OUTPUT helpers ---------------------------------------------------------------
+OUT_RT <- file.path("T:/study_4/Results_tables")
+OUT_MI <- file.path("T:/study_4/Results_tables")
+dir.create(OUT_RT, recursive = TRUE, showWarnings = FALSE)
+dir.create(OUT_MI, recursive = TRUE, showWarnings = FALSE)
+
+msg <- function(fmt, ...) cat(sprintf(fmt, ...), "\n")
+wcsv <- function(x, file) { dir.create(dirname(file), TRUE, FALSE); utils::write.csv(x, file, row.names = FALSE) }
+wreadme <- function(txt, file) { dir.create(dirname(file), TRUE, FALSE); writeLines(txt, file) }
+
+## ---- DATA (use df_handled_cc) ----------------------------------------------------
+stopifnot(exists("df_handled"), is.data.frame(df_handled))
+df <- as.data.frame(df_handled)
+
+## Normalize column names we depend on
+if (!"Survival_time" %in% names(df) && "survival_time" %in% names(df)) {
+  names(df)[names(df) == "survival_time"] <- "Survival_time"
+}
+
+## Time variables
+if (!"time_years" %in% names(df)) {
+  if ("ftime_mo_int" %in% names(df)) df$time_years <- as.numeric(df$ftime_mo_int)/12
+  else if ("Survival_time" %in% names(df)) df$time_years <- as.numeric(df$Survival_time)/12
+  else stop("No time variable found (need time_years or ftime_mo_int or Survival_time).")
+} else df$time_years <- as.numeric(df$time_years)
+
+if (!"ftime_mo_int" %in% names(df)) {
+  if ("Survival_time" %in% names(df)) df$ftime_mo_int <- as.integer(round(as.numeric(df$Survival_time)))
+  else df$ftime_mo_int <- as.integer(round(df$time_years*12))
+}
+
+## Status coding
+status_col <- if ("fstatus" %in% names(df)) "fstatus" else if ("Status" %in% names(df)) "Status" else NA_character_
+stopifnot(!is.na(status_col))
+df[[status_col]] <- suppressWarnings(as.integer(df[[status_col]]))
+
+## event_scd for Cox (1=SCD, 0 otherwise)
+if (!"event_scd" %in% names(df)) {
+  df$event_scd <- as.integer(df[[status_col]] == 1L)
+} else df$event_scd <- as.integer(df$event_scd)
+
+## fstatus for Fine-Gray (0=cens,1=SCD,2=non-SCD)
+if (!"fstatus" %in% names(df)) {
+  S <- suppressWarnings(as.integer(df$Status))
+  df$fstatus <- ifelse(S==1L,1L, ifelse(S==2L,2L, ifelse(S==0L,0L, NA_integer_)))
+}
+
+## Age group levels
+if ("age_group" %in% names(df)) {
+  df$age_group <- factor(as.character(df$age_group),
+                         levels = c("<=50","51-65","66-75",">75"), ordered = TRUE)
+}
+
+# --- Target Variables (Continuous + Candidate Binary)
+vars_cont <- c("LVEF","eGFR","BMI","Haemoglobin")
+vars_bin <- c("Diabetes","Hypertension","ACE_inhibitor","ARB","Anti_coagulant")
+
+## --- Dataset for MICE (from df_handled!)
+aux_wish <- c("cohort_id","center_id","index_year","flag_within40d")
+keep <- unique(c("time_years","ftime_mo_int","Status","fstatus","event_scd","age_group",
+                 vars_cont, vars_bin, aux_wish))
+dat_imp <- df[, intersect(keep, names(df)), drop = FALSE]
+
+## --- Types
+to_yesno <- function(x){
+  x <- if (is.factor(x)) as.character(x) else as.character(x)
+  x <- trimws(tolower(x))
+  x <- ifelse(x %in% c("1","yes","y","true","oui","o"), "Yes",
+              ifelse(x %in% c("0","no","n","false","non"), "No", NA))
+  factor(x, levels = c("No","Yes"))
+}
+# continues -> numeric
+for(v in intersect(vars_cont, names(dat_imp))){
+  dat_imp[[v]] <- suppressWarnings(as.numeric(as.character(dat_imp[[v]])))
+}
+# binaires -> factor No/Yes
+for(v in intersect(vars_bin, names(dat_imp))){
+  dat_imp[[v]] <- to_yesno(dat_imp[[v]])
+}
+# Unimputed age_group (but predictor)
+if ("age_group" %in% names(dat_imp))
+  dat_imp$age_group <- droplevels(factor(dat_imp$age_group, ordered = TRUE))
+
+## --- Methods & Predictor Matrix
+meth <- make.method(dat_imp)
+pred <- make.predictorMatrix(dat_imp)
+
+# NEVER impute time/events/age
+never_imp <- intersect(c("time_years","ftime_mo_int","Status","fstatus","event_scd","age_group"),
+                       names(dat_imp))
+meth[never_imp] <- ""
+pred[never_imp, ] <- 0
+pred[, setdiff(never_imp, "age_group")] <- 0 # outcome/time not predictors
+if ("age_group" %in% names(dat_imp)) { #Age used as a predictor
+  pred[, "age_group"] <- 1
+  pred["age_group", ] <- 0
+}
+
+## ---Only keep truly imputable binary variables (2 observed levels, ≥1 non-NA)
+ok_bin <- intersect(vars_bin, names(dat_imp))
+ok_bin <- ok_bin[vapply(ok_bin, function(v){
+  x <- droplevels(dat_imp[[v]]); sum(!is.na(x)) > 0 && nlevels(x) == 2
+}, logical(1))]
+
+## ---Imputation Methods
+meth[intersect(vars_cont, names(dat_imp))] <- "pmm"
+meth[ok_bin] <- "logreg"
+#If a binary variable is not "ok_bin", we do not impute it.
+bad_bin <- setdiff(intersect(vars_bin, names(dat_imp)), ok_bin)
+if (length(bad_bin)){
+  meth[bad_bin] <- ""; pred[, bad_bin] <- 0; pred[bad_bin, ] <- 0
+}
+
+## --- Remove entirely empty rows across (useful predictors + targets)
+aux_vars <- intersect(aux_wish, names(dat_imp))
+targets <- c(vars_cont, ok_bin)
+pred_cols <- unique(c("age_group", aux_vars, targets))
+bad_rows <- which(rowSums(!is.na(dat_imp[, pred_cols, drop=FALSE])) == 0)
+if (length(bad_rows)) dat_imp <- dat_imp[-bad_rows, , drop = FALSE]
+
+## ---Short test (m=2): must yield 0 NA across all targets
+imp_test <- mice(dat_imp, m = 2, maxit = 5, method = meth, predictorMatrix = pred, print = FALSE)
+cmpl_test <- complete(imp_test, 1)
+leftover <- colSums(is.na(cmpl_test[, intersect(targets, names(cmpl_test)), drop=FALSE]))
+print(leftover) 
+
+#If we still see "1"s: remove these identified non-imputable individuals
+if (any(leftover > 0)) {
+  na_mat <- is.na(cmpl_test[, intersect(targets, names(cmpl_test)), drop=FALSE])
+  idx_bad <- which(rowSums(na_mat) > 0)
+  dat_imp <- dat_imp[-idx_bad, , drop = FALSE]
+  imp_test <- mice(dat_imp, m = 2, maxit = 5, method = meth, predictorMatrix = pred, print = FALSE)
+  cmpl_test <- complete(imp_test, 1)
+  stopifnot(all(colSums(is.na(cmpl_test[, intersect(targets, names(cmpl_test)), drop=FALSE])) == 0))
+}
+
+
+## 1) Short test (m=2)
+imp_test <- mice(dat_imp, m = 2, maxit = 5, method = meth, predictorMatrix = pred, print = FALSE)
+cmpl_test <- complete(imp_test, 1)
+
+## 2) Count the remaining NAs on the variables to be imputed
+targets <- intersect(targets, names(cmpl_test)) 
+leftover <- colSums(is.na(cmpl_test[, targets, drop = FALSE]))
+print(leftover) 
+
+## 3) If # 0, remove the NON-imputable individuals and re-test
+tries <- 0
+while (any(leftover > 0) && tries < 3) {
+  tries <- tries + 1
+  na_mat <- is.na(cmpl_test[, targets, drop = FALSE])
+  idx_bad <- which(rowSums(na_mat) > 0) 
+  message(sprintf("[info] retrait de %d lignes non-imputables (essai %d)", length(idx_bad), tries))
+  dat_imp <- dat_imp[-idx_bad, , drop = FALSE]
+  
+  imp_test <- mice(dat_imp, m = 2, maxit = 5, method = meth, predictorMatrix = pred, print = FALSE)
+  cmpl_test <- complete(imp_test, 1)
+  leftover <- colSums(is.na(cmpl_test[, targets, drop = FALSE]))
+  print(leftover)
+}
+
+## 4)Guardrail: we ONLY proceed to $m=20$ if everything is 0
+stopifnot(all(leftover == 0))
+message("[OK] ready for final imputation (m=20)")
+
+# Post-imputation NA check
+cmpl1 <- complete(imp, 1)
+stopifnot(all(colSums(is.na(cmpl1[, targets, drop = FALSE])) == 0))
+message("[OK] MICE m=20 terminé et sans NA dans les variables du modèle.")
+
+## ===================== EXPORT  =====================
+OUT_MI <- file.path(getwd(), "Imputed_data")
+dir.create(OUT_MI, showWarnings = FALSE)
+
+# MICE object + imputed datasets
+saveRDS(imp, file.path(OUT_MI, "mice_imp_object.rds"))
+for(k in 1:imp$m){
+  dk <- mice::complete(imp, k)
+  utils::write.csv(dk, file.path(OUT_MI, sprintf("df_imputed_%02d.csv", k)), row.names = FALSE)
+}
+# long format
+imp_long <- mice::complete(imp, action = "long", include = TRUE)
+utils::write.csv(imp_long, file.path(OUT_MI, "df_imputed_LONG.csv"), row.names = FALSE)
+# ==================================================================================
+## --- final Imputation  m=20
+# ==================================================================================
+set.seed(2025)
+imp <- mice(dat_imp, m = 20, maxit = 20, method = meth, predictorMatrix = pred, print = FALSE)
+
+## --- Final sanity check: 0 NA on the model variables
+chk <- sapply(1:imp$m, function(k){
+  dk <- complete(imp, k)
+  colSums(is.na(dk[, intersect(targets, names(dk)), drop=FALSE]))
+})
+print(chk); stopifnot(all(chk == 0))
+## ===================== PREP / UTIL ========
+OUT_MI <- file.path(getwd(), "Imputed_data")
+dir.create(OUT_MI, showWarnings = FALSE)
+
+# Same n in each imputation?
+sapply(1:20, \(k) nrow(mice::complete(imp, k)))
+
+# Reference n
+nrow(imp$data)
+
+# version "long"
+d_long <- mice::complete(imp, "long", include = TRUE)
+nrow(d_long) / nrow(imp$data) #  Must yield 21 if $m=20$
+ids_same <- sapply(2:20, \(k)
+                   identical(mice::complete(imp, k)$cert_id,
+                             mice::complete(imp, 1)$cert_id))
+all(ids_same) # TRUE
+
+# 1)Harmonize the time variable into "time_years"
+make_time_years <- function(df){
+  if(!"time_years" %in% names(df)){
+    if("years" %in% names(df)) df$time_years <- df$years
+    else if("time_months" %in% names(df)) df$time_years <- df$time_months/12
+    else if("survival_time" %in% names(df))df$time_years <- df$survival_time/365.25
+    else if("surv_days" %in% names(df)) df$time_years <- df$surv_days/365.25
+    else stop("No time variable found. Looked for: years, time_months, survival_time, surv_days.")
+  }
+  df
+}
+# 2) Check that we have the binary event indicator SCD
+make_event_scd <- function(df){
+  if(!"event_scd" %in% names(df)){
+    if("status" %in% names(df)) df$event_scd <- as.integer(df$status==1)
+    else stop("event_scd absent et 'status' not found.")
+  }
+  df
+}
+
+# 3)Age helper
+fix_age <- function(d){
+  if(!"age_group" %in% names(d) && "age" %in% names(d)){
+    d$age_group <- cut(as.numeric(d$age),
+                       breaks=c(-Inf,50,65,75,Inf),
+                       labels=c("≤50","51–65","66–75",">75"), right=TRUE, ordered_result=TRUE)
+  }
+  d
+}
+
+# 4)Test on one imputation to be sure
+d_test <- mice::complete(imp, 1)
+d_test <- make_time_years(d_test) |> make_event_scd() |> fix_age()
+table_exist <- c("time_years","event_scd","age_group") %in% names(d_test)
+stopifnot(all(table_exist))
+##
+
+## ———find the "time" and "status" variables ———
+d1 <- mice::complete(imp, 1)
+
+cand_time <- names(d1)[grepl("time|follow|fu|days|months|years|tte|ftime|surv",
+                             names(d1), ignore.case = TRUE)]
+cand_stat <- names(d1)[grepl("status|fstatus|event|death|scd|cause",
+                             names(d1), ignore.case = TRUE)]
+
+cat("Candidats temps:\n"); print(cand_time)
+cat("Candidats statut:\n"); print(cand_stat)
+
+## 
+sapply(d1[cand_time], function(x) suppressWarnings(range(as.numeric(x), na.rm=TRUE)))
+lapply(d1[cand_stat], function(x) table(x, useNA="ifany"))
+# =========================================================================================
+## ===================== COX (MI + pooling) ========
+# =========================================================================================
+library(survival)
+library(mice)
+
+cox_rhs_vars <- c("LVEF","eGFR","BMI","Haemoglobin",
+                  "Diabetes","Hypertension","ACE_inhibitor","ARB","Anti_coagulant")
+
+fit_mi <- with(imp, {
+  ag <- factor(age_group, ordered = FALSE) 
+  lev <- levels(ag)
+  ref <- if (any(grepl("50", lev))) lev[grep("50", lev)[1]] else lev[1] # Take the category that contains "50"
+  ag <- relevel(ag, ref = ref)
+  fm <- as.formula(paste("Surv(time_years, event_scd) ~ ag +", paste(cox_rhs_vars, collapse=" + ")))
+  coxph(fm, ties = "efron")
+})
+
+pool_cox <- pool(fit_mi)
+cox_sum_MI <- summary(pool_cox, conf.int = TRUE, exponentiate = TRUE)
+cox_sum_MI 
+names(cox_sum_MI )[names(cox_sum_MI )=="estimate"] <- "HR"
+names(cox_sum_MI )[names(cox_sum_MI )=="2.5 %"] <- "LCL_95"
+names(cox_sum_MI )[names(cox_sum_MI )=="97.5 %"] <- "UCL_95"
+wcsv(cox_sum_MI , file.path(OUT_MI, "Cox_pooled_MI.csv"))
+## ===== MI (pooled across imputations) =====
+
+#Normalize the names
+nm <- names(cox_sum_MI)
+names(cox_sum_MI)[nm == "estimate"] <- "HR"
+names(cox_sum_MI)[nm == "2.5 %"] <- "LCL_95"
+names(cox_sum_MI)[nm == "97.5 %"] <- "UCL_95"
+if (!"term" %in% names(cox_sum_MI) && !is.null(rownames(cox_sum_MI))) {
+  cox_sum_MI$term <- rownames(cox_sum_MI)
+}
+## ---------- Helpers ----------
+normalize_terms <- function(x){
+  x <- trimws(x)
+  # factor(age_group(...)) -> age_group
+  x <- gsub("^factor\\(\\s*age_group[^\\)]*\\)", "age_group", x)
+  # ag<=50 / ag51-65 / ag66-75 / ag>75 -> age_group...
+  idx <- grepl("^ag(<=?50|51-65|66-75|>75)$", x)
+  x[idx] <- sub("^ag", "age_group", x[idx])
+  # uniformiser la ref
+  x <- gsub("^age_group\\s*<=\\s*50$", "age_group<=50", x)
+  # nettoyer backticks
+  x <- gsub("^`|`$", "", x)
+  x
+}
+## ---------- MI: clean summary (always a data.frame) ----------
+mi_df <- as.data.frame(summary(pool_cox, conf.int = TRUE, exponentiate = TRUE))
+
+# Terms (if absent)
+if (!"term" %in% names(mi_df)) mi_df$term <- rownames(mi_df)
+
+# Rename according to what actually exists
+renm <- function(x, old, new){ if (old %in% names(x)) names(x)[names(x)==old] <- new; x }
+mi_df <- renm(mi_df, "estimate", "HR")
+mi_df <- renm(mi_df, "exp(Est.)", "HR")
+mi_df <- renm(mi_df, "2.5 %", "LCL_95")
+mi_df <- renm(mi_df, "conf.low", "LCL_95")
+mi_df <- renm(mi_df, "97.5 %", "UCL_95")
+mi_df <- renm(mi_df, "conf.high", "UCL_95")
+
+#Only keep the useful columns if they exist
+keep <- intersect(c("term","HR","LCL_95","UCL_95"), names(mi_df))
+mi_df <- mi_df[, keep, drop = FALSE]
+
+## ---------- CC :Clean summary----------
+cox_cc <- survival::coxph(cox_form, data = df_cc, ties = "efron")
+cc_df <- data.frame(
+  term = names(coef(cox_cc)),
+  HR = exp(coef(cox_cc)),
+  LCL_95 = exp(confint(cox_cc)[,1]),
+  UCL_95 = exp(confint(cox_cc)[,2]),
+  row.names = NULL
+)
+## ---------- Normalize the labels so that MI and CC match----------
+normalize_terms <- function(s){
+  s <- as.character(s)
+  s <- gsub("^ag", "age_group", s) # ag51-65 -> age_group51-65
+  s <- gsub("^age_groupe_group", "age_group", s) # typo possible
+  s <- gsub("^factor\\(age_group[^)]*\\)(.*)$", "age_group\\1", s) # factor(age_group, ...)>75
+  s <- gsub("^age_group\\.", "age_group", s) # age_group.>75 -> age_group>75
+  s <- gsub("^\\(Intercept\\)$", "Intercept", s)
+  trimws(s)
+}
+mi_df$term <- normalize_terms(mi_df$term)
+cc_df$term <- normalize_terms(cc_df$term)
+
+# Remove a potential intercept
+mi_df <- subset(mi_df, term != "Intercept")
+cc_df <- subset(cc_df, term != "Intercept")
+
+## ---------- Fusion MI vs CC ----------
+cox_sum <- merge(
+  mi_df[, intersect(c("term","HR","LCL_95","UCL_95"), names(mi_df)), drop=FALSE],
+  cc_df[, c("term","HR","LCL_95","UCL_95")],
+  by = "term", all = TRUE, suffixes = c("_MI","_CC")
+)
+
+## ---------- Sorting ----------
+ord <- c("age_group51-65","age_group66-75","age_group>75",
+         "LVEF","eGFR","BMI","Haemoglobin",
+         "DiabetesYes","HypertensionYes","ACE_inhibitorYes","ARBYEs","Anti_coagulantYes")
+idx <- match(cox_sum$term, ord)
+cox_sum <- cox_sum[order(is.na(idx), idx, cox_sum$term), ]
+
+## 
+out <- file.path(OUT_MI, "COX_MI_vs_CC.csv")
+dir.create(dirname(out), showWarnings = FALSE, recursive = TRUE)
+write.csv(cox_sum, out, row.names = FALSE)
+
+## 
+OUT_DIR <- "T:/Study_4/Imputed_data"
+saved_to <- safe_write_csv(cox_sum, OUT_DIR, "cox_MI_vs_CC.csv")
+cat("Tableau comparatif écrit :", saved_to, "\n")
+# ===========================================================================================
+## ===================== Fine–Gray (MI + pooling Rubin/scalar) ========
+# ============================================================================================
+library(cmprsk)
+library(mice)
+
+## ====== HELPERS ======
+fix_fg_data <- function(d){
+  
+  if(!"ftime_mo_int" %in% names(d)){
+    if("time_years" %in% names(d)) d$ftime_mo_int <- as.integer(round(d$time_years*12))
+    else if("time_months" %in% names(d)) d$ftime_mo_int <- as.integer(round(d$time_months))
+    else stop("No time variable found(ftime_mo_int / time_years / time_months).")
+  }
+  # age_group (unordered, ref = category containing "50")
+  if(!"age_group" %in% names(d) && "age" %in% names(d)){
+    d$age_group <- cut(as.numeric(d$age),
+                       breaks=c(-Inf,50,65,75,Inf),
+                       labels=c("≤50","51–65","66–75",">75"),
+                       right=TRUE)
+  }
+  if("age_group" %in% names(d)){
+    d$age_group <- factor(d$age_group, ordered=FALSE) 
+    lev <- levels(d$age_group)
+    ref <- if(any(grepl("50", lev))) lev[grep("50", lev)[1]] else lev[1]
+    d$age_group <- stats::relevel(d$age_group, ref=ref)
+  }
+  
+  # Binary variables to {No, Yes} for a clean model.matrix
+  bin <- c("Diabetes","Hypertension","ACE_inhibitor","ARB","Anti_coagulant")
+  for(v in intersect(bin, names(d))) d[[v]] <- factor(d[[v]], levels=c("No","Yes"))
+  
+  # Scaled continuous variables (effect = per +1 SD)
+  cont <- c("LVEF","eGFR","BMI","Haemoglobin")
+  for(v in intersect(cont, names(d))) d[[v]] <- as.numeric(scale(d[[v]]))
+  d
+}
+
+#Covariates (design for model.matrix)
+fg_cov <- ~ age_group + LVEF + eGFR + BMI + Haemoglobin +
+  Diabetes + Hypertension + ACE_inhibitor + ARB + Anti_coagulant
+# =======================================================================================
+## ====== (A) FINE–GRAY ON IMPUTED DATA + POOLING RUBIN ======
+# =======================================================================================
+# 1)Build the list of imputed datasets
+dlist <- list()
+if(exists("imp") && inherits(imp, "mids")){
+  for(k in 1:imp$m) dlist[[k]] <- fix_fg_data(complete(imp, k))
+} else {
+  files <- sprintf(file.path(OUT_MI, "imputed_data/df_imputed_%02d.csv"), 1:20)
+  files <- files[file.exists(files)]
+  stopifnot(length(files) > 0)
+  for(k in seq_along(files)) dlist[[k]] <- fix_fg_data(read.csv(files[k], check.names=FALSE))
+}
+m <- length(dlist)
+
+# 2) Fit crr on each imputed dataset
+fits <- vector("list", m)
+for(k in 1:m){
+  d <- dlist[[k]]
+  X <- model.matrix(fg_cov, data=d)
+  X <- X[, colnames(X)!="(Intercept)", drop=FALSE]
+  fits[[k]] <- cmprsk::crr(ftime=d$ftime_mo_int, fstatus=d$fstatus,
+                           cov1=X, failcode=1, cencode=0, variance=TRUE)
+}
+print(fits)
+# 3) Rubin's Pooling (coef + vcov) for crr objects
+qhat <- lapply(fits, \(f) f$coef) 
+Uhat <- lapply(fits, \(f) f$var) 
+# 
+all_terms <- names(qhat[[1]])
+stopifnot(all(sapply(qhat, \(x) identical(names(x), all_terms))))
+
+Qbar <- Reduce("+", qhat) / m # mean(beta)
+Ubar <- Reduce("+", Uhat) / m # Average of the within-imputation variances
+Qmat <- do.call(cbind, qhat)
+centered <- sweep(Qmat, 1, Qbar, "-")
+B <- (centered %*% t(centered)) / (m - 1) # variance inter
+Tmat <- Ubar + (1 + 1/m) * B
+se <- sqrt(diag(Tmat))
+lambda <- (1 + 1/m) * diag(B) / diag(Ubar) #for Barnard–Rubin degrees of freedom (df)
+df <- (m - 1) * (1 + 1/lambda)^2
+tcrit <- qt(0.975, df)
+
+est <- Qbar
+fg_mi <- data.frame(
+  term = names(est),
+  SHR_MI = exp(est),
+  LCL_95_MI = exp(est - tcrit*se),
+  UCL_95_MI = exp(est + tcrit*se),
+  row.names = NULL
+)
+
+## ---- FG MI  ----
+est <- Qbar
+se <- sqrt(diag(Tmat))
+tcrit <- qt(0.975, df) 
+
+fg_mi <- data.frame(
+  term = names(est),
+  SHR_MI = exp(est),
+  LCL_95_MI = exp(est - tcrit*se),
+  UCL_95_MI = exp(est + tcrit*se),
+  row.names = NULL,
+  check.names = FALSE
+)
+
+write.csv(fg_mi, file.path(OUT_MI, "FG_pooled_MI.csv"), row.names = FALSE)
+
+## 
+lev <- levels(d$age_group)
+ref <- if (any(grepl("50", lev))) lev[grepl("50", lev)] else lev[1]
+d$age_group <- stats::relevel(factor(d$age_group, ordered = FALSE), ref = ref)
+# =========================================================================================
+## ---- FG COMPLETE-CASE  ----
+# ========================================================================================
+need <- c("ftime_mo_int", "fstatus", all.vars(update(fg_cov, NULL ~ .)))
+
+
+
+## 3a) Retrieve the list of covariates from our fg_cov formulas
+vars_fg <- if (inherits(fg_cov, "formula")) {
+  attr(terms(fg_cov), "term.labels")
+} else {
+  fg_cov # If it's already a vector of names
+}
+
+## 3b) Build the list of necessary columns
+need <- c("ftime_mo_int", "fstatus", vars_fg)
+
+## 3c) Force a true 2D data.frame and use 'd' if 'df' is not defined
+d0 <- if (exists("df") && is.data.frame(df)) df else d
+d0 <- as.data.frame(d0)
+
+cols <- intersect(need, names(d0))
+if (length(cols) == 0) {
+  message("No name matches. Missing in df: ",
+          paste(setdiff(need, names(d0)), collapse=", "))
+  stop("No matching columns for CC subset.")
+}
+
+cc_idx <- complete.cases(d0[, cols, drop = FALSE])
+df_cc <- d0[cc_idx, , drop = FALSE]
+##
+## design + crr 
+X_cc <- model.matrix(as.formula(paste("~", paste(vars_fg, collapse = "+"))),
+                     data = df_cc, drop = FALSE)
+X_cc <- X_cc[, setdiff(colnames(X_cc), "(Intercept)"), drop = FALSE]
+
+fit_cc <- cmprsk::crr(
+  ftime = df_cc$ftime_mo_int,
+  fstatus = df_cc$fstatus,
+  cov1 = X_cc, failcode = 1, cencode = 0, variance = TRUE
+)
+
+##CC summary harmonized with MI
+est_cc <- fit_cc$coef
+se_cc <- sqrt(diag(fit_cc$var))
+tcc <- qnorm(0.975)
+
+fg_cc <- data.frame(
+  term = names(est_cc),
+  SHR_CC = exp(est_cc),
+  LCL_95_CC = exp(est_cc - tcc*se_cc),
+  UCL_95_CC = exp(est_cc + tcc*se_cc),
+  row.names = NULL,
+  check.names = FALSE
+)
+
+## MI vs CC Comparison + Export
+fg_sum <- merge(fg_mi, fg_cc, by = "term", all = TRUE, suffixes = c("_MI", "_CC"))
+write.csv(fg_sum, file.path(OUT_MI, "FG_MI_vs_CC.csv"), row.names = FALSE)
