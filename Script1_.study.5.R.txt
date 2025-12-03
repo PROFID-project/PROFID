@@ -1,0 +1,377 @@
+################################################################################
+# Project : PROFID – Study 5
+# Script : 01_study5_build_cohort_and_endpoints.R
+# Author : Amina Boudamaana
+# ===============================================================================
+# Purpose :
+# Starting from df_handled.rds (Study 4 harmonised + QC data),
+# build the Study 5 analysis dataset for:
+# - Temporal trends and determinants of HF therapy use (SAP v2.0)
+#
+# This script:
+# 1) Applies Study 5 inclusion criteria (HF + LVEF + meds available)
+# 2) Derives all predictor and outcome variables described in the SAP:
+# * Temporal variables : Year_index (from Time_zero_Y), Year_epoch
+# * Demographics : Age, Age_cat, Sex_BIN_Male, DB
+# * Clinical : LVEF_cat, NYHA binaries, ICD_BIN_Yes,
+# Baseline_within40d, Time_index_MI_CHD_log1p
+# * CV risk factors : Diabetes_BIN_Yes, Hypertension_BIN_Yes,
+# AF_atrial_flutter_BIN_Yes, Smoking_BIN_Yes,
+# Stroke_TIA_BIN_Yes (if available)
+# * Labs : *_log1p variables and eGFR_cat3
+# * Procedures : PCI_BIN_Yes, CABG_BIN_Yes,
+# Revascularisation_acute_BIN_Yes
+# * Therapy utilisation : binary therapy classes,
+# polypharmacy score, GDMT_BIN_geq3
+################################################################################
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(lubridate)
+})
+##==============================================================================
+## 0. Settings & helper functions
+##==============================================================================
+set.seed(20251224)
+
+setwd("S:/AG/f-dhzc-profid/Data Transfer to Charite")
+
+stopifnot(file.exists("df_handled.rds"))
+df <- readRDS("df_handled.rds")
+
+cat("[INFO] df_handled loaded: n =", nrow(df), "| p =", ncol(df), "\n")
+  # [INFO] df_handled loaded: n = 140204 | p = 102 
+# Helper: convert No/Yes factor (or text) to 0/1 numeric
+yesno_to_bin <- function(x) {
+  if (is.factor(x)) {
+    lev <- levels(x)
+    if (all(lev %in% c("No", "Yes"))) {
+      return(ifelse(x == "Yes", 1L,
+                    ifelse(x == "No", 0L, NA_integer_)))
+    }
+  }
+  z <- trimws(tolower(as.character(x)))
+  out <- ifelse(z %in% c("yes","1","true","oui"), 1L,
+                ifelse(z %in% c("no","0","false","non"), 0L, NA_integer_))
+  return(out)
+}
+
+# Helper: add <var>_log1p if not already present
+add_log1p_single <- function(df, var) {
+  if (!var %in% names(df)) return(df)
+  x <- suppressWarnings(as.numeric(df[[var]]))
+  x[x < 0] <- NA
+  df[[paste0(var, "_log1p")]] <- log1p(x)
+  df
+}
+##==============================================================================
+## 1. Study 5 inclusion criteria
+## - Post-MI > 40 days: assumed handled in df_handled (Study 4 pre-processing)
+## - HF diagnosis AND documented LVEF
+## - Survival beyond initial hospitalisation: assumed handled upstream
+## - At least one baseline HF-related medication recorded
+##==============================================================================
+has_HF <- "HF" %in% names(df)
+has_LVEF <- "LVEF" %in% names(df)
+
+med_vars_raw <- c("ACE_inhibitor","ARB","ACE_inhibitor_ARB",
+                  "Beta_blockers","Aldosterone_antagonist",
+                  "Anti_platelet","Anti_coagulant","Lipid_lowering")
+med_vars_raw <- intersect(med_vars_raw, names(df))
+
+df <- df %>%
+  mutate(
+    any_med_available = rowSums(!is.na(across(all_of(med_vars_raw)))) > 0
+  )
+
+df_st5 <- df %>%
+  filter(
+    !!has_LVEF & !is.na(LVEF), # documented LVEF
+    if (has_HF) HF == "Yes" else TRUE, # heart failure subgroup
+    any_med_available # at least one medication recorded
+  )
+
+cat("[INFO] Study 5 HF cohort size after inclusion filters: n =",
+    nrow(df_st5), "\n")
+  # [INFO] Study 5 HF cohort size after inclusion filters: n = 8887 
+##==============================================================================
+## 2. Demographics: Age, Age_cat, Sex, DB
+##==============================================================================
+df_st5 <- df_st5 %>%
+  mutate(
+    Age_num = suppressWarnings(as.numeric(Age)),
+    Age_cat = cut(
+      Age_num,
+      breaks = c(-Inf, 50, 64, 74, Inf),
+      labels = c("<50", "50-64", "65-74", ">=75"),
+      right = TRUE
+    )
+  )
+
+if ("Sex" %in% names(df_st5)) {
+  df_st5 <- df_st5 %>%
+    mutate(
+      Sex_chr = tolower(trimws(as.character(Sex))),
+      Sex_BIN_Male = case_when(
+        Sex_chr %in% c("m","male","man","homme") ~ 1L,
+        Sex_chr %in% c("f","female","woman","femme") ~ 0L,
+        TRUE ~ NA_integer_
+      )
+    )
+} else {
+  df_st5$Sex_BIN_Male <- NA_integer_
+}
+
+if ("DB" %in% names(df_st5)) {
+  df_st5$DB <- factor(df_st5$DB)
+}
+##==============================================================================
+## 3. Temporal variables: Year_index & Year_epoch
+## - Use Time_zero_Y (CDM: calendar year of baseline / follow-up start)
+##==============================================================================
+if ("Time_zero_Y" %in% names(df_st5)) {
+  cat("[INFO] Using Time_zero_Y as calendar Year_index.\n")
+  df_st5 <- df_st5 %>%
+    mutate(
+      Year_index = suppressWarnings(as.integer(Time_zero_Y)),
+      Year_epoch = case_when(
+        is.na(Year_index) ~ NA_character_,
+        Year_index < 2005 ~ "<2005",
+        Year_index >= 2005 & Year_index < 2010 ~ "2005-2009",
+        Year_index >= 2010 & Year_index < 2015 ~ "2010-2014",
+        Year_index >= 2015 ~ ">=2015"
+      )
+    )
+} else {
+  cat("[WARN] Time_zero_Y not found. Year_index and Year_epoch set to NA.\n")
+  df_st5$Year_index <- NA_integer_
+  df_st5$Year_epoch <- NA_character_
+}
+##==============================================================================
+## 4. Clinical: LVEF, NYHA, ICD, baseline type, time since MI
+##==============================================================================
+# LVEF numeric + categories (<30%, 30-40%, >40%)
+df_st5 <- df_st5 %>%
+  mutate(
+    LVEF_num = suppressWarnings(as.numeric(LVEF)),
+    LVEF_cat = cut(
+      LVEF_num,
+      breaks = c(-Inf, 30, 40, Inf),
+      labels = c("<30%", "30-40%", ">40%"),
+      right = TRUE
+    )
+  )
+
+# NYHA binaries
+if ("NYHA" %in% names(df_st5)) {
+  df_st5 <- df_st5 %>%
+    mutate(
+      NYHA_chr = as.character(NYHA),
+      NYHA_BIN_geq_II = ifelse(
+        NYHA_chr %in% c("II","III","IV"), 1L,
+        ifelse(NYHA_chr %in% "I", 0L, NA_integer_)
+      ),
+      NYHA_BIN_geq_III = ifelse(
+        NYHA_chr %in% c("III","IV"), 1L,
+        ifelse(NYHA_chr %in% c("I","II"), 0L, NA_integer_)
+      ),
+      NYHA_BIN_eq_IV = ifelse(
+        NYHA_chr %in% "IV", 1L,
+        ifelse(NYHA_chr %in% c("I","II","III"), 0L, NA_integer_)
+      )
+    )
+} else {
+  df_st5$NYHA_BIN_geq_II <- NA_integer_
+  df_st5$NYHA_BIN_geq_III <- NA_integer_
+  df_st5$NYHA_BIN_eq_IV <- NA_integer_
+}
+
+# ICD implantation status (0/1)
+if ("ICD_status" %in% names(df_st5)) {
+  df_st5 <- df_st5 %>%
+    mutate(
+      ICD_status_num = suppressWarnings(as.numeric(ICD_status)),
+      ICD_BIN_Yes = ifelse(ICD_status_num == 1, 1L,
+                           ifelse(ICD_status_num == 0, 0L, NA_integer_))
+    )
+} else {
+  df_st5$ICD_BIN_Yes <- NA_integer_
+}
+
+# Time since MI + baseline type (within/beyond 40 days)
+if ("Time_index_MI_CHD" %in% names(df_st5)) {
+  df_st5 <- df_st5 %>%
+    mutate(
+      Time_index_MI_CHD_num = suppressWarnings(as.numeric(Time_index_MI_CHD)),
+      Time_index_MI_CHD_num = ifelse(Time_index_MI_CHD_num < 0,
+                                     NA, Time_index_MI_CHD_num),
+      Time_index_MI_CHD_log1p = log1p(Time_index_MI_CHD_num),
+      Baseline_within40d = case_when(
+        is.na(Time_index_MI_CHD_num) ~ NA_integer_,
+        Time_index_MI_CHD_num <= 40 ~ 1L,
+        Time_index_MI_CHD_num > 40 ~ 0L
+      )
+    )
+} else {
+  df_st5$Time_index_MI_CHD_log1p <- NA_real_
+  df_st5$Baseline_within40d <- NA_integer_
+}
+##==============================================================================
+## 5. Laboratory variables: *_log1p and eGFR_cat3
+##==============================================================================
+for (v in c("eGFR", "NTProBNP", "Haemoglobin", "Sodium", "Potassium")) {
+  if (!paste0(v, "_log1p") %in% names(df_st5)) {
+    df_st5 <- add_log1p_single(df_st5, v)
+  }
+}
+
+if ("eGFR" %in% names(df_st5)) {
+  df_st5 <- df_st5 %>%
+    mutate(
+      eGFR_num = suppressWarnings(as.numeric(eGFR)),
+      eGFR_cat3 = cut(
+        eGFR_num,
+        breaks = c(-Inf, 30, 60, Inf),
+        labels = c("<30", "30-59", ">=60"),
+        right = FALSE
+      )
+    )
+} else {
+  df_st5$eGFR_cat3 <- NA
+}
+##==============================================================================
+## 6. Cardiovascular risk factors (binary Yes/No -> *_BIN_Yes)
+##==============================================================================
+risk_vars <- intersect(
+  c("Diabetes", "Hypertension", "Smoking",
+    "AF_atrial_flutter", "Stroke_TIA"),
+  names(df_st5)
+)
+
+for (v in risk_vars) {
+  df_st5[[paste0(v, "_BIN_Yes")]] <- yesno_to_bin(df_st5[[v]])
+}
+
+# Ensure AF_atrial_flutter_BIN_Yes exists with correct name
+if (!("AF_atrial_flutter_BIN_Yes" %in% names(df_st5)) &&
+    "AF_atrial_flutter" %in% names(df_st5)) {
+  df_st5$AF_atrial_flutter_BIN_Yes <- yesno_to_bin(df_st5$AF_atrial_flutter)
+}
+##==============================================================================
+## 7. Procedural variables: PCI, CABG, acute revascularisation
+##==============================================================================
+if ("PCI" %in% names(df_st5)) {
+  df_st5$PCI_BIN_Yes <- yesno_to_bin(df_st5$PCI)
+} else {
+  df_st5$PCI_BIN_Yes <- NA_integer_
+}
+
+if ("CABG" %in% names(df_st5)) {
+  df_st5$CABG_BIN_Yes <- yesno_to_bin(df_st5$CABG)
+} else {
+  df_st5$CABG_BIN_Yes <- NA_integer_
+}
+
+if ("Revascularisation_acute" %in% names(df_st5)) {
+  df_st5$Revascularisation_acute_BIN_Yes <-
+    yesno_to_bin(df_st5$Revascularisation_acute)
+} else {
+  df_st5$Revascularisation_acute_BIN_Yes <- NA_integer_
+}
+##==============================================================================
+## 8. Therapy utilisation (binary) and GDMT / polypharmacy score
+##==============================================================================
+med_base <- c("ACE_inhibitor","ARB","ACE_inhibitor_ARB",
+              "Beta_blockers","Aldosterone_antagonist",
+              "Anti_platelet","Anti_coagulant","Lipid_lowering")
+
+# Ensure basic med variables are No/Yes factors
+for (v in intersect(med_base, names(df_st5))) {
+  if (!is.factor(df_st5[[v]]) ||
+      !all(levels(df_st5[[v]]) %in% c("No","Yes"))) {
+    df_st5[[v]] <- factor(df_st5[[v]])
+  }
+}
+
+df_st5 <- df_st5 %>%
+  mutate(
+    # ACE/ARB composite
+    ACE_inhibitor_ARB_BIN_Yes = ifelse(
+      (ACE_inhibitor %in% "Yes") |
+        (ARB %in% "Yes") |
+        (ACE_inhibitor_ARB %in% "Yes"),
+      1L,
+      ifelse(
+        (ACE_inhibitor %in% "No" | is.na(ACE_inhibitor)) &
+          (ARB %in% "No" | is.na(ARB)) &
+          (ACE_inhibitor_ARB %in% "No" | is.na(ACE_inhibitor_ARB)),
+        0L,
+        NA_integer_
+      )
+    ),
+    Beta_blockers_BIN_Yes = ifelse(Beta_blockers %in% "Yes", 1L,
+                                   ifelse(Beta_blockers %in% "No", 0L, NA_integer_)),
+    MRA_BIN_Yes = ifelse(Aldosterone_antagonist %in% "Yes", 1L,
+                         ifelse(Aldosterone_antagonist %in% "No", 0L, NA_integer_)),
+    Anti_platelet_BIN_Yes = ifelse(Anti_platelet %in% "Yes", 1L,
+                                   ifelse(Anti_platelet %in% "No", 0L, NA_integer_)),
+    Anti_coagulant_BIN_Yes = ifelse(Anti_coagulant %in% "Yes", 1L,
+                                    ifelse(Anti_coagulant %in% "No", 0L, NA_integer_)),
+    Lipid_lowering_BIN_Yes = ifelse(Lipid_lowering %in% "Yes", 1L,
+                                    ifelse(Lipid_lowering %in% "No", 0L, NA_integer_))
+  )
+
+# Polypharmacy score and GDMT>=3
+df_st5 <- df_st5 %>%
+  mutate(
+    gdmt_count = rowSums(
+      cbind(
+        ACE_inhibitor_ARB_BIN_Yes,
+        Beta_blockers_BIN_Yes,
+        MRA_BIN_Yes,
+        Anti_platelet_BIN_Yes,
+        Anti_coagulant_BIN_Yes
+      ),
+      na.rm = FALSE # if any NA in these classes -> gdmt_count = NA
+    ),
+    GDMT_BIN_geq3 = ifelse(gdmt_count >= 3, 1L,
+                           ifelse(gdmt_count < 3, 0L, NA_integer_))
+  )
+##==============================================================================
+## 9. Sanity checks for therapy utilisation
+##==============================================================================
+cat("\n[CHECK] Therapy utilisation summary (Study 5 HF cohort):\n")
+for (v in c("ACE_inhibitor_ARB_BIN_Yes","Beta_blockers_BIN_Yes",
+            "MRA_BIN_Yes","Anti_platelet_BIN_Yes",
+            "Anti_coagulant_BIN_Yes","Lipid_lowering_BIN_Yes",
+            "gdmt_count","GDMT_BIN_geq3")) {
+  if (v %in% names(df_st5)) {
+    cat("\n--", v, "--\n")
+    print(table(df_st5[[v]], useNA = "ifany"))
+  }
+}
+##==============================================================================
+## 10. Save Study 5 analysis dataset
+##==============================================================================
+saveRDS(df_st5, "df_study5.rds")
+cat("\n[OK] df_study5.rds saved. n =", nrow(df_st5),
+    "| p =", ncol(df_st5), "\n")
+
+   # [OK] df_study5.rds saved. n = 8887 | p = 141 
+
+# ==============================================================================
+st5 <- readRDS("df_study5.rds")
+names(st5)
+
+# ==============================================================================
+# Prinicpal Outcomes
+c("ACE_inhibitor_ARB_BIN_Yes","Beta_blockers_BIN_Yes",
+  "MRA_BIN_Yes","Anti_platelet_BIN_Yes",
+  "Anti_coagulant_BIN_Yes","Lipid_lowering_BIN_Yes",
+  "gdmt_count","GDMT_BIN_geq3")
+
+# Temporal
+c("Year_index","Year_epoch")
+
+# Labs
+c("eGFR_log1p","eGFR_cat3","NTProBNP_log1p",
+  "Haemoglobin_log1p","Sodium_log1p","Potassium_log1p")
