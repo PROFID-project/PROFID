@@ -1,0 +1,469 @@
+
+##################################################################################################
+##################################################################################################
+# projet: UmBIZO- PROFID_Study4 (SCD post-MI, age- stratified)
+# Script: 06_Risk_factor_identification.R
+# Author: Amina Boudamaana
+# ================================================================================================
+# Project: PROFID Study 4 — Risk-factor identification (age-stratified)
+# Dataset: df_handled_cc (complete-case working table already prepared upstream)
+# Model : Fine-Gray (crr) with SAP rules
+# Steps :
+# 1) Define core vars (always kept) and a candidate list from columns present in df_handled_cc
+# 2) Per age band:
+# - Univariate screen (core + one candidate), keep if p < 0.10 (joint Wald for the candidate)
+# - Check non-linearity for numeric vars; use ns(df=4) when p_nonlinear < 0.05
+# - Fit multivariable model (core + screened vars, with splines where needed)
+# - Backward elimination on non-core variables (joint Wald), keep if p <= 0.10
+# ================================================================================================
+
+suppressPackageStartupMessages({
+  library(cmprsk)
+  library(splines)
+})
+
+# ==========================0) Attach the analysis dataset ==========================================
+stopifnot(exists("df_handled_cc"), is.data.frame(df_handled_cc))
+df <- df_handled_cc
+
+# Time in YEARS (prefer integer months if available)
+if (!"time_years" %in% names(df)) {
+  if ("ftime_mo_int" %in% names(df)) {
+    df$time_years <- as.numeric(df$ftime_mo_int) / 12
+  } else if ("Survival_time" %in% names(df)) {
+    df$time_years <- as.numeric(df$Survival_time) / 12
+  } else stop("No time variable found (need ftime_mo_int or Survival_time).")
+}
+
+# Fine-Gray status coding (1 = SCD of interest, 2 = competing, 0 = censored)
+status_col <- if ("Status" %in% names(df)) "Status" else if ("fstatus" %in% names(df)) "fstatus" else
+  stop("No Status/fstatus column found.")
+cause_code <- 1L; comp_code <- 2L
+df[[status_col]] <- suppressWarnings(as.integer(df[[status_col]]))
+df[[status_col]][!df[[status_col]] %in% c(0L, cause_code, comp_code)] <- 0L
+
+# Age groups (normalize labels)
+norm_age <- function(x){
+  x <- trimws(as.character(x))
+  x <- gsub("\u2264|<=\\s*50.*","<=50", x)
+  x <- gsub("^51\\s*[-–]\\s*65.*","51-65", x)
+  x <- gsub("^66\\s*[-–]\\s*75.*","66-75", x)
+  x <- gsub("^>\\s*75.*",">75", x)
+  factor(x, levels = c("<=50","51-65","66-75",">75"), ordered = TRUE)
+}
+if (!"age_group" %in% names(df) && "age_group_desc" %in% names(df)) df$age_group <- df$age_group_desc
+df$age_group <- norm_age(df$age_group)
+df <- df[!is.na(df$age_group), , drop = FALSE] # drop rows with missing band (rare but safer)
+
+# ===========================1) Small helpers ============================================================================
+pick_present <- function(x, nm = names(df)) intersect(x, nm)
+
+recode_yesno <- function(z){
+  if (is.factor(z)) z <- as.character(z)
+  yes <- c("1","y","Y","yes","Yes","TRUE","true")
+  no <- c("0","n","N","no","No","FALSE","false")
+  out <- ifelse(z %in% yes, "Yes", ifelse(z %in% no, "No", NA))
+  factor(out, levels = c("No","Yes"))
+}
+
+# Canonicalize medication names to avoid duplicates (ACE/ARB and Anticoagulant flags)
+canon_med_cols <- function(d){
+  if (!"ACE_inhibitor_ARB" %in% names(d)) {
+    has <- intersect(c("ACE_inhibitor","ARB"), names(d))
+    if (length(has)) {
+      z <- Reduce(function(a,b) ifelse(is.na(a), b, a),
+                  lapply(has, function(v) recode_yesno(d[[v]])))
+      d$ACE_inhibitor_ARB <- factor(ifelse(z=="Yes","Yes", ifelse(z=="No","No", NA)), levels=c("No","Yes"))
+    }
+  }
+  anti_syn <- intersect(c("Anticoagulant","Anti_coagulant","anti_coagulant","anticoagulant"), names(d))
+  if (length(anti_syn)) {
+    z <- Reduce(function(a,b) ifelse(is.na(a), b, a),
+                lapply(anti_syn, function(v) recode_yesno(d[[v]])))
+    d$Anticoagulant_any <- factor(ifelse(z=="Yes","Yes", ifelse(z=="No","No", NA)), levels=c("No","Yes"))
+    d[anti_syn] <- NULL
+  }
+  d
+}
+df <- canon_med_cols(df)
+
+# Complete-case mask for a variable set
+cc_mask <- function(d, vars){
+  need <- c("time_years", status_col, vars)
+  complete.cases(d[, need, drop = FALSE]) & is.finite(d$time_years) & d$time_years > 0
+}
+
+# Export directory (T: drive if writable; fallback = ./Results_tables)
+ensure_writable <- function(path){
+  ok <- tryCatch({
+    if (!dir.exists(path)) dir.create(path, recursive = TRUE, showWarnings = FALSE)
+    tf <- tempfile(tmpdir = path)
+    writeLines("ok", tf); unlink(tf); TRUE
+  }, error = function(e) FALSE)
+  ok
+}
+TAB_DIR <- "T:/study_4/Results_tables"
+if (!ensure_writable(TAB_DIR)) TAB_DIR <- file.path(getwd(), "Results_tables")
+invisible(ensure_writable(TAB_DIR))
+message("[Export] writing CSVs to: ", normalizePath(TAB_DIR, winslash = "/", mustWork = FALSE))
+wcsv <- function(x, name){
+  if (is.null(x) || !NROW(x)) return(invisible(FALSE))
+  fn <- file.path(TAB_DIR, name)
+  utils::write.csv(x, fn, row.names = FALSE)
+  message(" - wrote ", basename(fn))
+  TRUE
+}
+
+# ====================== 2) SAP thresholds =========================================================================
+P_SCREEN <- 0.10 # univariate screen threshold (candidate added to core)
+P_KEEP <- 0.10 # backward keep threshold (joint Wald)
+DF_SPLINE <- 4L # degrees of freedom when a numeric var is non-linear
+NLIN_P <- 0.05 # non-linearity test p-value
+MIN_EV <- 5L # minimum SCD events per band (after CC)
+MIN_N <- 50L # minimum complete-case sample size per band
+
+# (Computation-only scaling for numerical stability)
+SCALE_NUM <- TRUE
+z_params <- function(x){ x <- as.numeric(x); x <- x[is.finite(x)]
+m <- stats::median(x, na.rm=TRUE); s <- stats::IQR(x, na.rm=TRUE)
+if (!is.finite(s) || s <= 0) s <- stats::sd(x, na.rm=TRUE)
+if (!is.finite(s) || s <= 0) s <- 1
+if (isFALSE(SCALE_NUM)) s <- 1
+list(center=m, scale=s)
+}
+z_transform <- function(v, par) as.numeric((v - par$center) / par$scale)
+
+#========================== 3) Design builders (linear or spline), robust crr fitting, and tests ==================
+build_design <- function(d, spec){
+  stopifnot(is.list(spec), length(spec) > 0)
+  cols <- list(); map <- list(); cn <- character(0); zmap <- list(); k <- 0L
+  for (v in names(spec)){
+    if (!v %in% names(d)) next
+    vv <- d[[v]]
+    if (is.numeric(vv) || is.integer(vv)){
+      par <- z_params(vv); zmap[[v]] <- par
+      xnum <- z_transform(vv, par)
+      if (identical(spec[[v]]$type, "spline")){
+        B <- splines::ns(xnum, df = spec[[v]]$df); B <- as.matrix(B)
+        cols[[v]] <- B
+        idx <- seq_len(ncol(B)) + k; k <- k + ncol(B); map[[v]] <- idx
+        cn <- c(cn, paste0("ns(", v, ",", spec[[v]]$df, ")[", seq_len(ncol(B)), "]"))
+      } else {
+        cols[[v]] <- cbind(xnum)
+        idx <- (k + 1L); k <- k + 1L; map[[v]] <- idx
+        cn <- c(cn, v)
+      }
+    } else { # factors
+      f <- factor(vv)
+      if (nlevels(f) <= 1L) next
+      M <- model.matrix(~ f)[, -1, drop = FALSE]
+      cols[[v]] <- M
+      idx <- seq_len(ncol(M)) + k; k <- k + ncol(M); map[[v]] <- idx
+      cn <- c(cn, paste0(v, levels(f)[-1]))
+    }
+  }
+  X <- if (length(cols)) do.call(cbind, cols) else matrix(0, nrow = nrow(df), ncol = 0)
+  colnames(X) <- cn
+  list(X = X, map = map, colnames = cn)
+}
+
+prune_X <- function(X, tol = 1e-8){
+  if (is.null(X) || !is.matrix(X) || !ncol(X)) return(list(X = X, keep = integer(0)))
+  sds <- apply(X, 2, function(z) stats::sd(z, na.rm = TRUE))
+  keep <- which(is.finite(sds) & sds > 0)
+  X1 <- if (length(keep)) X[, keep, drop=FALSE] else X[, integer(0), drop=FALSE]
+  if (!ncol(X1)) return(list(X = X1, keep = integer(0)))
+  QR <- qr(X1, tol = tol); keep2 <- QR$pivot[seq_len(QR$rank)]
+  list(X = X1[, keep2, drop = FALSE], keep = keep[keep2])
+}
+
+safe_crr <- function(t, status, X, failcode = 1L, cencode = 0L, max_prune = 3){
+  if (!is.matrix(X) || ncol(X) == 0) {
+    fit0 <- cmprsk::crr(ftime = t, fstatus = status, cov1 = NULL,
+                        failcode = failcode, cencode = cencode,
+                        maxiter = 100, variance = TRUE)
+    fit0$coef <- numeric(0); fit0$var <- matrix(,0,0); fit0$._cols_used <- integer(0)
+    return(fit0)
+  }
+  tried <- 0L; cols_keep <- seq_len(ncol(X)); Xcur <- X
+  repeat{
+    fit <- try(cmprsk::crr(ftime = t, fstatus = status, cov1 = Xcur,
+                           failcode = failcode, cencode = cencode,
+                           maxiter = 100, variance = TRUE), silent = TRUE)
+    if (!inherits(fit, "try-error")) { fit$._cols_used <- cols_keep; return(fit) }
+    if (tried >= max_prune || ncol(Xcur) <= 1L) return(fit)
+    pr <- prune_X(Xcur)
+    if (!ncol(pr$X) || length(pr$keep) == ncol(Xcur)) return(fit)
+    Xcur <- pr$X; cols_keep <- cols_keep[pr$keep]; tried <- tried + 1L
+  }
+}
+
+align_design_to_fit <- function(des, fit){
+  keep <- fit$._cols_used
+  if (is.null(keep)) return(des)
+  if (!length(keep)) {
+    des$X <- matrix(, nrow = nrow(des$X), ncol = 0)
+    des$colnames <- character(0)
+    for (v in names(des$map)) des$map[[v]] <- integer(0)
+    return(des)
+  }
+  des$X <- des$X[, keep, drop = FALSE]
+  des$colnames <- colnames(des$X)
+  new_map <- des$map
+  for (v in names(des$map)){
+    idx <- des$map[[v]]
+    new_idx <- match(idx, keep)
+    new_map[[v]] <- new_idx[!is.na(new_idx)]
+  }
+  des$map <- new_map; des
+}
+
+wald_p_block <- function(fit, idx){
+  if (length(idx) == 0) return(NA_real_)
+  V <- try(fit$var, silent = TRUE); b <- try(as.numeric(fit$coef), silent = TRUE)
+  if (inherits(V,"try-error") || inherits(b,"try-error")) return(NA_real_)
+  if (length(b) == 0) return(NA_real_)
+  b <- b[idx]; V <- V[idx, idx, drop = FALSE]
+  if (length(b) == 1L) {
+    z2 <- (b^2) / V[1,1]; return(stats::pchisq(z2, df = 1, lower.tail = FALSE))
+  } else {
+    z2 <- try(as.numeric(t(b) %*% solve(V, b)), silent = TRUE)
+    if (inherits(z2,"try-error") || !is.finite(z2)) return(NA_real_)
+    return(stats::pchisq(z2, df = length(b), lower.tail = FALSE))
+  }
+}
+
+splines_used_log <- function(map, var_names){
+  if (!length(var_names)) return(logical(0))
+  sapply(var_names, function(v){
+    idx <- map[[v]]
+    isTRUE(!is.null(idx) && length(idx) > 1L)
+  })
+}
+
+coef_table <- function(fit, band, colnames_used){
+  if (length(fit$coef) == 0) {
+    return(data.frame(age_band = band, term = character(0), SHR = numeric(0),
+                      LCL_95 = numeric(0), UCL_95 = numeric(0), p_value = numeric(0)))
+  }
+  b <- as.numeric(fit$coef); se <- sqrt(diag(fit$var)); z <- b/se; p <- 2*pnorm(-abs(z))
+  data.frame(
+    age_band = band,
+    term = colnames_used,
+    SHR = exp(b),
+    LCL_95 = exp(b - 1.96*se),
+    UCL_95 = exp(b + 1.96*se),
+    p_value = p,
+    check.names = FALSE
+  )
+}
+# ============================ 4) Variables per SAP =========================================================
+# Core variables (always kept if present)
+core_vars <- pick_present(c("LVEF","eGFR","Diabetes","ACE_inhibitor_ARB","Beta_blockers","Lipid_lowering"))
+
+# Candidate list (only those present in df)
+af_col <- pick_present(c("AF_any","AF_atrial_flutter"))[1]
+candidates_all <- pick_present(unique(na.omit(c(
+  "Hypertension","HF","BMI","Haemoglobin","Cholesterol","CRP_log1p",
+  "Smoking","Alcohol","Sex", af_col, "Anticoagulant_any"
+))))
+
+# ============================5) Containers for exports =======================================================
+final_summary <- list()
+shr_tabs <- list()
+var_tests_all <- list()
+splines_used <- list()
+
+# =============================6) Loop by age band =============================================================
+for (b in levels(df$age_group)) {
+  cat("\n================ AGE BAND:", b, "================\n")
+  d_b <- df[df$age_group == b, , drop = FALSE]
+  
+  # --- Univariate screen: core + one candidate (linear) ----
+  keep_screen <- character(0)
+  cand <- setdiff(candidates_all, core_vars)
+  for (v in cand){
+    vars <- unique(c(core_vars, v))
+    mm <- cc_mask(d_b, vars); if (!any(mm)) next
+    dd <- d_b[mm, , drop = FALSE]
+    ev <- sum(dd[[status_col]] == cause_code)
+    if (nrow(dd) < MIN_N || ev < MIN_EV) next
+    spec <- setNames(rep(list(list(type = "linear")), length(vars)), vars)
+    des <- build_design(dd, spec)
+    fit <- safe_crr(dd$time_years, dd[[status_col]], des$X, failcode = cause_code, cencode = 0L)
+    if (inherits(fit, "try-error")) next
+    p <- wald_p_block(fit, des$map[[v]])
+    if (is.finite(p) && p < P_SCREEN) keep_screen <- c(keep_screen, v)
+  }
+  keep_screen <- unique(keep_screen)
+  
+  # --- Build viable set (meet CC N and events) ----
+  current_all <- unique(c(core_vars, keep_screen))
+  mm_all <- cc_mask(d_b, current_all)
+  dd <- d_b[mm_all, , drop = FALSE]
+  ev <- sum(dd[[status_col]] == cause_code)
+  if (nrow(dd) < MIN_N || ev < MIN_EV) {
+    cat("Not enough complete cases/events; skipping band.\n")
+    next
+  }
+  
+  # --- Non-linearity check among numeric vars present ----
+  numeric_check <- intersect(c("LVEF","eGFR","BMI","Haemoglobin","Cholesterol","CRP_log1p"), current_all)
+  spline_flag <- setNames(as.list(rep(FALSE, length(current_all))), current_all)
+  for (v in numeric_check){
+    spec <- setNames(rep(list(list(type = "linear")), length(current_all)), current_all)
+    spec[[v]] <- list(type = "spline", df = DF_SPLINE)
+    des_v <- build_design(dd, spec)
+    fit_v <- safe_crr(dd$time_years, dd[[status_col]], des_v$X, failcode = cause_code, cencode = 0L)
+    if (inherits(fit_v, "try-error")) next
+    des_v <- align_design_to_fit(des_v, fit_v)
+    idx <- des_v$map[[v]]
+    if (length(idx) > 1L) {
+      p_nl <- wald_p_block(fit_v, idx[-1])
+      if (is.finite(p_nl) && p_nl < NLIN_P) spline_flag[[v]] <- TRUE
+    }
+  }
+  
+  # --- Initial multivariable model (respect splines) ----
+  spec0 <- setNames(rep(list(list(type = "linear")), length(current_all)), current_all)
+  for (v in names(spline_flag)) if (isTRUE(spline_flag[[v]])) spec0[[v]] <- list(type = "spline", df = DF_SPLINE)
+  des0 <- build_design(dd, spec0)
+  fit0 <- safe_crr(dd$time_years, dd[[status_col]], des0$X, failcode = cause_code, cencode = 0L)
+  if (inherits(fit0, "try-error")) { cat("crr failed after design build; skipping band.\n"); next }
+  des0 <- align_design_to_fit(des0, fit0)
+  
+  # --- Backward elimination on non-core variables (joint Wald) ----
+  vars_keep <- current_all[sapply(des0$map[current_all], function(ix) length(ix) > 0)]
+  des_cur <- des0; fit_cur <- fit0
+  repeat {
+    if (!length(vars_keep)) break
+    p_map <- sapply(vars_keep, function(v) wald_p_block(fit_cur, des_cur$map[[v]]))
+    droppables <- setdiff(vars_keep, core_vars)
+    if (!length(droppables)) break
+    worst <- droppables[which.max(ifelse(is.finite(p_map[droppables]), p_map[droppables], -1))]
+    if (!is.finite(p_map[worst]) || p_map[worst] <= P_KEEP) break
+    # refit without the worst variable
+    vars_keep <- setdiff(vars_keep, worst)
+    spec_new <- setNames(rep(list(list(type = "linear")), length(vars_keep)), vars_keep)
+    for (v in vars_keep) if (isTRUE(spline_flag[[v]])) spec_new[[v]] <- list(type = "spline", df = DF_SPLINE)
+    des_new <- build_design(dd, spec_new)
+    fit_new <- safe_crr(dd$time_years, dd[[status_col]], des_new$X, failcode = cause_code, cencode = 0L)
+    if (inherits(fit_new,"try-error")) { vars_keep <- union(vars_keep, worst); break }
+    des_new <- align_design_to_fit(des_new, fit_new)
+    vars_keep <- vars_keep[sapply(des_new$map[vars_keep], function(ix) length(ix) > 0)]
+    des_cur <- des_new; fit_cur <- fit_new
+  }
+  
+  # --- Exports per band ----
+  shr_tab <- coef_table(fit_cur, b, colnames(des_cur$X))
+  shr_tabs[[length(shr_tabs)+1]] <- shr_tab
+  
+  vt <- data.frame(
+    age_band = b,
+    variable = vars_keep,
+    p_joint = sapply(vars_keep, function(v) wald_p_block(fit_cur, des_cur$map[[v]])),
+    stringsAsFactors = FALSE
+  )
+  var_tests_all[[length(var_tests_all)+1]] <- vt
+  
+  sp_log <- splines_used_log(des_cur$map, vars_keep)
+  sp_txt <- if (any(sp_log)) paste(vars_keep[sp_log], collapse = ", ") else "none"
+  EPV <- sum(dd[[status_col]] == cause_code) / max(1, ncol(des_cur$X))
+  
+  final_summary[[b]] <- data.frame(
+    age_band = b,
+    N_CC = nrow(dd),
+    SCD = sum(dd[[status_col]] == cause_code),
+    EPV = round(EPV, 1),
+    n_vars = length(vars_keep),
+    vars = paste(vars_keep, collapse = ", "),
+    splines = sp_txt,
+    stringsAsFactors = FALSE
+  )
+  splines_used[[b]] <- data.frame(age_band = b, variable = vars_keep, spline = sp_log)
+  
+  # write per-band SHR CSV
+  if (NROW(shr_tab)) {
+    fn <- paste0("SHR_", gsub("[^A-Za-z0-9]+","_", b), ".csv")
+    wcsv(shr_tab, fn)
+  }
+}
+
+# ================================7) Write stacked tables ===========================================================
+final_summary_df <- if (length(final_summary)) do.call(rbind, final_summary) else NULL
+shr_all_df <- if (length(shr_tabs)) do.call(rbind, shr_tabs) else NULL
+var_tests_df <- if (length(var_tests_all)) do.call(rbind, var_tests_all) else NULL
+splines_used_df <- if (length(splines_used)) do.call(rbind, splines_used) else NULL
+
+wcsv(final_summary_df, "final_summary_crr.csv")
+wcsv(shr_all_df, "SHR_all_bands.csv")
+wcsv(var_tests_df, "var_level_tests.csv")
+wcsv(splines_used_df, "splines_used.csv")
+
+message("[Done] All Fine-Gray risk-factor CSV files written to: ",
+        normalizePath(TAB_DIR, winslash = "/", mustWork = FALSE))
+
+## ====================================================================================================================
+# (Optional)  COX cause-specific risk-factor tables mirroring the same rules,
+# uncomment the block below. Outputs: final_summary_cox.csv, HR_all_bands_cox.csv, HR_cox_<band>.csv
+# =====================================================================================================================
+# suppressPackageStartupMessages(library(survival))
+# event_cs <- as.integer(df[[status_col]] == cause_code)
+# cox_final <- list(); cox_hr_all <- list()
+# for (b in levels(df$age_group)) {
+# d_b <- df[df$age_group==b, , drop=FALSE]
+# current_all <- unique(c(core_vars, candidates_all))
+# mm <- cc_mask(d_b, current_all); if (!any(mm)) next
+# dd <- d_b[mm, , drop=FALSE]
+# if (nrow(dd) < MIN_N || sum(event_cs[mm]==1) < MIN_EV) next
+# # quick nonlinearity tagging (df=4) for numeric present
+# present_num <- intersect(c("LVEF","eGFR","BMI","Haemoglobin","Cholesterol","CRP_log1p"), current_all)
+# nl_set <- character(0)
+# for (v in present_num) {
+# f_lin <- as.formula(paste0("Surv(time_years, event_cs[mm]) ~ ", v))
+# f_spl <- as.formula(paste0("Surv(time_years, event_cs[mm]) ~ splines::ns(", v, ", df=4)"))
+# fit_lin <- try(coxph(f_lin, data = dd), silent=TRUE)
+# fit_spl <- try(coxph(f_spl, data = dd), silent=TRUE)
+# if (!inherits(fit_lin,"try-error") && !inherits(fit_spl,"try-error")) {
+# a <- anova(fit_lin, fit_spl, test="Chisq"); p_nl <- tail(a[,"P(>|Chi|)"], 1)
+# if (is.finite(p_nl) && p_nl < NLIN_P) nl_set <- c(nl_set, v)
+# }
+# }
+# rhs <- vapply(current_all, function(v){
+# if (v %in% nl_set) paste0("splines::ns(", v, ", df=4)") else v
+# }, character(1))
+# fit <- try(coxph(as.formula(paste("Surv(time_years, event_cs[mm]) ~", paste(rhs, collapse=" + "))),
+# data=dd, ties="efron", x=TRUE), silent=TRUE)
+# if (inherits(fit,"try-error")) next
+# # backward using drop1 (never remove core terms)
+# repeat {
+# dr <- try(drop1(fit, test="Chisq"), silent=TRUE)
+# if (inherits(dr,"try-error")) break
+# tt <- rownames(dr); tt <- tt[tt!="<none>"]; if (!length(tt)) break
+# term_to_var <- sub("^splines::ns\\(([^,]+).*$","\\1", tt)
+# droppables <- tt[!(term_to_var %in% core_vars)]; if (!length(droppables)) break
+# pvals <- dr[droppables, "Pr(>Chi)"]
+# worst <- droppables[ which.max(ifelse(is.finite(pvals), pvals, -1)) ]
+# if (!is.finite(pvals[worst]) || pvals[worst] <= P_KEEP) break
+# fit <- update(fit, as.formula(paste(". ~ . -", worst)))
+# }
+# s <- summary(fit)
+# hr_tab <- data.frame(
+# age_band = b,
+# term = rownames(s$coefficients),
+# HR = exp(s$coefficients[,"coef"]),
+# LCL_95 = exp(s$coefficients[,"coef"] - 1.96*s$coefficients[,"se(coef)"]),
+# UCL_95 = exp(s$coefficients[,"coef"] + 1.96*s$coefficients[,"se(coef)"]),
+# p_value = s$coefficients[,"Pr(>|z|)"], check.names = FALSE
+# )
+# cox_hr_all[[length(cox_hr_all)+1]] <- hr_tab
+# cox_final[[b]] <- data.frame(age_band=b, N_CC=nrow(dd),
+# SCD=sum(event_cs[mm]==1), n_terms=nrow(hr_tab),
+# terms=paste(hr_tab$term, collapse=", "))
+# if (NROW(hr_tab)) wcsv(hr_tab, paste0("HR_cox_", gsub("[^A-Za-z0-9]+","_", b), ".csv"))
+# }
+# COX_HR_ALL <- if (length(cox_hr_all)) do.call(rbind, cox_hr_all) else NULL
+# COX_SUM <- if (length(cox_final)) do.call(rbind, cox_final) else NULL
+# wcsv(COX_HR_ALL, "HR_all_bands_cox.csv")
+# wcsv(COX_SUM, "final_summary_cox.csv")
+# message("[Done] Optional COX CSVs written.")

@@ -1,0 +1,428 @@
+########################################################################################################################
+########################################################################################################################
+# projet: UmBIZO- PROFID_Study4 (SCD post-MI, age- stratified)
+# Script: 04_Competing_risk_analysis.R
+# Author: Amina Boudamaana
+# Date: 2025-10-24
+# 
+# ====================================================================================================
+# Study 4 —  CIF (univariate by age) + model multivariable
+# - CIF curves by age (cause=1 SCD, competing=2)
+## Input required: df_handled with columns: ftime_mo_int, fstatus (0/1/2), age_group
+# - CIF at fixed horizon = 36 months (bar chart)
+# ====================================================================================================
+
+suppressPackageStartupMessages({
+  library(cmprsk)
+})
+
+## ---------- 0) Output folders (fall back locally if T: is not writable)
+choose_dir <- function(primary, sub = "Results"){
+  if (dir.exists(primary) && file.access(primary, 2) == 0) return(primary) 
+  loc <- file.path(getwd(), sub); dir.create(loc, recursive = TRUE, showWarnings = FALSE); loc
+}
+TAB_DIR <- choose_dir("T:/study_4/Results_tables", "Results_tables")
+FIG_DIR <- choose_dir("T:/study_4/Results_graph", "Results_graph")
+message(sprintf("[IO] Tables -> %s", normalizePath(TAB_DIR, winslash = "/")))
+message(sprintf("[IO] Figures -> %s", normalizePath(FIG_DIR, winslash = "/")))
+
+## ---------- 1) Minimal checks + harmonise age order
+stopifnot(exists("df_handled"),
+          all(c("ftime_mo_int","fstatus","age_group") %in% names(df_handled)))
+canon <- c("<=50","51-65","66-75",">75")
+df_handled$age_group <- factor(as.character(df_handled$age_group), levels = canon, ordered = FALSE)
+
+## ====================================================================================================
+## A) UNIVARIATE Fine-Gray by age: CIF at 12, 36, 60 months
+## ====================================================================================================
+
+PRIMARY <- 36L
+TIMES <- c(12L, 36L, 60L)
+
+# 1) CIF object (SCD = 1, competing = 2)
+cif_age <- cmprsk::cuminc(
+  ftime = df_handled$ftime_mo_int,
+  fstatus = df_handled$fstatus,
+  group = df_handled$age_group,
+  cencode = 0L
+)
+
+# 2) Gray's test p-value (for cause 1)
+p_gray <- tryCatch({
+  rn <- rownames(cif_age$Tests); j <- which(rn %in% c("1","SCD","SCD 1"))
+  as.numeric(cif_age$Tests[j[1], "pv"])
+}, error = function(e) NA_real_)
+
+# 3) Helper to extract CIF at a given t
+get_at <- function(obj, t){
+  j <- max(which(obj$time <= t)); if (length(j)) obj$est[j] else NA_real_
+}
+
+# 4) Wide table of CIFs at 12/36/60 for each age group
+ag <- levels(df_handled$age_group)
+key_for <- function(g){
+  nm1 <- paste0(g, " 1"); nm2 <- paste0(g, ",1")
+  if (nm1 %in% names(cif_age)) nm1 else if (nm2 %in% names(cif_age)) nm2 else NA_character_
+}
+grab_cif <- function(t) vapply(ag, function(g){
+  k <- key_for(g); if (is.na(k)) return(NA_real_); get_at(cif_age[[k]], t)
+}, numeric(1))
+
+tab_cif <- data.frame(
+  age_group = ag,
+  CIF_12 = grab_cif(12L),
+  CIF_36 = grab_cif(36L),
+  CIF_60 = grab_cif(60L),
+  CIF_12_pct = round(100*grab_cif(12L), 2),
+  CIF_36_pct = round(100*grab_cif(36L), 2),
+  CIF_60_pct = round(100*grab_cif(60L), 2),
+  stringsAsFactors = FALSE, row.names = NULL, check.names = FALSE
+)
+
+# 5) Save tables (wide + separate for the primary horizon = 36m)
+utils::write.csv(tab_cif, file.path(TAB_DIR, "FG_UNI_CIF_by_age_12_36_60m.csv"), row.names = FALSE)
+utils::write.csv(tab_cif[c("age_group","CIF_36","CIF_36_pct")],
+                 file.path(TAB_DIR, "FG_UNI_CIF_by_age_36m_PRIMARY.csv"), row.names = FALSE)
+# ===============================================================================================================
+##  Figures:
+# ===============================================================================================================
+# (i) CIF curves by age (step plot) with Gray p-value
+png(file.path(FIG_DIR, "FG_UNI_CIF_curves_by_age.png"), width = 1600, height = 1200, res = 200)
+pal <- c("black", "#3B78E7", "#2AA876", "#D55E00")
+lty <- c(1,2,3,4); pch <- c(16,17,15,18)
+nm <- names(cif_age); idx1 <- grep(" 1$", nm); ag_n <- sub(" 1$", "", nm[idx1])
+ord <- match(ag, ag_n); idx1 <- idx1[ord]
+x_max <- quantile(df_handled$ftime_mo_int, 0.99, na.rm = TRUE)
+par(mar = c(5.2,5.6,4.2,1))
+plot(NA, xlim = c(0, x_max), ylim = c(0, 6),
+     xlab = "Follow-up (months)", ylab = "Cumulative incidence of SCD (%)",
+     main = sprintf("CIF of SCD by age group (Gray's test p = %s)",
+                    ifelse(is.na(p_gray), "NA", format.pval(p_gray, digits = 3))))
+grid(col = "grey90")
+for (j in seq_along(idx1)) {
+  i <- idx1[j]; x <- cif_age[[i]]$time; y <- 100 * cif_age[[i]]$est
+  lines(x, y, type = "s", lwd = 1.8, lty = lty[j], col = pal[j])
+  points(x, y, pch = pch[j], cex = 0.45, col = pal[j])
+}
+legend("topleft", inset = 0.01, title = "Age group",
+       legend = ag, col = pal, lwd = 2, lty = lty, pch = pch, bty = "n")
+dev.off()
+
+# (ii) Barplots at 12, 36, and 60 months (percent)
+mk_bar <- function(t_months, file){
+  y <- round(100*grab_cif(t_months), 2)
+  png(file.path(FIG_DIR, file), width = 1600, height = 1200, res = 200)
+  par(mar = c(5.6,6.2,4.6,1))
+  bp <- barplot(height = y, names.arg = ag, ylim = c(0, max(y, na.rm=TRUE)*1.25),
+                ylab = sprintf("CIF of SCD at %d months (%%)", t_months),
+                xlab = "Age group",
+                main = sprintf("CIF at %d months by age group (univariate)", t_months),
+                col = "grey90", border = "grey30")
+  grid(col = "grey85"); text(x = bp, y = y, labels = paste0(y, "%"), pos = 3, cex = 1.1)
+  dev.off()
+}
+mk_bar(12L, "FG_UNI_CIF_12m_by_age.png")
+mk_bar(36L, "FG_UNI_CIF_36m_by_age_PRIMARY.png")
+mk_bar(60L, "FG_UNI_CIF_60m_by_age.png")
+
+# ======================================================================================================
+# – CIF snapshots at 12/36/60 months by age (univariate)
+## =====================================================================================================
+
+# M : matrix % (rows = age groups, cols = c("12 months","36 months","60 months"))
+
+## --- Build M = 4(age groups) x 3(horizons) matrix of CIF(%) ----------------
+canon <- c("<=50","51-65","66-75",">75")
+
+# Try to build M from what's already available (tab_cif in memory, or CSV, or vectors)
+M <- NULL
+
+# 1) If we still have the wide table in memory
+if (exists("tab_cif")) {
+  # expected columns: age_group, CIF_12_pct, CIF_36_pct, CIF_60_pct
+  ii <- match(canon, as.character(tab_cif$age_group))
+  M <- as.matrix(tab_cif[ii, c("CIF_12_pct","CIF_36_pct","CIF_60_pct")])
+  
+  # 2) Otherwise, read the file we saved earlier
+} else if (exists("TAB_DIR") && file.exists(file.path(TAB_DIR, "FG_UNI_CIF_by_age_12_36_60m.csv"))) {
+  tab_cif <- read.csv(file.path(TAB_DIR, "FG_UNI_CIF_by_age_12_36_60m.csv"),
+                      check.names = FALSE)
+  ii <- match(canon, as.character(tab_cif$age_group))
+  M <- as.matrix(tab_cif[ii, c("CIF_12_pct","CIF_36_pct","CIF_60_pct")])
+  
+  # 3) Last resort: use the three named vectors we computed earlier
+} else if (all(c("CIF_12_pct","CIF_36_pct","CIF_60_pct") %in% ls())) {
+  M <- cbind("CIF_12_pct" = CIF_12_pct[canon],
+             "CIF_36_pct" = CIF_36_pct[canon],
+             "CIF_60_pct" = CIF_60_pct[canon])
+}
+
+stopifnot(!is.null(M)) # fail fast if nothing found
+rownames(M) <- canon
+colnames(M) <- c("12 months","36 months","60 months")
+storage.mode(M) <- "double"
+# 1) Force the canonical age order
+stopifnot(all(rownames(M) %in% canon))
+M <- M[canon, , drop = FALSE]
+stopifnot(identical(rownames(M), canon))
+
+# 2) Plot (colorblind-friendly colors by horizon)
+par(mar = c(6.5, 5.5, 4.5, 1))
+cols <- sapply(c("#56B4E9","#009E73","#D55E00"), function(z) adjustcolor(z, alpha.f = 0.85))
+
+
+bp <- barplot(height = t(M),
+              beside = TRUE,
+              col = cols,
+              border = "grey30", lwd = 0.8,
+              ylim = c(0, max(M, na.rm = TRUE) * 1.3),
+              ylab = "CIF of SCD (%)",
+              xlab = "",
+              main = "CIF at 12, 36 and 60 months by age group (univariate)",
+              space = c(0.25, 1.25))
+
+grid(col = "grey85")
+abline(h = 0, col = "grey60")
+
+# Centers for clean X-axis labels
+centers <- colMeans(bp)
+axis(1, at = centers, labels = rownames(M), tick = FALSE)
+mtext("Age group", side = 1, line = 4)
+
+# Value labels on the bars
+text(x = as.vector(bp),
+     y = as.vector(t(M)),
+     labels = sprintf("%.2f%%", as.vector(t(M))),
+     pos = 3, cex = 0.9)
+
+legend("topleft", inset = 0.01, title = "Horizon",
+       legend = colnames(M), fill = cols, border = NA, bty = "n")
+## --------------------------------------------------------------------------------------
+## A) Grouped bars – X axis = age groups (3 bars per age)
+## --------------------------------------------------------------------------------------
+par(mar = c(5.5, 5.5, 4, 1))
+cols <- c("#a6a6a6", "#bfbfbf", "#d9d9d9") # neutral greys (12/36/60)
+bp <- barplot(height = t(M), beside = TRUE, col = cols,
+              ylim = c(0, max(M, na.rm = TRUE) * 1.25),
+              xaxt = "n",
+              ylab = "CIF of SCD (%)",
+              xlab = "Age group",
+              main = "CIF at 12, 36 and 60 months by age group (univariate)")
+grid(col = "grey85")
+
+# Centered labels for the 4 age groups
+centers <- colMeans(matrix(bp, nrow = ncol(M), byrow = TRUE))
+axis(1, at = centers, labels = rownames(M))
+
+# Value labels on top of each bar
+text(x = bp, y = as.vector(t(M)),
+     labels = sprintf("%.2f%%", as.vector(t(M))),
+     pos = 3, cex = 0.85)
+
+legend("topleft", inset = 0.01, title = "Horizon",
+       legend = colnames(M), fill = cols, bty = "n")
+
+## ---------------------------------------------------------------------------------------------
+## B) Lines over time – one line per age group (colored)
+## --------------------------------------------------------------------------------------------
+## --- make sure 'times' exists and matches M ---
+if (!exists("times")) {
+  times <- if (exists("TIMES")) TIMES else c(12, 36, 60)
+}
+if (exists("M")) {
+ 
+  if (length(times) != ncol(M)) {
+    times <- suppressWarnings(as.numeric(sub(" .*", "", colnames(M))))
+  }
+  ord <- order(times); times <- times[ord]; M <- M[, ord, drop = FALSE]
+}
+par(mar = c(5.5, 5.5, 4, 1))
+pal <- c("black", "#3B78E7", "#2AA876", "#D55E00") # <=50, 51–65, 66–75, >75
+pch <- c(16, 17, 15, 18)
+lty <- c(1, 2, 3, 4)
+
+ylim_max <- max(M, na.rm = TRUE) * 1.2
+plot(NA, xlim = range(times), ylim = c(0, ylim_max),
+     xlab = "TIMES since MI (months)",
+     ylab = "CIF of SCD (%)",
+     main = "CIF at 12, 36 and 60 months by age group (univariate)")
+grid(col = "grey90")
+
+for (g in seq_len(nrow(M))) {
+  y <- as.numeric(M[g, ])
+  lines(times, y, type = "b", lwd = 2, col = pal[g], pch = pch[g], lty = lty[g])
+}
+
+legend("topleft", inset = 0.01, title = "Age group",
+       legend = rownames(M), col = pal, pch = pch, lty = lty, bty = "n")
+
+
+# --- Stacked bars: SCD vs non-SCD at 36 months (by age group) — slimmer bars + x-axis label ---
+library(cmprsk)
+
+canon <- c("<=50","51-65","66-75",">75")
+df_handled$age_group <- factor(as.character(df_handled$age_group), levels = canon)
+
+cif <- cuminc(ftime = df_handled$ftime_mo_int,
+              fstatus = df_handled$fstatus, # 0=censor, 1=SCD, 2=non-SCD
+              group = df_handled$age_group, cencode = 0)
+
+get_at <- function(obj, t){ j <- max(which(obj$time <= t)); if (length(j)) obj$est[j] else NA_real_ }
+ag <- levels(df_handled$age_group); tfix <- 36L
+
+tab36 <- sapply(ag, function(g){
+  k1 <- if (paste0(g," 1") %in% names(cif)) paste0(g," 1") else paste0(g,",1")
+  k2 <- if (paste0(g," 2") %in% names(cif)) paste0(g," 2") else paste0(g,",2")
+  c(SCD = 100*get_at(cif[[k1]], tfix), `Non-SCD` = 100*get_at(cif[[k2]], tfix))
+})
+tab36 <- tab36[c("SCD","Non-SCD"), , drop = FALSE]
+
+scd_col <- "#3B78E7"
+nonscd_col <- "#9E9E9E"
+
+par(mar = c(6.5, 5, 4, 1))
+bp <- barplot(tab36, beside = FALSE,
+              col = c(scd_col, nonscd_col),
+              border = "grey40",
+              width = 0.55, # <-- slimmer bars
+              space = 0.7, # <-- more space between age groups
+              ylim = c(0, max(colSums(tab36), na.rm = TRUE) * 1.15),
+              ylab = "Cumulative incidence at 36 months (%)",
+              main = "Cumulative Incidence (CIF) at 36 months: SCD vs non-SCD  by age group")
+
+axis(1, at = bp, labels = ag, tick = FALSE) # age groups along x
+mtext("Age group", side = 1, line = 3.2) # <-- explicit x-axis label
+grid(col = "grey90")
+legend("topleft", fill = c(scd_col, nonscd_col),
+       legend = rownames(tab36), bty = "n")
+
+# Value labels
+scd_vals <- tab36["SCD", ]
+nonscd_vals <- tab36["Non-SCD", ]
+total_vals <- scd_vals + nonscd_vals
+
+text(x = bp, y = scd_vals/2,
+     labels = sprintf("SCD %.2f%%", scd_vals), cex = 0.9)
+text(x = bp, y = scd_vals + nonscd_vals/2,
+     labels = sprintf("non-SCD %.2f%%", nonscd_vals), cex = 0.9)
+text(x = bp, y = total_vals, pos = 3,
+     labels = sprintf("Total %.2f%%", total_vals), cex = 0.95)
+
+mtext("Competing risks framework; cause of interest = SCD; competing = non-SCD.",
+      side = 1, line = 4.8, cex = 0.85)
+
+## ===============================================================================================
+## B) MULTIVARIABLE Fine-Gray (same covariates as Cox)
+## ==============================================================================================
+
+# 1) Define covariates (continuous scaled per 1 SD + binaries), age ref = <=50
+cov_cont <- c("LVEF","eGFR","BMI","Haemoglobin")
+cov_bin <- c("Diabetes","Hypertension","ACE_inhibitor","ARB","Anti_coagulant")
+rhs_vars <- c("age_group", cov_cont, cov_bin)
+
+need <- unique(c("ftime_mo_int","fstatus", rhs_vars))
+df_handled_cc <- df_handled[ complete.cases(df_handled[, need]), need, drop = FALSE ]
+
+# scale continuous covariates (per 1 SD)
+for (v in cov_cont) if (v %in% names(df_handled_cc))
+  df_handled_cc[[v]] <- as.numeric(scale(df_handled_cc[[v]]))
+
+# Design matrix (no intercept; factor age_group uses <=50 as reference)
+form_multi <- as.formula(paste("~", paste(rhs_vars, collapse = " + ")))
+X_multi <- model.matrix(form_multi, data = df_handled_cc)[, -1, drop = FALSE]
+
+# Fit Fine-Gray
+fit_fg_multi <- cmprsk::crr(ftime = df_handled_cc$ftime_mo_int,
+                            fstatus = df_handled_cc$fstatus,
+                            cov1 = X_multi,
+                            failcode = 1L, cencode = 0L,
+                            variance = TRUE)
+
+# Tidy SHR table
+tidy_fg <- function(fg){
+  b <- fg$coef; se <- sqrt(diag(fg$var))
+  data.frame(term = names(b),
+             SHR = exp(b),
+             LCL_95 = exp(b - 1.96*se),
+             UCL_95 = exp(b + 1.96*se),
+             p_value= 2*pnorm(abs(b/se), lower.tail = FALSE),
+             row.names = NULL, check.names = FALSE)
+}
+shr_multi <- tidy_fg(fit_fg_multi)
+utils::write.csv(shr_multi, file.path(TAB_DIR, "FG_MULTI_SHR_completecases.csv"), row.names = FALSE)
+
+# Pretty labels (continuous per 1 SD; binaries Yes vs No; clean age labels)
+pretty_label <- function(x){
+  x <- sub("^age_group", "Age ", x)
+  x <- sub("^LVEF$", "LVEF (per 1 SD)", x)
+  x <- sub("^eGFR$", "eGFR (per 1 SD)", x)
+  x <- sub("^BMI$", "BMI (per 1 SD)", x)
+  x <- sub("^Haemoglobin$", "Haemoglobin (per 1 SD)", x)
+  x <- sub("^DiabetesYes$", "Diabetes: Yes vs No", x)
+  x <- sub("^HypertensionYes$", "Hypertension: Yes vs No", x)
+  x <- sub("^ACE_inhibitorYes$", "ACE inhibitor: Yes vs No", x)
+  x <- sub("^ARBYes$", "ARB: Yes vs No", x)
+  x <- sub("^Anti_coagulantYes$", "Anticoagulant: Yes vs No", x)
+  x <- gsub(">", "\u003e", x, fixed = TRUE)
+  x
+}
+shr_m <- shr_multi
+shr_m$label <- pretty_label(shr_m$term)
+
+# =====================================================================================================
+# --- Fine–Gray multivariable model: forest plot 
+# ======================================================================================================
+pretty_label <- function(x){
+  x <- sub("^age_group51-65$", "Age 51–65 (ref \u2264 50)", x)
+  x <- sub("^age_group66-75$", "Age 66–75 (ref \u2264 50)", x)
+  x <- sub("^age_group>75$", "Age >75 (ref \u2264 50)", x)
+  
+  x <- sub("^LVEF$", "LVEF (per 1 SD)", x)
+  x <- sub("^eGFR$", "eGFR (per 1 SD)", x)
+  x <- sub("^Haemoglobin$", "Haemoglobin (per 1 SD)", x)
+  x <- sub("^BMI$", "BMI (per 1 SD)", x)
+  
+  x <- sub("^HypertensionYes$", "Hypertension: Yes vs No", x)
+  x <- sub("^ACE_inhibitorYes$", "ACE inhibitor: Yes vs No", x)
+  x <- sub("^ARBYes$", "ARB: Yes vs No", x)
+  x <- sub("^Anti_coagulantYes$", "Anticoagulant: Yes vs No", x)
+  x <- sub("^DiabetesYes$", "Diabetes: Yes vs No", x)
+  x
+}
+
+shr_m <- within(shr_multi, { label <- pretty_label(term) })
+wanted <- c(
+  
+  "Hypertension: Yes vs No", "ACE inhibitor: Yes vs No",
+  "ARB: Yes vs No", "Anticoagulant: Yes vs No", "Diabetes: Yes vs No",
+  "LVEF (per 1 SD)", "eGFR (per 1 SD)", "Haemoglobin (per 1 SD)", "BMI (per 1 SD)",
+  "Age 51–65 (ref \u2264 50)", "Age 66–75 (ref \u2264 50)", "Age >75 (ref \u2264 50)"
+)
+ord <- match(wanted, shr_m$label)
+ord[is.na(ord)] <- setdiff(seq_len(nrow(shr_m)), ord) # au cas où
+shr_m <- shr_m[ord, , drop = FALSE]
+row.names(shr_m) <- NULL
+
+rng <- range(c(shr_m$LCL_95, shr_m$UCL_95), na.rm = TRUE)
+pad <- 0.08 * diff(rng)
+xlim <- c(min(rng[1], 1) - pad, max(rng[2], 1) + pad)
+
+op <- par(mar = c(6, 11, 4, 9), xaxs = "r", yaxs = "i")
+n <- nrow(shr_m)
+plot(shr_m$SHR, seq_len(n),
+     xlim = xlim, ylim = c(0.5, n + 0.5),
+     pch = 19, yaxt = "n", xlab = "Subdistribution Hazard Ratio (SHR)",
+     ylab = "", main = "Fine–Gray multivariable model: adjusted SHRs")
+# IC 95%
+arrows(shr_m$LCL_95, seq_len(n), shr_m$UCL_95, seq_len(n),
+       length = 0.03, angle = 90, code = 3)
+# Labels Y
+axis(2, at = seq_len(n), labels = shr_m$label, las = 1)
+
+segments(x0 = 1, y0 = 0.5, x1 = 1, y1 = n + 0.5, lty = 2)
+# SHR (IC)
+txt <- sprintf("SHR %.2f (%.2f–%.2f)", shr_m$SHR, shr_m$LCL_95, shr_m$UCL_95)
+mtext(txt, side = 4, at = seq_len(n), las = 1, line = 0.5, cex = 0.9)
+mtext("Continuous covariates are per 1 SD; age reference = \u2264 50.", side = 1, line = 4, cex = 0.9)
+par(op)
+

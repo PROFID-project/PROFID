@@ -1,0 +1,113 @@
+#######################################################################################################################
+########################################################################################################################
+# projet: UmBIZO- PROFID_Study4 (SCD post-MI, age- stratified)
+# Script: 02_Handling_of_complex_variables.R
+# Author: Amina Boudamaana
+
+## =========================================================================================================
+## Study 4 — STEP 1: Handling & harmonisation (CLEAN VERSION)
+## Input: dat (raw, already loaded table)
+## Output: df_handled (ready for Principal Component Analysis models (FG+COX WITHOUT IMPUTATION))
+## PURPOSE
+# Handle a few complex baseline variables and enforce a time-zero rule:
+# • Merge atrial fibrillation indicators into AF_any / AF_type
+# • Enforce the “measured after 40 days post-MI → set to missing” rule
+## ===========================================================================================================
+
+suppressPackageStartupMessages({ library(utils) })
+
+stopifnot(exists("dat"))
+
+df <- dat
+
+## --- Age labels (ordre SAP)
+canon <- c("<=50","51-65","66-75",">75")
+normalize_age <- function(v){
+  x <- trimws(as.character(v))
+  x <- gsub("\u2264","<=",x); x <- gsub("\u2013|\u2014","-",x); x <- gsub("\\s+","",x)
+  x[x %in% c("<=50","<=50y","<=50yrs","<=50years")] <- "<=50"
+  x[x %in% c("51-65","51–65","51 -65","51- 65")] <- "51-65"
+  x[x %in% c("66-75","66–75")] <- "66-75"
+  x[x %in% c(">75",">75y","76+")] <- ">75"
+  factor(x, levels = canon, ordered = FALSE)
+}
+if ("age_group" %in% names(df)) df$age_group <- normalize_age(df$age_group)
+
+## --- Helper: recoder Yes/No propre
+recode_yesno <- function(z){
+  z <- trimws(as.character(z))
+  z <- ifelse(z %in% c("1","yes","Yes","YES","true","TRUE"), "yes",
+              ifelse(z %in% c("0","no","No","NO","false","FALSE"), "no", NA))
+  factor(z, levels = c("no","yes"))
+}
+# =================================================================================================
+## ---------- AF handling ----------
+# =================================================================================================
+# Which 'AF' columns exist?
+af_cols <- grep("(\\bAF\\b|atrial)", names(df), value = TRUE, ignore.case = TRUE)
+message("[AF] Variables found: ", paste(af_cols, collapse = ", "))   # Variables found: AF_atrial_flutter
+# 1) AF_any : We choose the best available source; we do not invent it.
+pick <- intersect(c("AF_any","AF","AF_atrial_flutter"), names(df))
+if (length(pick) >= 1) {
+  src <- pick[1] # priority: AF_any > AF > AF_atrial_flutter
+  df$AF_any <- recode_yesno(df[[src]])
+  message("[AF] AF_any created from: ", src)
+} else {
+  df$AF_any <- NA
+  message("[AF] No source for AF_any -> left as NA (okay, non-blocking)).")
+}
+                     #AF_any created from: AF_any
+
+# 2) AF_type : We only retain if informative (≥2 non-NA levels)
+if ("AF_type" %in% names(df)) {
+  x <- trimws(as.character(df$AF_type))
+  # light normalization if needed
+  x <- sub("^none$","None", x, ignore.case = TRUE)
+  x <- sub("^parox.*","Paroxysmal", x, ignore.case = TRUE)
+  x <- sub("persistent|permanent","Persistent/Perm", x, ignore.case = TRUE)
+  lev_ok <- unique(na.omit(x))
+  if (length(lev_ok) >= 2) {
+    df$AF_type <- factor(x, levels = c("None","Paroxysmal","Persistent/Perm","Unknown"))
+    message("[AF] AF_type retained (more than one non-NA level).")
+  } else {
+    df$AF_type <- NULL
+    message("[AF] AF_type non-informative -> deleted")
+  }
+}
+
+## ---------- Règle des 40 jours pour les mesures de baseline ----------
+# Adapte la liste 'baseline_vars' à ce que tu veux censurer si mesuré >40 jours.
+apply_within40_rule <- function(d,
+                                time_cols = c("Time_index_MI_CHD","days_since_MI","time_zero_y","time_zero_ym"),
+                                baseline_vars = c("SBP","DBP","CRP","Troponin_T","NYHA"),
+                                boundary_days = 40){
+  tc <- intersect(time_cols, names(d))
+  if (!length(tc)) return(d)
+  # On tente d’obtenir un « délai en jours » à partir de n’importe lequel
+  days <- suppressWarnings(as.numeric(d[[tc[1]]]))
+  # si c'est en mois/années, adapte ici si besoin (ex: *30.4375)
+  mark <- is.finite(days) & days > boundary_days
+  vars <- intersect(baseline_vars, names(d))
+  for (v in vars) d[[v]][mark] <- NA
+  d
+}
+df <- apply_within40_rule(df)
+
+## ---------- Time & statut for analyses ----------
+# We leave Status as is if already mapped 0/1/2; otherwise, we recode
+if ("Status" %in% names(df)) {
+  S <- suppressWarnings(as.integer(as.character(df$Status)))
+  df$fstatus <- ifelse(S %in% 0:2, S, NA_integer_)
+}
+# Follow-up time in months (integers) for stability of the Fine–Gray variance estimator
+if ("Survival_time" %in% names(df)) {
+  st <- suppressWarnings(as.numeric(df$Survival_time))
+  df$ftime_mo_int <- as.integer(round(st))
+}
+
+## ---------- Saving ----------
+df_handled <- df
+message(sprintf("[OK] df_handled: n=%d, columns=%d", nrow(df_handled), ncol(df_handled)))
+               # df_handled: n=139915, columnss=107
+saveRDS(df_handled, file.path(getwd(), "df_handled.rds"))
+

@@ -1,0 +1,325 @@
+###################################################################################################
+###################################################################################################
+# projet: UmBIZO- PROFID_Study4 (SCD post-MI, age- stratified)
+# Script: 03_Incidence_rate_calculations.R
+# Author: Amina Boudamaana
+## ================================================================================================
+## STUDY 4 - PRIMARY STATISTICAL METHODOLOGY
+## Incidence Rate Calculations (SCD)
+## - Crude age-specific incidence per 1,000 person-years with exact Poisson CIs
+## - Direct age-standardised incidence (ASR) using WHO 2000-2025 weights
+## - Quasi-Poisson CI if over-dispersion (phi > 1)
+## Inputs expected in 'df': age_group, Status, Survival_time (months)
+## =================================================================================================
+## 0) Parameters 
+scd_code       <- 1L # SCD event
+nonscd_code    <- 2L # non-SCD death (competing event)
+censor_code    <- 0L # censored
+time_is_months <- TRUE # Survival_time is in months 
+# ======================================================================================================
+## 1)  input checks 
+# ======================================================================================================
+stopifnot(all(c("age_group", "Status", "Survival_time") %in% names(df)))
+stopifnot(exists("df_handled"),
+          all(c("ftime_mo_int","fstatus","age_group") %in% names(df_handled)))
+canon <- c("<=50","51-65","66-75",">75")
+df_handled$age_group <- factor(as.character(df_handled$age_group), levels = canon, ordered = FALSE)
+df<-df_handled
+## Keep a stable, ordered age factor with the 4 SAP bands
+canon <- c("<=50","51-65","66-75",">75")
+df$age_group <- factor(df$age_group, canon, ordered = TRUE)
+normalize_age <- function(v){
+  x <- trimws(as.character(v))
+  x <- gsub("\u2264","<=", x) # ??? -> <=
+  x <- gsub("\u2013|\u2014","-", x) # -/- -> -
+  x <- gsub("\\s+","", x) # remove spaces
+  x[x %in% c("<=50","< =50","???50","=<50")] <- "<=50"
+  x[x %in% c("51-65","51-65","51-65","51- 65","51 - 65")] <- "51-65"
+  x[x %in% c("66-75","66-75","66-75")] <- "66-75"
+  x[x %in% c(">75","> 75","76+","???76")] <- ">75"
+  factor(x, levels = canon, ordered = TRUE)
+}
+df$age_group <- normalize_age(df$age_group)
+# ======================================================================================================
+##  2) Construct analysis variables
+# ======================================================================================================
+## Event indicator for SCD (1 = SCD, 0 = otherwise)
+df$SCD_event <- as.integer(df$Status == 1L)
+
+## Person-years from Survival_time (months -> years)
+df$py <- as.numeric(df$Survival_time) / 12
+
+## Guardrails: drop rows with missing/invalid age or non-positive person-time
+keep <- is.finite(df$py) & df$py > 0 & !is.na(df$age_group)
+df <- df[keep, ]
+# ============================================================================================================
+##  3) Crude age-specific incidence with exact Poisson CIs 
+# ============================================================================================================
+rate_by_age <- function(df, age_var = "age_group",
+                        event = "SCD_event", py = "py") {
+  ag <- aggregate(list(cases = df[[event]],
+                       py = suppressWarnings(as.numeric(df[[py]]))),
+                  by = list(age = df[[age_var]]),
+                  FUN = sum, na.rm = TRUE)
+  ## Exact Poisson CI for the incidence rate in each stratum
+  pt <- lapply(seq_len(nrow(ag)),
+               function(i) stats::poisson.test(ag$cases[i], T = ag$py[i]))
+  inc_per_1000 <- (ag$cases / ag$py) * 1000
+  ci_low <- sapply(pt, function(x) x$conf.int[1] * 1000)
+  ci_high <- sapply(pt, function(x) x$conf.int[2] * 1000)
+  
+  ## Name columns explicitly with 'incidence'
+  data.frame(
+    age = ag$age,
+    cases = ag$cases,
+    py = ag$py,
+    incidence_per_1000 = inc_per_1000,
+    incidence_CI_low = ci_low,
+    incidence_CI_high = ci_high,
+    row.names = NULL
+  )
+}
+
+age_rates <- rate_by_age(df)
+
+## Overall crude (all ages combined), also labelled with 'incidence'
+overall_pt <- stats::poisson.test(sum(age_rates$cases),
+                                  T = sum(age_rates$py))
+overall_inc <- data.frame(
+  age               = factor("All ages", levels = c(levels(df$age_group), "All ages")),
+  cases             = sum(age_rates$cases),
+  py = sum(age_rates$py),
+  incidence_per_1000 = (sum(age_rates$cases) / sum(age_rates$py)) * 1000,
+  incidence_CI_low = overall_pt$conf.int[1] * 1000,
+  incidence_CI_high = overall_pt$conf.int[2] * 1000
+)
+
+cat("\nCrude SCD incidence per 1,000 person-years (by age):\n")
+print(transform(age_rates,
+                py = round(py, 2),
+                incidence_per_1000 = round(incidence_per_1000, 2),
+                incidence_CI_low = round(incidence_CI_low, 2),
+                incidence_CI_high = round(incidence_CI_high, 2)),
+      row.names = FALSE)
+
+cat("\nOverall crude SCD incidence per 1,000 PY:\n")
+print(transform(overall_inc,
+                py = round(py, 2),
+                incidence_per_1000 = round(incidence_per_1000, 2),
+                incidence_CI_low = round(incidence_CI_low, 2),
+                incidence_CI_high = round(incidence_CI_high, 2)),
+      row.names = FALSE)
+
+# ======================================================================
+# ====PLOT:  Crude SCD incidence by age (exact Poisson 95% CI) ====
+# =======================================================================
+stopifnot(exists("age_rates"), is.data.frame(age_rates))
+nm <- tolower(names(age_rates))
+grab <- function(...) {
+  pats <- tolower(c(...))
+  hit <- which(sapply(pats, function(p) any(grepl(p, nm))))
+  if (length(hit) == 0) return(NA_integer_)
+  which(grepl(pats[hit[1]], nm))[1]
+}
+
+i_age <- grab("age_group","age band","ageband","age")
+i_rt <- grab("incidence_per_1000","per_1000","rate_per_1000","inc_per_1000","incidence")
+i_lcl <- grab("incidence_CI_low","lcl","lower")
+i_ucl <- grab("incidence_CI_high","ucl","upper")
+
+dfp <- data.frame(
+  age = trimws(as.character(age_rates[[i_age]])),
+  rate = as.numeric(age_rates[[i_rt]]),
+  lcl = if (!is.na(i_lcl)) as.numeric(age_rates[[i_lcl]]) else NA_real_,
+  ucl = if (!is.na(i_ucl)) as.numeric(age_rates[[i_ucl]]) else NA_real_
+)
+
+dfp$age <- gsub("\u2264","<=", dfp$age) # ??? -> <=
+dfp$age <- gsub("\u2013|\u2014","-", dfp$age) # tirets longs -> -
+lvl <- c("<=50","51-65","66-75",">75")
+dfp$age <- factor(dfp$age, levels = lvl, ordered = TRUE)
+dfp <- dfp[order(dfp$age), , drop = FALSE]
+
+x <- seq_len(nrow(dfp))
+finCI <- is.finite(dfp$lcl) & is.finite(dfp$ucl)
+
+yr <- if (any(finCI)) range(c(dfp$lcl[finCI], dfp$ucl[finCI])) else range(dfp$rate, na.rm = TRUE)
+pad <- 0.06 * diff(yr); ylim <- c(yr[1] - pad, yr[2] + pad)
+
+op <- par(mar = c(5, 5, 3.5, 1))
+plot(x, dfp$rate, type = "b", lwd = 1.2, pch = 19,
+     xaxt = "n", xlab = "Age band\nCause of interest = SCD; competing = non-SCD; time unit = person-years.",
+     ylab = "Incidence per 1,000 person-years",
+     ylim = ylim,
+     main = "Crude SCD incidence by age (exact Poisson 95% CI)")
+grid(col = "grey90")
+axis(1, at = x, labels = levels(dfp$age))
+if (any(finCI)) {
+  arrows(x0 = x[finCI], y0 = dfp$lcl[finCI],
+         x1 = x[finCI], y1 = dfp$ucl[finCI],
+         angle = 90, code = 3, length = 0.05, col = "grey30", lwd = 1.2)
+}
+par(op)
+
+# ===============================================================================================================================
+## 4) WHO 2000-2025 weights aggregated to the 4 SAP bands 
+## Source: WHO World Standard Population 2000-2025 (Ahmad et al., 2001).
+## 5-year percentages converted to proportions and renormalised to 1.
+# ================================================================================================================================
+w5 <- c("0-4"=8.86, "5-9"=8.69, "10-14"=8.60, "15-19"=8.47, "20-24"=8.22,
+        "25-29"=7.93, "30-34"=7.61, "35-39"=7.26, "40-44"=6.87, "45-49"=6.47,
+        "50-54"=6.07, "55-59"=5.37, "60-64"=4.56, "65-69"=3.72, "70-74"=2.96,
+        "75-79"=2.21, "80-84"=1.52, "85-89"=0.91, "90-94"=0.44, "95-99"=0.15,
+        "100+"=0.04)/100
+w5 <- w5 / sum(w5) # tiny rounding fix
+
+## Fractional splits at band edges (50, 65, 75) to map to: <=50, 51-65, 66-75, >75
+w_le50 <- sum(w5[c("0-4","5-9","10-14","15-19","20-24","25-29","30-34","35-39","40-44","45-49")]) +
+  (1/5) * w5["50-54"]
+w_51_65 <- (4/5) * w5["50-54"] + w5["55-59"] + w5["60-64"] + (1/5) * w5["65-69"]
+w_66_75 <- (4/5) * w5["65-69"] + w5["70-74"] + (1/5) * w5["75-79"]
+w_gt75 <- (4/5) * w5["75-79"] + w5["80-84"] + w5["85-89"] + w5["90-94"] +
+  w5["95-99"] + w5["100+"]
+###
+who_weights <- setNames(c(w_le50, w_51_65, w_66_75, w_gt75),
+                        c("<=50","51-65","66-75",">75"))
+## Renormalise exactly to avoid tiny drift, then we align to factor order in the dfa
+who_weights <- who_weights / sum(who_weights) # sum= 1
+## Align to the order of the factor used in the dfa
+lvl <- levels(df$age_group)
+stopifnot(all(lvl %in% names(who_weights))) 
+who_w <- who_weights[lvl] 
+## Sanity checks
+stopifnot(abs(sum(who_w) - 1) < 1e-8) # sums to 1
+stopifnot(identical(names(who_w), lvl))
+
+cat("\nWHO 2000-2025 weights aggregated to SAP bands (sum=1):\n")
+print(round(who_w, 6))
+# =========================================================================================================================================
+## 5) Direct ASR (per 1,000 PY) + Poisson & quasi-Poisson CIs
+# =========================================================================================================================================
+## Rates per PY for each stratum (not scaled)
+r_per_py <- age_rates$cases / age_rates$py
+
+## ASR per PY then scale to per 1,000 PY
+ASR_py <- sum(who_w * r_per_py)
+ASR <- ASR_py * 1000
+
+## Poisson variance of the standardised rate:
+## var = sum(w^2 * cases / py^2) then scaled by 1000^2
+var_poisson_py <- sum((who_w^2) * age_rates$cases / (age_rates$py^2))
+SEp <- sqrt(var_poisson_py) * 1000
+ASR_CI <- c(ASR - 1.96*SEp, ASR + 1.96*SEp)
+# ======================================================================================================
+## Over-dispersion check on patient-level dfa
+# =====================================================================================================
+# we Keep rows with finite PY, known age_group and SCD_event
+pl <- subset(df, is.finite(py) & py > 0 & !is.na(age_group) & !is.na(SCD_event))
+df$SCD_event
+# Fit a (quasi-)Poisson model at patient level
+fit_pl <- glm(SCD_event ~ age_group, offset = log(py),
+              family = quasipoisson(link = "log"),
+              dfa = pl)
+
+phi <- as.numeric(summary(fit_pl)$dispersion) # dispersion estimate (>=1 means over-dispersion)
+if (!is.finite(phi) || phi < 1) phi <- 1 # fallback to 1 (no inflation)
+
+# Inflate ASR SE using phi
+SEq <- sqrt(phi) * SEp
+ASR_CI_qp <- c(ASR - 1.96*SEq, ASR + 1.96*SEq)
+
+
+## Tidy ASR output (explicit 'incidence' wording)
+asr_out <- data.frame(
+  metric = c("ASR (incidence) per 1,000 PY",
+             "95% CI (Poisson)",
+             "95% CI (quasi-Poisson)",
+             "Dispersion phi"),
+  estimate = c(sprintf("%.2f", ASR),
+               sprintf("%.2f - %.2f", ASR_CI[1], ASR_CI[2]),
+               sprintf("%.2f - %.2f", ASR_CI_qp[1], ASR_CI_qp[2]),
+               sprintf("%.2f", phi))
+)
+print(asr_out, row.names = FALSE)
+
+
+cat("\nAge-standardised SCD incidence (WHO 2000-2025; direct method):\n")
+print(asr_out, row.names = FALSE)
+# ===============================================================================================================
+## 6) CSV exports _ SAVE RESULTS TO T:\study_4
+# ================================================================================================================
+out_dir <- "T:/study_4"
+if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+
+fn1 <- file.path(out_dir, "SCD_incidence_crude_by_age.csv")
+fn2 <- file.path(out_dir, "WHO2000_2025_weights_4bands.csv")
+fn3 <- file.path(out_dir, "SCD_incidence_ASR_WHO2000_2025.csv")
+
+
+## file : SCD_incidence_crude_by_age
+write.csv(age_rates, file = fn1, row.names = FALSE)
+
+
+who_df <- data.frame(
+  age_band = names(who_w),
+  who_weight = as.numeric(who_w),
+  row.names = NULL
+)
+## file: WHO2000_2025_weights_4bands
+write.csv(who_df, file = fn2, row.names = FALSE)
+
+# 3)SCD_incidence_ASR_WHO2000_2025: ASR + ICs
+write.csv(asr_out, file = fn3, row.names = FALSE)
+
+# check
+cat("Files written to:\n", normalizePath(out_dir), "\n")
+print(list.files(out_dir))
+
+# ==============================================================================================================
+# ===================== TABLES ONLY — EXPORT TO T:/study_4 =====================
+# =============================================================================================================
+## Choose destination (set to T:/study_4 or T:/study_4/Results_tableaux)
+out_dir <- "T:/study_4"
+
+## Safety: check write access; if not writable, fall back to a local folder
+ok_write <- dir.exists(out_dir) && tryCatch(file.access(out_dir, 2) == 0, error=function(e) FALSE)
+if (!ok_write) {
+  out_dir <- file.path(path.expand("~"), "Study4_outputs")
+  dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+  message("[Export] 'T:/study_4' not writable. Using fallback: ", normalizePath(out_dir))
+}
+
+fn1 <- file.path(out_dir, "SCD_incidence_crude_by_age.csv")
+fn2 <- file.path(out_dir, "WHO2000_2025_weights_4bands.csv")
+fn3 <- file.path(out_dir, "SCD_incidence_ASR_WHO2000_2025.csv")
+
+##  build final tables to save 
+# 1) Crude by age (+ overall row appended)
+overall_row <- data.frame(
+  age = factor("All ages", levels = c(levels(df$age_group), "All ages")),
+  cases = sum(age_rates$cases),
+  py = sum(age_rates$py),
+  incidence_per_1000 = (sum(age_rates$cases) / sum(age_rates$py)) * 1000,
+  incidence_CI_low = stats::poisson.test(sum(age_rates$cases), T = sum(age_rates$py))$conf.int[1] * 1000,
+  incidence_CI_high = stats::poisson.test(sum(age_rates$cases), T = sum(age_rates$py))$conf.int[2] * 1000
+)
+age_rates_out <- rbind(
+  transform(age_rates, age = factor(age, levels = c(levels(df$age_group), "All ages"), ordered = TRUE)),
+  overall_row
+)
+
+# 2) WHO weights (already computed as 'who_w')
+who_df <- data.frame(age_band = names(who_w), who_weight = as.numeric(who_w), row.names = NULL)
+
+# 3) ASR table (already computed as 'asr_out')
+
+##  write CSVs  
+write.csv(age_rates_out, fn1, row.names = FALSE)
+write.csv(who_df, fn2, row.names = FALSE)
+write.csv(asr_out, fn3, row.names = FALSE)
+
+cat("[Export] Tables written:\n - ", normalizePath(fn1),
+    "\n - ", normalizePath(fn2),
+    "\n - ", normalizePath(fn3), "\n", sep = "")
+# ============================================================================
+

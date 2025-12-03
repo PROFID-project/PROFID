@@ -1,0 +1,356 @@
+#######################################################################################################################
+########################################################################################################################
+# projet: UmBIZO- PROFID_Study4 (SCD post-MI, age- stratified)
+# Script: 05_Survival_analysis_framwork.R
+# Author: Amina Boudamaana
+
+# =========================================================================================================
+## Study 4 — Survival analysis end-to-end (KM + Cox PH, age-stratified)
+## Dataset: df_handled_cc (complete cases)
+## Time scale: months in df_handled_cc$ftime_mo_int -> converted to years
+## Endpoint: cause-specific SCD (fstatus == 1); non-SCD (2) and censored (0) treated as 0
+## Plots: shown in RStudio (no PNG device by default)
+## Covariates (same set as our Fine–Gray):
+## continuous -> LVEF, eGFR, BMI, Haemoglobin (scaled to report HR per 1 SD)
+## binary -> Diabetes, Hypertension, ACE_inhibitor, ARB, Anti_coagulant
+# ==========================================================================================================
+
+## ===== Packages =====
+suppressPackageStartupMessages({
+  library(survival)
+  library(broom) # tidy tables
+})
+options(stringsAsFactors = FALSE)
+set.seed(20251110)
+# ===================== #
+quiet_lib <- function(pkgs){
+  invisible(lapply(pkgs, function(p)
+    suppressPackageStartupMessages(require(p, character.only = TRUE))))
+}
+quiet_lib(c("survival","ggplot2","cmprsk","timeROC"))
+
+# ----------- I/O (Enable/disable exports ) -------------
+SAVE_PNG <- TRUE 
+SAVE_CSV <- TRUE 
+
+ROOT_DIR <- "T:/study_4"
+OUT_FIG <- file.path(ROOT_DIR, "Results_graph")
+OUT_TAB <- file.path(ROOT_DIR, "Results_tables")
+dir.create(OUT_FIG, recursive = TRUE, showWarnings = FALSE)
+dir.create(OUT_TAB, recursive = TRUE, showWarnings = FALSE)
+
+open_fig <- function(filename, w = 1400, h = 900, res = 180){
+  if (!SAVE_PNG) return(FALSE)
+  png(file.path(OUT_FIG, filename), width = w, height = h, res = res)
+  TRUE
+}
+close_fig <- function(opened){
+  if (isTRUE(opened)) dev.off()
+}
+write_tab <- function(x, filename){
+  if (SAVE_CSV && is.data.frame(x)) {
+    write.csv(x, file.path(OUT_TAB, filename), row.names = FALSE)
+  }
+}
+
+# ----------- Construction of the data frame 'df' from df_handled_cc -------------
+stopifnot(exists("df_handled") || exists("df"))
+base <- if (exists("df_handled")) df_handled else df
+
+canon <- c("<=50","51-65","66-75",">75")
+clean_age <- function(x){
+  x <- trimws(as.character(x))
+  x <- gsub("\u2264","<=",x); x <- gsub("\u2013|\u2014|–|—","-",x); x <- gsub("\\s+","",x)
+  x[x %in% c("<=50","<=50y","<=50yrs","<=50years")] <- "<=50"
+  x[x %in% c("51-65","51–65")] <- "51-65"
+  x[x %in% c("66-75","66–75")] <- "66-75"
+  x[grepl("^> ?75|^>=?76|\\b76\\+\\b", x)] <- ">75"
+  factor(x, levels = canon)
+}
+
+df_handled_cc <- subset(base, select = c(ftime_mo_int, fstatus, age_group))
+df_handled_cc <- within(df_handled_cc, {
+  time_months <- as.numeric(ftime_mo_int) # en mois
+  Status <- as.integer(fstatus) # 0/1/2
+  age_group <- clean_age(age_group)
+})
+df_handled_cc <- subset(df_handled_cc,
+                        is.finite(time_months) & time_months > 0 &
+                          Status %in% 0:2 & !is.na(age_group))
+
+stopifnot(nrow(df_handled_cc) > 0)
+
+## ==============================================================================================
+## Kaplan–Meier by age group
+## ==============================================================================================
+df <- within(df_handled_cc, {
+  time_years <- as.numeric(ftime_mo_int)/12
+  event_scd <- as.integer(fstatus == 1L) # 1 = SCD, 0 = non-SCD/censure
+  age_group <- clean_age(age_group)
+})
+df <- subset(df, is.finite(time_years) & time_years > 0 & !is.na(age_group))
+
+# check rapide
+stopifnot(all(c("time_years","event_scd","age_group") %in% names(df)))
+table(df$event_scd, useNA = "ifany")
+
+# KM
+km_fit <- survfit(Surv(time_years, event_scd) ~ age_group, data = df)
+
+km_fit <- survfit(Surv(time_years, event_scd) ~ age_group, data = df)
+
+## Quick numbers (helps to understand why curves are flat)
+events_by_age <- with(df, tapply(event_scd==1, age_group, sum))
+cat("[Events by age]\n"); print(events_by_age)
+
+## Survival at 1/3/5 years table
+km_times <- c(1,3,5)
+km_sum <- summary(km_fit, times = km_times)
+km_tab <- data.frame(
+  age_group = sub("^age_group=","", km_sum$strata),
+  time_years = km_sum$time,
+  surv = km_sum$surv, lower = km_sum$lower, upper = km_sum$upper,
+  n_risk = km_sum$n.risk, n_event = km_sum$n.event,
+  row.names = NULL
+)
+print(km_tab)
+
+## Where to save
+OUT_DIR <- "T:/study_4/Results_survival"
+if (!dir.exists(OUT_DIR)) OUT_DIR <- file.path(getwd(), "Results_survival")
+dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
+
+## ---- Plot 1: SCD-free survival (zoomed y-axis near 1) ----
+# compute a sensible y-limit so we can see the tiny drop
+ymin_all <- min(summary(km_fit)$surv, na.rm = TRUE)
+ymin_zoom <- max(0.90, floor((ymin_all - 0.01)*100)/100) # e.g. 0.95..0.99
+op <- par(mar = c(4.8,5,3.2,1))
+
+plot(km_fit,
+     col = c("#222222","#1b9e77","#7570b3","#e7298a"),
+     lwd = 1.6, conf.int = FALSE,
+     xlab = "Follow-up (years)",
+     ylab = "SCD-free survival probability",
+     xaxs = "i",
+     ylim = c(ymin_zoom, 1.0),
+     main = "Kaplan–Meier: SCD-free survival by age")
+legend("bottomleft", title = "Age group", bty = "n", lwd = 2,
+       col = c("#222222","#1b9e77","#7570b3","#e7298a"),
+       legend = levels(df$age_group))
+grid(col = "grey90"); par(op)
+
+
+
+## Export the KM 1/3/5-year table
+write.csv(km_tab, file.path(OUT_DIR, "KM_survival_at_1_3_5_years_by_age.csv"), row.names = FALSE)
+
+# ==========================================================================================================
+## ===== STEP 2 — Cox PH UNi& multivariable (cause-specific) =====
+# =========================================================================================================
+suppressPackageStartupMessages(library(survival))
+
+# -- Canonical age order (ensure labels are clean)
+canon <- c("<=50","51-65","66-75",">75")
+df_handled$age_group <- factor(as.character(df_handled$age_group), levels = canon)
+
+# -- Covariates (same set as FG); continuous scaled per 1 SD
+cov_cont <- c("LVEF","eGFR","BMI","Haemoglobin")
+cov_bin <- c("Diabetes","Hypertension","ACE_inhibitor","ARB","Anti_coagulant")
+rhs_vars <- c("age_group", cov_cont, cov_bin)
+
+# -- Build complete-case dataset for Cox
+need <- unique(c("ftime_mo_int","fstatus", rhs_vars))
+cc_idx <- complete.cases(df_handled[, need])
+df_handled_cc <- df_handled[cc_idx, need, drop = FALSE]
+message(sprintf("[Cox CC] %d/%d complete cases kept.", nrow(df_handled_cc), nrow(df_handled)))
+             # [Cox CC] 101517/139915 complete cases kept.
+
+# -- Standardise continuous covariates (per 1 SD)
+for (v in cov_cont) if (v %in% names(df_handled_cc)) {
+  df_handled_cc[[v]] <- as.numeric(scale(df_handled_cc[[v]]))
+}
+
+# ---------- Cox UNIVARIATE (age only) ----------
+cox_uni <- coxph(Surv(ftime_mo_int, fstatus == 1L) ~ age_group,
+                 data = df_handled_cc, ties = "efron")
+
+# ---------- Cox MULTIVARIATE (age + covariates) ----------
+form_multi <- as.formula(paste("Surv(ftime_mo_int, fstatus == 1L) ~",
+                               paste(rhs_vars, collapse = " + ")))
+cox_multi <- coxph(form_multi, data = df_handled_cc, ties = "efron")
+
+# ---------- Tidy HR tables ----------
+tidy_cox <- function(fit){
+  b <- coef(fit); se <- sqrt(diag(vcov(fit)))
+  data.frame(term = names(b),
+             HR = exp(b),
+             LCL_95 = exp(b - 1.96*se),
+             UCL_95 = exp(b + 1.96*se),
+             p_value= 2*pnorm(abs(b/se), lower.tail = FALSE),
+             row.names = NULL, check.names = FALSE)
+}
+hr_uni <- tidy_cox(cox_uni)
+hr_multi <- tidy_cox(cox_multi)
+
+print(hr_uni)
+print(hr_multi)
+
+# ===========================================================================================================
+## ===== STEP 3 — PH assumption (Schoenfeld residuals) ======================================================
+# ============================================================================================================
+ph <- cox.zph(cox_multi, transform = "km")
+# tidy PH table (exclude GLOBAL)
+ph_tbl <- transform(as.data.frame(ph$table), term = rownames(ph$table))
+ph_tbl <- ph_tbl[ph_tbl$term != "GLOBAL", , drop = FALSE]
+names(ph_tbl)[1:3] <- c("rho","chisq","p")
+if (SAVE_CSV) write_df(ph_tbl, file.path(OUT_TAB, "CoxPH_PH_tests_Schoenfeld_baseline.csv"))
+
+# Residual plots 
+dev_opened <- open_dev("Schoenfeld_residuals.png", w = 1800, h = 1200, res = 170)
+op <- par(mfrow = c(3, 4), mar = c(4, 4, 2.6, 1), oma = c(3.2, 0, 0, 0))
+vars <- rownames(ph$table)[rownames(ph$table) != "GLOBAL"]
+for (i in seq_along(vars)) {
+  plot(ph[i], xlab = "Follow-up (years)", ylab = expression(beta(t)))
+  p_txt <- format.pval(ph$table[vars[i], "p"], digits = 3)
+  mtext(sprintf("%s (p = %s)", vars[i], p_txt), side = 3, line = 0.4, cex = 0.9, font = 2)
+}
+mtext("Schoenfeld residuals: loess smooth; horizontal line = 0; time unit = years.",
+      side = 1, line = 1.2, outer = TRUE, cex = 0.9)
+par(op)
+close_dev(dev_opened)
+# ================================================================================================
+## ===== STEP 4 — If PH is violated: quick message (fit remedies manually if needed) =====
+# ================================================================================================
+viol <- subset(ph_tbl, is.finite(p) & p < 0.05)$term
+if (length(viol)) {
+  message("[PH] Violation detected for: ", paste(viol, collapse = ", "),
+          " — consider adding strata(term) for factor-like variables ",
+          "and a time-varying effect for numeric ones (e.g., tt(x) = x*log(t)).")
+} else {
+  message("[PH] No PH violations detected (all terms p >= 0.05).")
+}
+#  No PH violations detected (all terms p >= 0.05).
+## ===== Wrap-up: where to find outputs =====
+message("\n[Where to find outputs]")
+message("Figures (if SAVE_PNG=TRUE): ", normalizePath(OUT_FIG))
+message("Tables: ", normalizePath(OUT_TAB))
+if (dir.exists(OUT_TAB)) print(list.files(OUT_TAB, full.names = TRUE))
+
+## ===============================================================================================
+## STEP 4 — Age-by-covariate interactions (screen, fit, export)
+## Model scale stays identical to Step 2 (time = ftime_mo_int; event = fstatus==1)
+## ===============================================================================================
+
+suppressPackageStartupMessages({ library(survival); library(broom) })
+
+# 0) Make sure export folder exists (harmless if it already exists)
+if (!exists("OUT_TAB")) {
+  ROOT_DIR <- "T:/study_4"
+  OUT_TAB <- file.path(ROOT_DIR, "Results_tables")
+}
+dir.create(OUT_TAB, recursive = TRUE, showWarnings = FALSE)
+
+# 1) Build ONE complete-case dataset for all terms in our multivariable model
+rhs_vars <- attr(terms(cox_multi), "term.labels") # terms in Step 2 model
+cc_vars <- unique(c("ftime_mo_int", "fstatus", rhs_vars))
+df_cc <- df_handled_cc[complete.cases(df_handled_cc[, cc_vars]), cc_vars, drop = FALSE]
+
+# keep SAP order for age_group if present
+if ("age_group" %in% names(df_cc)) {
+  canon <- c("<=50","51-65","66-75",">75")
+  df_cc$age_group <- factor(as.character(df_cc$age_group), levels = canon)
+}
+
+N_cc <- nrow(df_cc)
+
+# 2) Refit the **baseline** model on these exact rows (reference for nested tests)
+base_form <- as.formula(paste("Surv(ftime_mo_int, fstatus == 1L) ~", paste(rhs_vars, collapse = " + ")))
+base_fit <- survival::coxph(base_form, data = df_cc, ties = "efron")
+
+# Helper to compute Likelihood-ratio test from two coxph fits
+.lrt_from_fits <- function(f0, f1) {
+  L0 <- logLik(f0); L1 <- logLik(f1)
+  stat <- 2 * (as.numeric(L1) - as.numeric(L0))
+  ddf <- attr(L1, "df") - attr(L0, "df")
+  pval <- if (is.finite(stat) && ddf > 0) pchisq(stat, df = ddf, lower.tail = FALSE) else NA_real_
+  list(LRT = stat, df = ddf, p = pval)
+}
+
+# 3) Variables to be tested for interaction with age_group
+int_candidates <- setdiff(intersect(rhs_vars, names(df_cc)), "age_group")
+
+# 4) Fit interaction models age_group:var and compute LRTs
+get_lrt <- function(v) {
+  f1 <- update(base_form, paste("~ . + age_group:", v))
+  fit1 <- try(survival::coxph(f1, data = df_cc, ties = "efron"), silent = TRUE)
+  if (inherits(fit1, "try-error")) {
+    return(data.frame(variable = v, Df = NA_integer_, LRT = NA_real_, LRT_p = NA_real_, N = N_cc))
+  }
+  out <- .lrt_from_fits(base_fit, fit1)
+  data.frame(variable = v, Df = out$df, LRT = out$LRT, LRT_p = out$p, N = N_cc)
+}
+
+int_tab <- do.call(rbind, lapply(int_candidates, get_lrt))
+int_tab <- int_tab[order(int_tab$LRT_p), , drop = FALSE]
+row.names(int_tab) <- NULL
+
+# Export the LRT screening table
+if (exists("SAVE_CSV") && isTRUE(SAVE_CSV))
+  write.csv(int_tab, file.path(OUT_TAB, "CoxPH_age_interaction_LRT.csv"), row.names = FALSE)
+
+# 5) Final model with all significant interactions (p < 0.05)
+sig <- subset(int_tab, is.finite(LRT_p) & LRT_p < 0.05)$variable
+if (length(sig)) {
+  add_terms <- paste0("age_group:", sig)
+  final_form <- update(base_form, paste("~ . +", paste(add_terms, collapse = " + ")))
+  final_fit <- survival::coxph(final_form, data = df_cc, ties = "efron")
+  message("[Interactions] Final model fitted with: ", paste(add_terms, collapse = ", "))
+  
+  # Export tidy HR table for the final model
+  hr_final <- broom::tidy(final_fit, conf.int = TRUE, exponentiate = TRUE)
+  if (exists("SAVE_CSV") && isTRUE(SAVE_CSV))
+    write.csv(hr_final, file.path(OUT_TAB, "CoxPH_final_with_interactions_HR_table.csv"), row.names = FALSE)
+  
+  # Optional: PH check for the final model + export
+  ph_final <- cox.zph(final_fit, transform = "km")
+  ph_tbl <- transform(as.data.frame(ph_final$table), term = rownames(ph_final$table))
+  if (exists("SAVE_CSV") && isTRUE(SAVE_CSV))
+    write.csv(ph_tbl, file.path(OUT_TAB, "CoxPH_PH_tests_Schoenfeld_final.csv"), row.names = FALSE)
+  
+  # 6) Within-age HRs for each significant variable (automated, delta-method)
+  esc <- function(s) gsub("([][{}()+*^$|\\.?<>-])", "\\\\\\1", s)
+  hr_contrast <- function(fit, betas) {
+    b <- coef(fit); V <- vcov(fit)
+    L <- rep(0, length(b)); names(L) <- names(b); L[betas] <- 1
+    est <- sum(L * b); se <- sqrt(as.numeric(t(L) %*% V %*% L))
+    c(HR = exp(est), LCL_95 = exp(est - 1.96*se), UCL_95 = exp(est + 1.96*se))
+  }
+  ages <- levels(df_cc$age_group)
+  
+  for (v in sig) {
+    # main coefficient name(s) for v (exclude interactions)
+    main <- grep(paste0("^", esc(v), "(?!:)", collapse=""), names(coef(final_fit)),
+                 perl = TRUE, value = TRUE)
+    # handle binary coded as factor "Yes" (e.g., DiabetesYes) or numeric (e.g., LVEF)
+    # -> choose the first main coefficient for baseline contrast
+    if (!length(main)) next
+    
+    rows <- lapply(ages, function(a){
+      # interaction term can appear as "age_groupXX:v" or "v:age_groupXX"
+      pat <- paste0("(^age_group", esc(a), ":", esc(v), ")|(^", esc(v), ":age_group", esc(a), ")")
+      add <- grep(pat, names(coef(final_fit)), perl = TRUE, value = TRUE)
+      betas <- if (a == ages[1]) main[1] else c(main[1], add)
+      out <- as.data.frame(t(hr_contrast(final_fit, betas)))
+      out$age_group <- a; out$variable <- v
+      out[, c("age_group","variable","HR","LCL_95","UCL_95")]
+    })
+    tab_va <- do.call(rbind, rows)
+    if (exists("SAVE_CSV") && isTRUE(SAVE_CSV))
+      write.csv(tab_va, file.path(OUT_TAB, paste0("Cox_with_age_interactions_", v, ".csv")), row.names = FALSE)
+  }
+  
+} else {
+  message("[Interactions] No significant age interactions (all LRT p >= 0.05).")
+}
+       # [Interactions] Final model fitted with: age_group:Diabetes, age_group:LVEF
+
