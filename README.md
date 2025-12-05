@@ -21,7 +21,10 @@ Study 4- Age-Stratified SCD Incidence Analysis (Amina)
 [1_Study_Hamonisation Data_ Quality Control_Age Stratification.R.txt](https://github.com/user-attachments/files/23505874/1_Study_Hamonisation.Data_.Quality.Control_Age.Stratification.R.txt)
 
 Study 5- Heart Failure Therapy Adherence Analysis (Amina)
-[Script1_ study 5.R.txt](https://github.com/user-attachments/files/23884455/Script1_.study.5.R.txt)
+[Script3_  study5_ multivariable models_determinants.R.txt](https://github.com/user-attachments/files/23964366/Script3_.study5_.multivariable.models_determinants.R.txt)
+[Script2_study 5_ descriptives _ and _ trends_ Regression logistic model univariate.R.txt](https://github.com/user-attachments/files/23964365/Script2_study.5_.descriptives._.and._.trends_.Regression.logistic.model.univariate.R.txt)
+[Script1_ study 5_ build_cohort_and_end_points_ESC.R.txt](https://github.com/user-attachments/files/23964364/Script1_.study.5_.build_cohort_and_end_points_ESC.R.txt)
+
 
 Study 6- BMI and Sudden Cardiac Death Analysis (Claire)
 
