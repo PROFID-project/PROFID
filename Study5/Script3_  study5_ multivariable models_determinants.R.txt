@@ -1,0 +1,268 @@
+###############################################################################
+# Project : PROFID – Study 5
+# Script : 03_study5_multivariable_GDMT_models.R
+# Purpose :
+# Multivariable logistic regression models for GDMT_BIN_geq3 (≥3/5 GDMT).
+#
+# Hierarchical models (SAP-based):
+# M1_temporal : Year_index (calendar year)
+# M2_temporal_demo : M1 + age, sex, DB
+# M3_temporal_clinic : M2 + clinical HF / risk-factor variables
+# M4_full_extended : M3 + lab variables + procedures
+#
+# Outcome:
+# GDMT_BIN_geq3 (0/1 indicator of receiving ≥3 of five GDMT classes)
+#
+# Input : df_st5.rds (created in 01_study5_build_cohort_and_endpoints_ESC.R)
+# Output : model summaries in Results_Study5/ (RDS + CSV)
+################################################################################
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(broom) # for tidy() regression output
+  library(purrr) # for map / map_dfr / imap_dfr
+})
+
+##==============================================================================
+## 0. Load Study 5 dataset
+##==============================================================================
+setwd("S:/AG/f-dhzc-profid/Data Transfer to Charite")
+
+stopifnot(file.exists("df_study5.rds"))
+df_st5 <- readRDS("df_study5.rds")
+
+cat("[INFO] df_study5 loaded: n =", nrow(df_st5),
+    "| p =", ncol(df_st5), "\n")
+
+##==============================================================================
+## 1. Check required variables & basic types
+##==============================================================================
+outcome_name <- "GDMT_BIN_geq3"
+
+required_vars <- c(
+  outcome_name,
+  "Year_index",
+  "Age_num", "Sex_BIN_Male", "DB",
+  "LVEF_num",
+  "NYHA_BIN_geq_II", "NYHA_BIN_geq_III", "NYHA_BIN_eq_IV",
+  "ICD_BIN_Yes",
+  "Baseline_within40d", "Time_index_MI_CHD_log1p",
+  "Diabetes_BIN_Yes", "Hypertension_BIN_Yes",
+  "Smoking_BIN_Yes", "AF_atrial_flutter_BIN_Yes",
+  "Stroke_TIA_BIN_Yes",
+  "eGFR_log1p", "NTProBNP_log1p", "Haemoglobin_log1p",
+  "Sodium_log1p", "Potassium_log1p",
+  "PCI_BIN_Yes", "CABG_BIN_Yes", "Revascularisation_acute_BIN_Yes"
+)
+
+missing_req <- setdiff(required_vars, names(df_st5))
+if (length(missing_req) > 0) {
+  stop("[ERROR] Missing variables in df_st5: ",
+       paste(missing_req, collapse = ", "))
+}
+
+# Make sure core classes are sensible
+df_st5 <- df_st5 %>%
+  mutate(
+    !!outcome_name := as.integer(.data[[outcome_name]]),
+    Year_index = suppressWarnings(as.integer(Year_index)),
+    Age_num = suppressWarnings(as.numeric(Age_num)),
+    LVEF_num = suppressWarnings(as.numeric(LVEF_num)),
+    Sex_BIN_Male = as.integer(Sex_BIN_Male),
+    DB = factor(DB)
+  )
+
+##==============================================================================
+## 2. Quick overview of missingness in key predictors
+##==============================================================================
+vars_for_missing <- intersect(required_vars, names(df_st5))
+prop_missing <- sapply(df_st5[vars_for_missing], function(x)
+  mean(is.na(x)) * 100)
+
+cat("\n[INFO] Percentage of missing values for key predictors (%, Study 5):\n")
+print(round(prop_missing, 1))
+
+##==============================================================================
+## 3. Define predictor blocks and model formulas (SAP hierarchy)
+##==============================================================================
+# Predictor blocks based on SAP sections 3 & 4.4
+temporal_vars <- c("Year_index")
+
+demographic_vars <- c("Age_num", "Sex_BIN_Male", "DB")
+
+clinical_vars <- c(
+  "LVEF_num",
+  "NYHA_BIN_geq_II", "NYHA_BIN_geq_III", "NYHA_BIN_eq_IV",
+  "ICD_BIN_Yes",
+  "Baseline_within40d", "Time_index_MI_CHD_log1p",
+  "Diabetes_BIN_Yes", "Hypertension_BIN_Yes",
+  "Smoking_BIN_Yes", "AF_atrial_flutter_BIN_Yes",
+  "Stroke_TIA_BIN_Yes"
+)
+
+lab_vars <- c(
+  "eGFR_log1p", "NTProBNP_log1p", "Haemoglobin_log1p",
+  "Sodium_log1p", "Potassium_log1p"
+)
+
+procedure_vars <- c(
+  "PCI_BIN_Yes", "CABG_BIN_Yes", "Revascularisation_acute_BIN_Yes"
+)
+
+# We  Keep only variables that actually exist in df_st5
+temporal_vars <- intersect(temporal_vars, names(df_st5))
+demographic_vars<- intersect(demographic_vars,names(df_st5))
+clinical_vars <- intersect(clinical_vars, names(df_st5))
+lab_vars <- intersect(lab_vars, names(df_st5))
+procedure_vars <- intersect(procedure_vars, names(df_st5))
+
+# Helper to create a formula "outcome ~ x1 + x2 + ..."
+make_formula <- function(outcome, predictors) {
+  predictors <- predictors[predictors %in% names(df_st5)]
+  if (length(predictors) == 0) {
+    as.formula(paste(outcome, "~ 1"))
+  } else {
+    as.formula(paste(outcome, "~", paste(predictors, collapse = " + ")))
+  }
+}
+
+formulas_list <- list(
+  M1_temporal =
+    make_formula(outcome_name, temporal_vars),
+  
+  M2_temporal_demo =
+    make_formula(outcome_name,
+                 c(temporal_vars, demographic_vars)),
+  
+  M3_temporal_clinical =
+    make_formula(outcome_name,
+                 c(temporal_vars, demographic_vars, clinical_vars)),
+  
+  M4_full_extended =
+    make_formula(outcome_name,
+                 c(temporal_vars, demographic_vars,
+                   clinical_vars, lab_vars, procedure_vars))
+)
+
+cat("\n[INFO] Model formulas for", outcome_name, ":\n")
+print(formulas_list)
+
+##==============================================================================
+## 4. Function to fit one logistic model (complete case, drop flat factors)
+##==============================================================================
+fit_logistic_model <- function(formula, data, model_name) {
+  
+  # All variables in this formula
+  vars_needed <- all.vars(formula)
+  outcome <- vars_needed[1]
+  
+  # Subset to variables needed
+  d_sub <- data[, vars_needed, drop = FALSE]
+  
+  # Complete-case dataset
+  d_cc <- d_sub[complete.cases(d_sub), , drop = FALSE]
+  n_total <- nrow(d_sub)
+  n_cc <- nrow(d_cc)
+  
+  if (n_cc == 0) {
+    warning("Model ", model_name, ": no complete cases -> skipping.")
+    return(NULL)
+  }
+  
+  # ---------------------------------------------------------------------------
+  # Drop factor predictors that have <2 levels among complete cases
+  # (otherwise glm() raises 'contrasts can be applied only to factors with 2+ levels')
+  # ---------------------------------------------------------------------------
+  pred_names <- setdiff(names(d_cc), outcome)
+  
+  bad_factors <- vapply(pred_names, function(v) {
+    x <- d_cc[[v]]
+    is.factor(x) && length(unique(x[!is.na(x)])) < 2
+  }, logical(1))
+  
+  drop_pred <- names(bad_factors)[bad_factors]
+  
+  if (length(drop_pred) > 0) {
+    message("Model ", model_name,
+            ": dropping constant factor predictors among complete cases: ",
+            paste(drop_pred, collapse = ", "))
+    pred_names <- setdiff(pred_names, drop_pred)
+    d_cc <- d_cc[, c(outcome, pred_names), drop = FALSE]
+  }
+  
+  if (length(pred_names) == 0) {
+    warning("Model ", model_name,
+            ": no predictors left after dropping constant factors -> skipping.")
+    return(NULL)
+  }
+  
+  # Check outcome has both 0 and 1
+  y <- d_cc[[outcome]]
+  n_events <- sum(y == 1, na.rm = TRUE)
+  n_nonevents <- sum(y == 0, na.rm = TRUE)
+  
+  if (n_events == 0 || n_nonevents == 0) {
+    warning("Model ", model_name,
+            ": outcome has no variation among complete cases -> skipping.")
+    return(NULL)
+  }
+  
+  # Rebuild formula using only retained predictors
+  formula_cc <- as.formula(
+    paste(outcome, "~", paste(pred_names, collapse = " + "))
+  )
+  
+  # Fit logistic regression
+  fit <- glm(formula_cc, data = d_cc, family = binomial)
+  
+  # Tidy output with ORs and 95% CI
+  tidy_fit <- broom::tidy(fit, conf.int = TRUE, exponentiate = TRUE) %>%
+    mutate(
+      model = model_name,
+      n_total = n_total,
+      n_complete = n_cc,
+      n_events = n_events,
+      n_nonevents= n_nonevents
+    ) %>%
+    select(model, term, estimate, conf.low, conf.high, p.value,
+           n_total, n_complete, n_events, n_nonevents)
+  
+  return(tidy_fit)
+}
+
+##==============================================================================
+## 5. Fit all hierarchical models
+##==============================================================================
+cat("\n[INFO] Fitting multivariable models for", outcome_name,
+    "(odds ratios):\n")
+
+gdmt_models_res <- purrr::imap_dfr(
+  formulas_list,
+  ~ fit_logistic_model(formula = .x, data = df_st5, model_name = .y)
+)
+
+cat("\n[RESULT] Multivariable models for", outcome_name, ":\n")
+print(gdmt_models_res)
+
+##==============================================================================
+## 6. Save results
+##==============================================================================
+results_dir <- "Results_Study5"
+if (!dir.exists(results_dir)) {
+  dir.create(results_dir)
+  cat("\n[INFO] Created results folder:", results_dir, "\n")
+}
+
+saveRDS(
+  gdmt_models_res,
+  file = file.path(results_dir, "study5_multivariable_GDMT_models.rds")
+)
+
+write.csv(
+  gdmt_models_res,
+  file = file.path(results_dir, "study5_multivariable_GDMT_models.csv"),
+  row.names = FALSE
+)
+
+cat("\n[OK] Script 3 finished. Multivariable GDMT models saved in",
+    results_dir, "\n")
+
