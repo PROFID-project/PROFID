@@ -1,0 +1,13 @@
+"column","value","count"
+"Cancer","No",1938
+"Cancer","Yes",50
+"Cancer",NA,138216
+"Stroke_TIA","No",120019
+"Stroke_TIA","Yes",9574
+"Stroke_TIA",NA,10611
+"Diabetes","No",107502
+"Diabetes","Yes",30744
+"Diabetes",NA,1958
+"COPD","No",12980
+"COPD","Yes",1138
+"COPD",NA,126086

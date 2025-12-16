@@ -2,18 +2,55 @@ install.packages("dplyr")
 install.packages("tidyr")  
 install.packages("broom")
 install.packages("lubridate")
+install.packages("mice")
 library(dplyr)
 library(tidyr)
 library(purrr)
 library(broom)
 library(lubridate)
+library
+
+data_dir <- "S:/AG/f-dhzc-profid/Data Transfer to Charite"
+setwd("T:/Dokumente/PROFID/Study6")
 
 icd <- read.csv("S:/AG/f-dhzc-profid/Data Transfer to Charite/ICD.csv")
 nonicd_preserved <- read.csv("S:/AG/f-dhzc-profid/Data Transfer to Charite/NonICD_preserved.csv")
 nonicd_reduced <- read.csv("S:/AG/f-dhzc-profid/Data Transfer to Charite/NonICD_reduced.csv")
-combined <- read.csv("S:/AG/f-dhzc-profid/Data Transfer to Charite/combined_dataset.csv")
 
-data_dir <- "S:/AG/f-dhzc-profid/Data Transfer to Charite"
+
+# Load the imputed object
+imp <- readRDS("mice_imputed_data.RDS")
+
+# Extract the first imputed dataset for descriptive analyses
+combined <-mice::complete(imp, action = 1)
+
+
+fulldata <- read.csv("S:/AG/f-dhzc-profid/Data Transfer to Charite/combined_dataset.csv")
+
+
+
+# Specify the columns you want to summarise
+cols_to_check <- c("Cancer", "Stroke_TIA", "Diabetes", "COPD")
+
+# Create counts for selected columns (including NAs)
+freq_list <- lapply(fulldata[cols_to_check], function(x) as.data.frame(table(x, useNA = "ifany")))
+
+# Add column identifiers
+freq_list <- lapply(names(freq_list), function(nm) {
+  tmp <- freq_list[[nm]]
+  names(tmp) <- c("value", "count")
+  tmp$column <- nm
+  tmp
+})
+
+# Combine into one dataframe
+freq_df <- do.call(rbind, freq_list)
+
+# Reorder columns
+freq_df <- freq_df[, c("column", "value", "count")]
+
+# Write to CSV
+write.csv(freq_df, "comorbidity_value_counts.csv", row.names = FALSE)
 
 
 summary(combined$BMI)
@@ -34,45 +71,44 @@ names(continuous)
 
 categorical <- combined[, !numeric_cols, drop = FALSE]
 
-move_to_categorical <- c("X", "Status", "Time_zero_Y", "CVD_risk_region", "IsSWHR")
+move_to_categorical <- c( "Status",  "CVD_risk_region")
 categorical[move_to_categorical] <- combined[move_to_categorical]
 continuous <- continuous[, !(names(continuous) %in% move_to_categorical), drop = FALSE]
 
 
 # Assign cohort-level tags
-icd_tag <- icd %>%
-  transmute(patient_id = patient_id,
-            ICD_status = 1L,
-            source = "ICD",
-            implant_date = suppressWarnings(ymd(implant_date)))
+#icd_tag <- icd %>%
+#  transmute(ID = ID,
+#            ICD_status = 1L,
+#            source = "ICD")
 
-nonicd_pres_tag <- nonicd_preserved %>%
-  transmute(patient_id = patient_id,
-            ICD_status = 0L,
-            source = "NonICD_preserved")
+#nonicd_pres_tag <- nonicd_preserved %>%
+#  transmute(ID = ID,
+#            ICD_status = 0L,
+#            source = "NonICD_preserved")
 
-nonicd_red_tag <- nonicd_reduced %>%
-  transmute(patient_id = patient_id,
-            ICD_status = 0L,
-            source = "NonICD_reduced")
+#nonicd_red_tag <- nonicd_reduced %>%
+#  transmute(ID = ID,
+#            ICD_status = 0L,
+#            source = "NonICD_reduced")
 
 # Combine and remove duplicates: keep ICD if conflicts
-cohort_tag <- bind_rows(icd_tag, nonicd_pres_tag, nonicd_red_tag) %>%
-  arrange(desc(ICD_status)) %>%      # ICD=1 rows come first
-  distinct(patient_id, .keep_all = TRUE)
+#cohort_tag <- bind_rows(icd_tag, nonicd_pres_tag, nonicd_red_tag) %>%
+#  arrange(desc(ICD_status)) %>%      # ICD=1 rows come first
+#  distinct(ID, .keep_all = TRUE)
 
-combined <- combined %>%
-  left_join(cohort_tag, by = "patient_id")
+#combined <- combined %>%
+#  left_join(cohort_tag, by = "ID")
 
 # Check for duplicates
-sum(duplicated(combined_clean$patient_id))
+#sum(duplicated(combined$ID))
 
 # Save cleaned, deduplicated combined dataset
-write.csv(
-  combined,
-  "S:/AG/f-dhzc-profid/Data Transfer to Charite/combined_icd.csv",
-  row.names = FALSE
-)
+#write.csv(
+#  combined,
+#  "S:/AG/f-dhzc-profid/Data Transfer to Charite/combined_icd.csv",
+#  row.names = FALSE
+#)
 
 
 summary_continuous_tidy <- map_dfr(
@@ -212,12 +248,69 @@ final_summary <- summary_continuous_by_BMI %>%
   )
 
 write.csv(final_summary,
-          file = "continuous_descriptors.csv",
+          file = "continuous_descriptors_imputed.csv",
           row.names = FALSE)
 
 final_summary
 
-length(intersect(icd$patient_id, nonicd_preserved$patient_id))
-length(intersect(icd$patient_id, nonicd_reduced$patient_id))
-length(intersect(nonicd_preserved$patient_id, nonicd_reduced$patient_id))
+length(intersect(icd$ID, nonicd_preserved$ID))
+length(intersect(icd$ID, nonicd_reduced$ID))
+length(intersect(nonicd_preserved$ID, nonicd_reduced$ID))
+
+library(dplyr)
+install.packages("gtsummary")
+library(gtsummary)
+
+table1_df <- combined %>%
+  mutate(
+    BMI_cat = factor(BMI_cat,
+                     levels = c("Underweight","Normal","Overweight","Obese I","Obese II","Obese III")
+    ),
+    # binary outcome for Table 1
+    SCD_status = factor(ifelse(Status == 1, 1, 0),
+                        levels = c(0, 1),
+                        labels = c("No SCD", "SCD")),
+    # (optional) 3-level outcome if you also want it displayed somewhere
+    Status3 = factor(Status,
+                     levels = c(0, 1, 2),
+                     labels = c("No event", "SCD", "Other death"))
+  ) %>%
+  select(
+    BMI_cat, SCD_status, # <- include this for the SCD outcome row
+    Age, Sex, Diabetes, Hypertension, Smoking, MI_history,
+    MI_type, Baseline_type, CVD_risk_region,
+    LVEF, eGFR, Haemoglobin,
+    Cholesterol, HDL, LDL, Triglycerides,
+    ACE_inhibitor_ARB, Beta_blockers, Lipid_lowering,
+    Revascularisation_acute
+  )
+
+table1 <- table1_df %>%
+  tbl_summary(
+    by = BMI_cat,
+    statistic = list(
+      all_continuous() ~ "{median} ({p25}, {p75})",
+      all_categorical() ~ "{n} ({p}%)"
+    ),
+    missing = "no"
+  ) %>%
+  add_overall(last = TRUE, col_label = "Total") %>%  # adds Total column
+  add_n(location = "label") %>%                      # adds N in header
+  add_p(test = list(
+    all_continuous() ~ "kruskal.test",
+    all_categorical() ~ "chisq.test"
+  )) %>%
+  bold_labels()
+
+table1
+
+library(gtsummary)
+
+table1_csv <- as_tibble(table1, col_labels = TRUE)
+
+write.csv(
+  table1_csv,
+  file = "Table1_baseline_characteristics.csv",
+  row.names = FALSE
+)
 
