@@ -207,9 +207,20 @@ write.csv(curve_cs1, "cox_RCS_BMI_curve_cs1_extended.csv", row.names = FALSE)
 
 # export plot
 pdf("cox_RCS_BMI_curve_cs1_extended.pdf", width = 7, height = 5)
-plot(bmi_grid, HR, type = "l", xlab = "BMI (kg/m²)", ylab = "Hazard ratio (ref = 25)",
-     ylim = range(c(LCL, UCL)), lwd = 2)
-lines(bmi_grid, LCL, lty = 2); lines(bmi_grid, UCL, lty = 2)
+plot(bmi_grid, HR, type = "l", xlab = "BMI (kg/m²)", ylab = "Hazard ratio (reference BMI 25 kg/m²)",
+     ylim = range(c(LCL, UCL)), lwd = 2, col = "black")
+     
+     lines(bmi_grid, LCL,
+           lty = 2,
+           lwd = 1.5,
+           col = "grey60")
+     
+     lines(bmi_grid, UCL,
+           lty = 2,
+           lwd = 1.5,
+           col = "grey60")
+
+#lines(bmi_grid, LCL, lty = 2); lines(bmi_grid, UCL, lty = 2)
 abline(h = 1, lty = 3); abline(v = 25, lty = 3)
 dev.off()
 
@@ -268,8 +279,6 @@ write.csv(viol_rate, "PH_violation_rate_extended.csv",         row.names = FALSE
 # Quick on-screen view (largest violation rates first)
 viol_rate
 
-# assumes: vars_extended, BND, K3, K5, fit_list_cs1 already defined
-# and imp2$data$Status_cs1 exists (1 = event of interest, 0 = otherwise)
 
 # Fit 3-knot and 5-knot models (cause-specific)
 fit_k3 <- with(imp2, {
