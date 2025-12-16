@@ -52,6 +52,30 @@ run_subgroup_LRT_linear <- function(completed, time_var, event_var, covars,
   
   fits0 <- lapply(completed, function(d) {
     d <- setup_fun(d)
+    d <- completed[[1]]
+    d$icd <- factor(d$ICD_status)
+    
+    needed <- c(
+      "Survival_time", "Status_cs1", "BMI",
+      covars_no_icd, "icd"
+    )
+    
+    # Rows actually used by coxph (complete across all needed vars)
+    d2 <- d[complete.cases(d[, needed]), ]
+    
+    # 1) check icd has >1 level
+    print(table(d2$icd, useNA="ifany"))
+    print(table(d2$icd, d2$Status_cs1))
+    
+    # 2) find variables with no variation (this is the usual cause)
+    const <- names(which(sapply(
+      d2[, c(covars_no_icd, "icd"), drop=FALSE], function(x) {
+      x <- x[!is.na(x)]
+      length(unique(x)) <= 1
+    }
+)))
+    const
+    
     coxph(f_base, data = d, ties = "efron", x = TRUE)
   })
   
