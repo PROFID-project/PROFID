@@ -172,7 +172,7 @@ mean(aic_vec); sd(aic_vec)
 mods <- fit_list_cs1$analyses
 m    <- length(mods)
 
-# Use the same knots/boundaries you defined earlier
+# Use the same knots/boundaries defined earlier
 bmi_min <- max(min(imp2$data$BMI, na.rm = TRUE), BND[1])
 bmi_max <- min(max(imp2$data$BMI, na.rm = TRUE), BND[2])
 bmi_grid <- seq(bmi_min, bmi_max, length.out = 400)
@@ -420,3 +420,113 @@ legend("topleft",
        bty    = "n")
 
 dev.off()
+
+
+# comparing knot versions 
+get_pooled_spline_curve <- function(fit_list, knots, BND,
+                                    bmi_ref = 25,
+                                    ngrid = 400,
+                                    label) {
+  
+  mods <- fit_list$analyses
+  m    <- length(mods)
+  
+  bmi_min  <- max(min(imp2$data$BMI, na.rm = TRUE), BND[1])
+  bmi_max  <- min(max(imp2$data$BMI, na.rm = TRUE), BND[2])
+  bmi_grid <- seq(bmi_min, bmi_max, length.out = ngrid)
+  
+  Xbmi <- ns(bmi_grid, knots = knots, Boundary.knots = BND)
+  Xref <- ns(bmi_ref,  knots = knots, Boundary.knots = BND)
+  
+  Lmat <- Xbmi - matrix(rep(Xref, each = nrow(Xbmi)),
+                        ncol = ncol(Xbmi))
+  
+  coef_names <- names(coef(mods[[1]]))
+  sidx <- grep("^ns\\(BMI", coef_names)
+  
+  pool_contrast <- function(Lrow){
+    qi <- vapply(mods, function(fm)
+      as.numeric(Lrow %*% coef(fm)[sidx]), numeric(1))
+    
+    ui <- vapply(mods, function(fm)
+      as.numeric(Lrow %*% vcov(fm)[sidx, sidx, drop=FALSE] %*% Lrow),
+      numeric(1))
+    
+    qbar <- mean(qi)
+    ubar <- mean(ui)
+    bvar <- var(qi)
+    Tvar <- ubar + (1 + 1/m) * bvar
+    
+    c(logHR = qbar, se = sqrt(Tvar))
+  }
+  
+  res <- t(apply(Lmat, 1, pool_contrast))
+  
+  data.frame(
+    BMI   = bmi_grid,
+    HR    = exp(res[, "logHR"]),
+    LCL   = exp(res[, "logHR"] - 1.96 * res[, "se"]),
+    UCL   = exp(res[, "logHR"] + 1.96 * res[, "se"]),
+    model = label
+  )
+}
+
+curve_k3 <- get_pooled_spline_curve(
+  fit_list = fit_k3,
+  knots    = K3,
+  BND      = BND,
+  label    = "3 internal knots"
+)
+
+curve_k4 <- get_pooled_spline_curve(
+  fit_list = fit_list_cs1,   # your main model
+  knots    = K4,
+  BND      = BND,
+  label    = "4 internal knots"
+)
+
+curve_k5 <- get_pooled_spline_curve(
+  fit_list = fit_k5,
+  knots    = K5,
+  BND      = BND,
+  label    = "5 internal knots"
+)
+
+curves_all <- rbind(curve_k3, curve_k4, curve_k5)
+
+pdf("BMI_RCS_knot_sensitivity_cs1.pdf", width = 7, height = 5)
+
+ylim_all <- range(curves_all$LCL, curves_all$UCL)
+
+plot(curve_k4$BMI, curve_k4$HR, type = "n",
+     ylim = ylim_all,
+     xlab = "BMI (kg/m²)",
+     ylab = "Hazard ratio (ref = 25)",
+     main = "")
+
+# HR curves
+# Okabe–Ito colour-blind safe palette
+col_k3 <- "#0072B2"  # blue
+col_k4 <- "black"
+col_k5 <- "#D55E00"  # orange
+
+lines(curve_k3$BMI, curve_k3$HR, col = col_k3, lwd = 2, lty = 2)
+lines(curve_k4$BMI, curve_k4$HR, col = col_k4, lwd = 2, lty = 1)
+lines(curve_k5$BMI, curve_k5$HR, col = col_k5, lwd = 2, lty = 2)
+
+
+# Reference lines
+abline(h = 1,  lty = 3, col = "grey60")
+abline(v = 25, lty = 3, col = "grey80")
+
+legend("topleft",
+       legend = c("3 internal knots", "4 internal knots", "5 internal knots"),
+       col    = c(col_k3, "black", col_k5),
+       lty    = c(2, 1, 2),
+       lwd    = 2,
+       bty    = "n")
+
+dev.off()
+
+
+
