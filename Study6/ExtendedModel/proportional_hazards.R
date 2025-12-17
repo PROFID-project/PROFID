@@ -224,89 +224,73 @@ dev.off()
 head(viol_rate, 10)
 
 
+#below is code for the 90 day cutoff 
 
-czph <- cox.zph(fm1, transform = "km")
+library(mice)
+library(survival)
+library(splines)
 
-pdf("PH_Schoenfeld_panels_2x2.pdf", width = 8, height = 10)
+# Assumes these exist in environment from main extended modelling code:
+# K4 (inner knots), BND (boundary knots)
 
-par(
-  mfrow = c(2,2),
-  mar = c(4.5, 4.5, 3, 1),
-  oma = c(0, 0, 2, 0)
-)
 
-## ---- a) BMI spline (custom y-axis) ----
-plot(
-  czph,
-  var = "ns(BMI, knots = K4, Boundary.knots = BND)",
-  resid = TRUE,
-  se = TRUE,
-  ylab = "",
-  main = "a) BMI spline"
-)
-
-mtext(
-  "Scaled Schoenfeld residuals",
-  side = 2,
-  line = 3
-)
-
-## ---- b) Age ----
-plot(
-  czph,
-  var = "Age",
-  resid = TRUE,
-  se = TRUE,
-  ylab = "",
-  main = "b) Age"
-)
-
-mtext(
-  "Scaled Schoenfeld residuals",
-  side = 2,
-  line = 3
-)
-
-## ---- c) LVEF ----
-plot(
-  czph,
-  var = "LVEF",
-  resid = TRUE,
-  se = TRUE,
-  ylab = "",
-  main = "c) LVEF"
-)
-
-mtext(
-  "Scaled Schoenfeld residuals",
-  side = 2,
-  line = 3
-)
-
-## ---- d) eGFR ----
-plot(
-  czph,
-  var = "eGFR",
-  resid = TRUE,
-  se = TRUE,
-  ylab = "",
-  main = "d) eGFR"
-)
-
-mtext(
-  "Scaled Schoenfeld residuals",
-  side = 2,
-  line = 3
-)
-
-## ---- Global PH test ----
-mtext(
+form_ext_90 <- as.formula(
   paste0(
-    "Global proportional hazards test: p = ",
-    format.pval(czph$table["GLOBAL","p"], digits = 3, eps = 1e-3)
-  ),
-  outer = TRUE,
-  cex = 0.9
+    "Surv(time90, status90) ~ ",
+    "ns(BMI, knots = K4, Boundary.knots = BND) + ",
+    "Age + Sex + Diabetes + Hypertension + Smoking + MI_history + ",
+    "LVEF + eGFR + Haemoglobin + ",
+    "ACE_inhibitor_ARB + Beta_blockers + Lipid_lowering + ",
+    "Revascularisation_acute + Cholesterol + HDL + LDL + Triglycerides + ",
+    "COPD_cat + Cancer + Stroke_TIA + ICD_status"
+  )
 )
 
+fit_ext_90 <- with(imp2, {
+  coxph(
+    Surv(pmin(Survival_time, 90),
+         as.integer(Status_cs1 == 1 & Survival_time <= 90)) ~
+      ns(BMI, knots = K4, Boundary.knots = BND) +
+      Age + Sex + Diabetes + Hypertension + Smoking + MI_history +
+      LVEF + eGFR + Haemoglobin +
+      ACE_inhibitor_ARB + Beta_blockers + Lipid_lowering +
+      Revascularisation_acute + Cholesterol + HDL + LDL + Triglycerides +
+      COPD_cat + Cancer + Stroke_TIA + ICD_status,
+    ties = "efron",
+    x = TRUE
+  )
+})
+
+pool_fit_ext_90 <- pool(fit_ext_90)
+summary(pool_fit_ext_90)
+
+# pick one fitted model (e.g., imputation 1)
+fit1 <- fit_ext_90$analyses[[1]]
+
+cz <- cox.zph(fit1, transform = "km")
+print(cz)
+
+
+pdf("schoenfeld_panels_BMI_Age_LVEF_eGFR.pdf", width = 8.5, height = 9)
+
+op <- par(mfrow = c(2,2), mar = c(4,4,3,1), oma = c(0,0,3,0))
+
+
+
+plot(cz, var = "ns(BMI, knots = K4, Boundary.knots = BND)",
+     main = "a) BMI spline", xlab = "Time", ylab = "Scaled Schoenfeld residuals")
+plot(cz, var = "Age",
+     main = "b) Age", xlab = "Time", ylab = "Scaled Schoenfeld residuals")
+plot(cz, var = "LVEF",
+     main = "c) LVEF", xlab = "Time", ylab = "Scaled Schoenfeld residuals")
+plot(cz, var = "eGFR",
+     main = "d) eGFR", xlab = "Time", ylab = "Scaled Schoenfeld residuals")
+
+mtext(sprintf("Global proportional hazards test: p = %.3f",
+              cz$table["GLOBAL","p"]),
+      outer = TRUE, cex = 1.0)
+
+
+par(op)
 dev.off()
+
