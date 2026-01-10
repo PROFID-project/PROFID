@@ -23,13 +23,10 @@ preimp <- read.csv("combined_BMI_outcomefiltered.csv")
 imp <- readRDS("mice_imputed_data.RDS")
 
 # Make sure the columns are named consistently
-# (adjust these two names if your file uses different ones)
 id_col <- "ID"
 icd_col <- "ICD_status"
 cancer_col <- "Cancer"
 COPD_col <- "COPD"
-
-
 stopifnot(
   id_col %in% names(preimp),
   icd_col %in% names(preimp),
@@ -111,7 +108,7 @@ vars_extended <- c(
   "LVEF",
   "eGFR","Haemoglobin",
   "ACE_inhibitor_ARB","Beta_blockers","Lipid_lowering",
-  "Revascularisation_acute", "Cholesterol", "HDL", "LDL", "Triglycerides", "Stroke_TIA", "ICD_status", "Cancer", "COPD_cat"
+  "Revascularisation_acute", "Cholesterol", "HDL", "LDL", "Triglycerides", "Stroke_TIA", "ICD_status"
 )
 
 # Fixed knots from observed BMI in the original data inside imp$data 
@@ -148,7 +145,7 @@ fit_list_cs1 <- with(
       LVEF  + eGFR + Haemoglobin +
       ACE_inhibitor_ARB + Beta_blockers + Lipid_lowering +
       Revascularisation_acute + Cholesterol + HDL + LDL + Triglycerides +
-      COPD_cat + Cancer + Stroke_TIA + ICD_status,
+       + Stroke_TIA + ICD_status,
     x = TRUE, y = TRUE
   )
 )
@@ -298,7 +295,7 @@ fit_k3 <- with(imp2, {
       LVEF  + eGFR + Haemoglobin +
       ACE_inhibitor_ARB + Beta_blockers + Lipid_lowering +
       Revascularisation_acute + Cholesterol + HDL + LDL + Triglycerides +
-      COPD_cat + Cancer + Stroke_TIA + ICD_status,
+      + Stroke_TIA + ICD_status,
     x = TRUE, y = TRUE
   )
 })
@@ -311,7 +308,7 @@ fit_k5 <- with(imp2, {
       LVEF  + eGFR + Haemoglobin +
       ACE_inhibitor_ARB + Beta_blockers + Lipid_lowering +
       Revascularisation_acute + Cholesterol + HDL + LDL + Triglycerides +
-      COPD_cat + Cancer + Stroke_TIA + ICD_status,
+      + Stroke_TIA + ICD_status,
     x = TRUE, y = TRUE
   )
 })
@@ -395,7 +392,7 @@ polygon(c(curve_ext$BMI, rev(curve_ext$BMI)),
 
 # Mean HR curves
 lines(curve_base$BMI, curve_base$HR, col = "darkblue",  lwd = 2)
-lines(curve_ext$BMI,  curve_ext$HR,  col = "firebrick", lwdf = 2)
+lines(curve_ext$BMI,  curve_ext$HR,  col = "firebrick", lwd = 2)
 
 # Reference lines
 abline(h = 1,  lty = 3, col = "gray50")
@@ -530,7 +527,7 @@ abline(v = 25, lty = 3, col = "grey80")
 
 legend("topleft",
        legend = c("3 internal knots", "4 internal knots", "5 internal knots"),
-       col    = c(col_k3, "black", col_k5),
+       col    = c(col_k3, "black", col_k5),s
        lty    = c(2, 1, 2),
        lwd    = 2,
        bty    = "n")
