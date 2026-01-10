@@ -29,6 +29,7 @@ icd_col <- "ICD_status"
 cancer_col <- "Cancer"
 COPD_col <- "COPD"
 
+
 stopifnot(
   id_col %in% names(preimp),
   icd_col %in% names(preimp),
@@ -63,7 +64,6 @@ cs_map <- preimp %>%
                       levels = c("No", "Yes", "Missing"))
   )
 
-## Turn mids into long format
 imp_long <- complete(imp, "long", include = TRUE)  # has .imp and .id
 
 ## Make sure ID is present in imp_long; if not, map by row order
@@ -129,11 +129,20 @@ imp2$data$Status_cs1 <- ifelse(imp2$data$Status == 1, 1L, 0L)
 # Quick sanity check
 table(imp2$data$Status, imp2$data$Status_cs1, useNA = "ifany")
 
+horizon <- 90
+
+imp2$data <- imp2$data %>%
+  mutate(
+    Survival_time_h = pmin(Survival_time, horizon),
+    Status_cs1_h    = ifelse(Survival_time <= horizon & Status == 1, 1L, 0L)
+  )
+
+
 # Refit cause-specific Cox (y=TRUE so we can compute C-index reliably)
 fit_list_cs1 <- with(
   imp2,
   coxph(
-    Surv(Survival_time, Status_cs1) ~
+    Surv(Survival_time_h, Status_cs1_h) ~
       ns(BMI, knots = K4, Boundary.knots = BND) +
       Age + Sex + Diabetes + Hypertension + Smoking + MI_history +
       LVEF  + eGFR + Haemoglobin +
@@ -283,7 +292,7 @@ viol_rate
 # Fit 3-knot and 5-knot models (cause-specific)
 fit_k3 <- with(imp2, {
   coxph(
-    Surv(Survival_time, Status_cs1) ~
+    Surv(Survival_time_h, Status_cs1_h) ~
       ns(BMI, knots = K3, Boundary.knots = BND) +
       Age + Sex + Diabetes + Hypertension + Smoking + MI_history +
       LVEF  + eGFR + Haemoglobin +
@@ -296,7 +305,7 @@ fit_k3 <- with(imp2, {
 
 fit_k5 <- with(imp2, {
   coxph(
-    Surv(Survival_time, Status_cs1) ~
+    Surv(Survival_time_h, Status_cs1_h) ~
       ns(BMI, knots = K5, Boundary.knots = BND) +
       Age + Sex + Diabetes + Hypertension + Smoking + MI_history +
       LVEF  + eGFR + Haemoglobin +
