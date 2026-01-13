@@ -1,15 +1,15 @@
 "term","prop_p_lt_0.05"
 "Age",1
 "LVEF",1
+"eGFR",1
+"Haemoglobin",1
 "Revascularisation_acute",1
+"Hypertension",0.5
 "MI_history",0.5
-"Haemoglobin",0.5
 "ns(BMI, knots = K4, Boundary.knots = BND)",0
 "Sex",0
 "Diabetes",0
-"Hypertension",0
 "Smoking",0
-"eGFR",0
 "ACE_inhibitor_ARB",0
 "Beta_blockers",0
 "Lipid_lowering",0
