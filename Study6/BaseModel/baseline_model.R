@@ -408,231 +408,174 @@ add_horizon_vars <- function(mids_obj, H) {
 }
 
 
-## Calibration (slope & intercept)for all models 
+# ## Calibration (slope & intercept)for all models 
+# fit_models_at_horizon <- function(imp_base, imp_ext, H, K4, BND) {
+#   
+#   fit_base <- with(imp_base, {
+#     Survival_time_h <- pmin(Survival_time, H)
+#     Status_cs1_h    <- ifelse(Survival_time <= H & Status == 1, 1L, 0L)
+#     
+#     coxph(
+#       Surv(Survival_time_h, Status_cs1_h) ~
+#         ns(BMI, knots = K4, Boundary.knots = BND) +
+#         Age + Sex + Diabetes + Hypertension + Smoking + MI_history +
+#         LVEF + eGFR + Haemoglobin +
+#         ACE_inhibitor_ARB + Beta_blockers + Lipid_lowering +
+#         Revascularisation_acute,
+#       x = TRUE, y = TRUE
+#     )
+#   })
+#   
+#   fit_ext <- with(imp_ext, {
+#     Survival_time_h <- pmin(Survival_time, H)
+#     Status_cs1_h    <- ifelse(Survival_time <= H & Status == 1, 1L, 0L)
+#     
+#     coxph(
+#       Surv(Survival_time_h, Status_cs1_h) ~
+#         ns(BMI, knots = K4, Boundary.knots = BND) +
+#         Age + Sex + Diabetes + Hypertension + Smoking + MI_history +
+#         LVEF + eGFR + Haemoglobin +
+#         ACE_inhibitor_ARB + Beta_blockers + Lipid_lowering +
+#         Revascularisation_acute +
+#         Cholesterol + HDL + LDL + Triglycerides +
+#         Stroke_TIA + ICD_status + Cancer + COPD_cat,
+#       x = TRUE, y = TRUE
+#     )
+#   })
+#   
+#   list(base = fit_base, ext = fit_ext)
+# }
+# 
+# 
+# 
+# # Simple recalibration by fitting a Cox model of y ~ lp per imputation
+# # slope ~ 1 is good; intercept ~ 0 is good.
+# get_calib <- function(fit_list){
+#   do.call(rbind, lapply(fit_list$analyses, function(fm){
+#     y  <- fm$y
+#     lp <- predict(fm, type = "lp")
+#     
+#     # Calibration slope: fit y ~ lp
+#     fit_slope <- coxph(Surv(y[,1], y[,2]) ~ lp)
+#     
+#     # Calibration intercept: 
+#     # compute baseline log cumulative hazard difference
+#     # (average observed - average predicted)
+#     basehaz_df <- basehaz(fm, centered = FALSE)
+#     max_time <- max(y[,1])
+#     H0 <- basehaz_df$hazard[which.max(basehaz_df$time <= max_time)]
+#     intercept_est <- log(mean(y[,2])) - log(mean(exp(lp)))  # approximate intercept
+#     
+#     data.frame(
+#       cal_slope = unname(coef(fit_slope)["lp"]),
+#       cal_intercept = intercept_est
+#     )
+#   }))
+# }
+# 
+# 
+# # Calibration plots across all imputations for all models 
+# 
 
 fit_models_at_horizon <- function(imp_base, imp_ext, H, K4, BND) {
-  impB <- add_horizon_vars(imp_base, H)
-  impE <- add_horizon_vars(imp_ext,  H)
   
-  # capture knots inside formula environment (avoids "BND not found")
-  f_base <- local({
-    K4_local <- K4; BND_local <- BND
-    as.formula(
+  fit_base <- with(imp_base, {
+    Survival_time_h <- pmin(Survival_time, H)
+    Status_cs1_h    <- ifelse(Survival_time <= H & Status == 1, 1L, 0L)
+    
+    coxph(
       Surv(Survival_time_h, Status_cs1_h) ~
-        ns(BMI, knots = K4_local, Boundary.knots = BND_local) +
+        ns(BMI, knots = K4, Boundary.knots = BND) +
         Age + Sex + Diabetes + Hypertension + Smoking + MI_history +
         LVEF + eGFR + Haemoglobin +
         ACE_inhibitor_ARB + Beta_blockers + Lipid_lowering +
-        Revascularisation_acute
+        Revascularisation_acute,
+      x = TRUE, y = TRUE
     )
   })
   
-  f_ext <- local({
-    K4_local <- K4; BND_local <- BND
-    as.formula(
+  fit_ext <- with(imp_ext, {
+    Survival_time_h <- pmin(Survival_time, H)
+    Status_cs1_h    <- ifelse(Survival_time <= H & Status == 1, 1L, 0L)
+    
+    coxph(
       Surv(Survival_time_h, Status_cs1_h) ~
-        ns(BMI, knots = K4_local, Boundary.knots = BND_local) +
+        ns(BMI, knots = K4, Boundary.knots = BND) +
         Age + Sex + Diabetes + Hypertension + Smoking + MI_history +
         LVEF + eGFR + Haemoglobin +
         ACE_inhibitor_ARB + Beta_blockers + Lipid_lowering +
         Revascularisation_acute +
         Cholesterol + HDL + LDL + Triglycerides +
-        Stroke_TIA + ICD_status + Cancer + COPD_cat
+        Stroke_TIA + ICD_status + Cancer + COPD_cat,
+      x = TRUE, y = TRUE
     )
   })
-  
-  fit_base <- with(impB, coxph(f_base, x = TRUE, y = TRUE))
-  fit_ext  <- with(impE, coxph(f_ext,  x = TRUE, y = TRUE))
   
   list(base = fit_base, ext = fit_ext)
 }
 
-
-
-# Simple recalibration by fitting a Cox model of y ~ lp per imputation
-# slope ~ 1 is good; intercept ~ 0 is good.
-get_calib <- function(fit_list){
-  do.call(rbind, lapply(fit_list$analyses, function(fm){
+# helpers
+get_cindex_vec <- function(fit_list){
+  sapply(fit_list$analyses, function(fm){
     y  <- fm$y
-    lp <- predict(fm, type = "lp")
-    
-    # Calibration slope: fit y ~ lp
-    fit_slope <- coxph(Surv(y[,1], y[,2]) ~ lp)
-    
-    # Calibration intercept: 
-    # compute baseline log cumulative hazard difference
-    # (average observed - average predicted)
-    basehaz_df <- basehaz(fm, centered = FALSE)
-    max_time <- max(y[,1])
-    H0 <- basehaz_df$hazard[which.max(basehaz_df$time <= max_time)]
-    intercept_est <- log(mean(y[,2])) - log(mean(exp(lp)))  # approximate intercept
-    
-    data.frame(
-      cal_slope = unname(coef(fit_slope)["lp"]),
-      cal_intercept = intercept_est
-    )
-  }))
-}
-
-
-# Calibration plots across all imputations for all models 
-
-
-
-.calib_from_fitlist <- function(fit_list, t0, nbins = 10) {
-  # For each imputation-specific Cox model in fit_list$analyses:
-  #  * compute predicted risk at time t0 using basehaz + linear predictors
-  #  * bin predictions
-  #  * compute mean predicted + KM observed risk per bin
-  # Returns a data.frame with bin, pred_mean, obs_mean pooled across imputations.
-  
-  all_bins <- lapply(fit_list$analyses, function(fm) {
-    y     <- fm$y
-    time  <- y[, 1]
-    status<- y[, 2]
-    
-    ## 1) Baseline cumulative hazard at t0 (covariates = 0)
-    bh <- basehaz(fm, centered = FALSE)
-    idx <- which(bh$time <= t0)
-    if (length(idx) == 0) return(NULL)
-    H0_t0 <- bh$hazard[max(idx)]
-    
-    ## 2) Un-centre the linear predictor
-    lp_centered <- fm$linear.predictors
-    const       <- sum(fm$means * coef(fm))   # centering constant
-    lp_unc      <- lp_centered + const        # η (not centered)
-    
-    ## 3) Predicted survival & risk at t0
-    surv_t0  <- exp(- H0_t0 * exp(lp_unc))
-    pred_risk <- 1 - surv_t0
-    
-    if (all(is.na(pred_risk)) || length(unique(na.omit(pred_risk))) < 2) {
-      return(NULL)
-    }
-    
-    ## 4) Define bins based on quantiles of predicted risk
-    q <- quantile(pred_risk, probs = seq(0, 1, length.out = nbins + 1),
-                  na.rm = TRUE)
-    q <- unique(q)
-    if (length(q) < 2) return(NULL)
-    
-    bin <- cut(pred_risk, breaks = q, include.lowest = TRUE, labels = FALSE)
-    
-    df <- data.frame(time = time, status = status,
-                     pred = pred_risk, bin = bin)
-    df <- df[!is.na(df$bin), ]
-    if (nrow(df) == 0) return(NULL)
-    
-    ## 5) Mean predicted risk per bin
-    pred_mean <- tapply(df$pred, df$bin, mean)
-    
-    ## 6) KM observed risk per bin at t0
-    obs_mean <- sapply(split(df, df$bin), function(dbin) {
-      sf <- survfit(Surv(time, status) ~ 1, data = dbin)
-      s_t0 <- summary(sf, times = t0, extend = TRUE)$surv
-      1 - s_t0[length(s_t0)]
-    })
-    
-    data.frame(
-      bin       = as.numeric(names(pred_mean)),
-      pred_mean = as.vector(pred_mean),
-      obs_mean  = as.vector(obs_mean)
-    )
+    lp <- predict(fm, type="lp")
+    survival::survConcordance(Surv(y[,1], y[,2]) ~ lp)$concordance
   })
-  
-  res <- do.call(rbind, all_bins)
-  res
 }
 
-horizons <- c(60, 90, 120)
-nb <- 20
-
-for (H in horizons) {
-  fitsH <- fit_models_at_horizon(imp_base = imp, imp_ext = imp2, H = H, K4 = K4, BND = BND)
-  
-  cal_full  <- .calib_from_fitlist(fitsH$full,  t0 = H, nbins = nb)
-  cal_ext   <- .calib_from_fitlist(fitsH$ext,   t0 = H, nbins = nb)
-  
-  cal_plot_df <- bind_rows(
-    mutate(cal_full,  Model = "Base"),
-    mutate(cal_ext,   Model = "Extended")
-  ) %>% filter(!is.na(pred_mean) & !is.na(obs_mean))
-  
-  p <- ggplot(cal_plot_df, aes(x = pred_mean, y = obs_mean, color = Model)) +
-    geom_point() + geom_line() +
-    geom_abline(slope = 1, intercept = 0, linetype = "dotted") +
-    coord_equal() +
-    theme_bw() +
-    labs(
-      x = sprintf("Predicted risk by %d months", H),
-      y = sprintf("Observed risk by %d months (KM)", H),
-      title = sprintf("Calibration (horizon-censored at %d months)", H)
-    )
-  
-  ggsave(sprintf("calibration_plot_all_models_horizon_%dmo.pdf", H), p, width = 7, height = 5)
+get_aic_vec <- function(fit_list){
+  sapply(fit_list$analyses, AIC)
 }
 
-print(p)
+summarise_vec <- function(x){
+  data.frame(mean = mean(x, na.rm=TRUE), sd = sd(x, na.rm=TRUE))
+}
 
-
-  
-
-## One combined summary table 
-library(dplyr)
-variable_selection_summary <- cindex_summary %>%
-  left_join(aic_summary,        by = "model") %>%
-  left_join(calibration_summary, by = "model")
-
-write.csv(variable_selection_summary,
-          "Variable_selection_summary_all_models.csv",
-          row.names = FALSE)
-
-
-##  Save the retained variables 
-write.csv(data.frame(retained_variable = keep),
-          "Simplified_base_retained_variables.csv",
-          row.names = FALSE)
-
-
-summarise_calibration <- function(cal_df) {
+summarise_calibration <- function(cal_df){
   data.frame(
-    Slope_mean     = mean(cal_df$cal_slope, na.rm = TRUE),
-    Slope_sd       = sd(cal_df$cal_slope,   na.rm = TRUE),
-    Intercept_mean = mean(cal_df$cal_intercept, na.rm = TRUE),
-    Intercept_sd   = sd(cal_df$cal_intercept,   na.rm = TRUE)
+    Slope_mean     = mean(cal_df$cal_slope, na.rm=TRUE),
+    Slope_sd       = sd(cal_df$cal_slope,   na.rm=TRUE),
+    Intercept_mean = mean(cal_df$cal_intercept, na.rm=TRUE),
+    Intercept_sd   = sd(cal_df$cal_intercept,   na.rm=TRUE)
   )
 }
 
+# horizons you want
 horizons <- c(60, 90, 120)
 
-calibration_summary_all <- do.call(rbind, lapply(horizons, function(H) {
+rows <- lapply(horizons, function(H){
   
   fitsH <- fit_models_at_horizon(imp_base = imp, imp_ext = imp2, H = H, K4 = K4, BND = BND)
   
+  # performance
+  c_base <- get_cindex_vec(fitsH$base)
+  c_ext  <- get_cindex_vec(fitsH$ext)
+  
+  a_base <- get_aic_vec(fitsH$base)
+  a_ext  <- get_aic_vec(fitsH$ext)
+  
+  # calibration slope/intercept
   cal_base <- get_calib(fitsH$base)
   cal_ext  <- get_calib(fitsH$ext)
   
-  rbind(
-    cbind(
-      Horizon = H,
-      Model   = "Baseline",
-      summarise_calibration(cal_base)
-    ),
-    cbind(
-      Horizon = H,
-      Model   = "Extended",
-      summarise_calibration(cal_ext)
-    )
+  out_base <- cbind(
+    Horizon = H, Model = "Baseline",
+    C_index_mean = mean(c_base), C_index_sd = sd(c_base),
+    AIC_mean = mean(a_base), AIC_sd = sd(a_base),
+    summarise_calibration(cal_base)
   )
-}))
+  
+  out_ext <- cbind(
+    Horizon = H, Model = "Extended",
+    C_index_mean = mean(c_ext), C_index_sd = sd(c_ext),
+    AIC_mean = mean(a_ext), AIC_sd = sd(a_ext),
+    summarise_calibration(cal_ext)
+  )
+  
+  rbind(out_base, out_ext)
+})
 
-calibration_summary_all
+final_summary <- do.call(rbind, rows)
 
-write.csv(
-  calibration_summary_all,
-  "Calibration_slope_intercept_summary_60_90_120.csv",
-  row.names = FALSE
-)
-
-
-
+write.csv(final_summary, "Model_summary_base_vs_extended_60_90_120.csv", row.names = FALSE)
+final_summary
