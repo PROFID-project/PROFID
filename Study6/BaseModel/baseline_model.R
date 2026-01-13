@@ -72,15 +72,20 @@ table(imp$data$Status, imp$data$Status_cs1, useNA = "ifany")
 # Refit cause-specific Cox (y=TRUE so we can compute C-index reliably)
 fit_list_cs1 <- with(
   imp,
-  coxph(
-    Surv(Survival_time_h, Status_cs1_h) ~
-      ns(BMI, knots = K4, Boundary.knots = BND) +
-      Age + Sex + Diabetes + Hypertension + Smoking + MI_history +
-      LVEF + eGFR + Haemoglobin +
-      ACE_inhibitor_ARB + Beta_blockers + Lipid_lowering +
-      Revascularisation_acute,
-    x = TRUE, y = TRUE
-  )
+  {
+    Survival_time_h <- pmin(Survival_time, HORIZON)
+    Status_cs1_h    <- ifelse(Survival_time <= HORIZON & Status == 1, 1L, 0L)
+    
+    coxph(
+      Surv(Survival_time_h, Status_cs1_h) ~
+        ns(BMI, knots = K4, Boundary.knots = BND) +
+        Age + Sex + Diabetes + Hypertension + Smoking + MI_history +
+        LVEF + eGFR + Haemoglobin +
+        ACE_inhibitor_ARB + Beta_blockers + Lipid_lowering +
+        Revascularisation_acute,
+      x = TRUE, y = TRUE
+    )
+  }
 )
 
 
@@ -213,47 +218,6 @@ viol_rate
 # assumes: vars_base, BND, K3, K5, fit_list_cs1 already defined
 # and imp$data$Status_cs1 exists (1 = event of interest, 0 = otherwise)
 
-
-# Fit 3-knot and 5-knot models (cause-specific)
-fit_k3 <- with(imp, {
-  coxph(Surv(Survival_time, Status_cs1) ~ 
-          ns(BMI, knots = K3, Boundary.knots = BND) + 
-          Age + Sex + Diabetes + Hypertension + Smoking + MI_history + 
-          LVEF + eGFR + Haemoglobin + ACE_inhibitor_ARB + 
-          Beta_blockers + Lipid_lowering + Revascularisation_acute,
-        x = TRUE, y = TRUE)
-})
-
-fit_k5 <- with(imp, {
-  coxph(Surv(Survival_time, Status_cs1) ~ 
-          ns(BMI, knots = K5, Boundary.knots = BND) + 
-          Age + Sex + Diabetes + Hypertension + Smoking + MI_history + 
-          LVEF + eGFR + Haemoglobin + ACE_inhibitor_ARB + 
-          Beta_blockers + Lipid_lowering + Revascularisation_acute,
-        x = TRUE, y = TRUE)
-})
-
-
-# AIC per imputation
-aic_k3 <- sapply(fit_k3$analyses, AIC)
-aic_k4 <- sapply(fit_list_cs1$analyses, AIC)  # your main 4-knot model
-aic_k5 <- sapply(fit_k5$analyses, AIC)
-
-# Summary + export
-aic_summary <- data.frame(
-  model    = c("K3","K4","K5"),
-  mean_AIC = c(mean(aic_k3), mean(aic_k4), mean(aic_k5)),
-  sd_AIC   = c(sd(aic_k3),   sd(aic_k4),   sd(aic_k5))
-)
-
-write.csv(
-  data.frame(imp = seq_along(aic_k3), AIC_K3 = aic_k3, AIC_K4 = aic_k4, AIC_K5 = aic_k5),
-  "AIC_per_imputation_K3_K4_K5.csv",
-  row.names = FALSE
-)
-write.csv(aic_summary, "AIC_summary_K3_K4_K5.csv", row.names = FALSE)
-
-aic_summary
 
 # backward selection with p values on 1 imputed dataset 
 # Build helpers
@@ -584,7 +548,7 @@ horizons <- c(60, 90, 120)
 nb <- 20
 
 for (H in horizons) {
-  fitsH <- fit_models_at_horizon(imp_base = imp, imp_ext = imp2, H = 90, K4 = K4, BND = BND)
+  fitsH <- fit_models_at_horizon(imp_base = imp, imp_ext = imp2, H = H, K4 = K4, BND = BND)
   
   cal_full  <- .calib_from_fitlist(fitsH$full,  t0 = H, nbins = nb)
   cal_ext   <- .calib_from_fitlist(fitsH$ext,   t0 = H, nbins = nb)
@@ -643,7 +607,7 @@ horizons <- c(60, 90, 120)
 
 calibration_summary_all <- do.call(rbind, lapply(horizons, function(H) {
   
-  fitsH <- fit_models_at_horizon(imp, H, K4, BND)
+  fitsH <- fit_models_at_horizon(imp_base = imp, imp_ext = imp2, H = H, K4 = K4, BND = BND)
   
   cal_base <- get_calib(fitsH$base)
   cal_ext  <- get_calib(fitsH$ext)
