@@ -527,12 +527,9 @@ abline(v = 25, lty = 3, col = "grey80")
 
 legend("topleft",
        legend = c("3 internal knots", "4 internal knots", "5 internal knots"),
-       col    = c(col_k3, "black", col_k5),s
+       col    = c(col_k3, "black", col_k5),
        lty    = c(2, 1, 2),
        lwd    = 2,
        bty    = "n")
 
 dev.off()
-
-
-
