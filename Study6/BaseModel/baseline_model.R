@@ -20,6 +20,9 @@ setwd("T:/Dokumente/PROFID/Study6")
 # Load the imputed object
 imp <- readRDS("mice_imputed_data.RDS")
 
+imp2 <- readRDS("mice_imputed_data_extended.RDS")
+
+
 # Quick checks
 imp
 names(imp$data)
@@ -398,38 +401,87 @@ add_horizon_vars <- function(mids_obj, H) {
 }
 
 
+# Work on first completed dataset (horizon-censored)
+d1 <- mice::complete(imp, 1) %>%
+  mutate(
+    Survival_time_h = pmin(Survival_time, HORIZON),
+    Status_cs1_h    = ifelse(Survival_time <= HORIZON & Status == 1, 1L, 0L)
+  )
 
-## Calibration (slope & intercept)for all models 
+fit_full <- coxph(
+  Surv(Survival_time_h, Status_cs1_h) ~
+    ns(BMI, knots = K4, Boundary.knots = BND) +
+    Age + Sex + Diabetes + Hypertension + Smoking + MI_history +
+    LVEF + eGFR + Haemoglobin +
+    ACE_inhibitor_ARB + Beta_blockers + Lipid_lowering +
+    Revascularisation_acute,
+  data = d1, x = TRUE, y = TRUE
+)
 
-fit_models_at_horizon <- function(imp, H, keep, K4, BND) {
-  impH <- add_horizon_vars(imp, H)
-  
-  # Full base
-  fit_full <- with(impH, coxph(
-    Surv(Survival_time_h, Status_cs1_h) ~
-      ns(BMI, knots = K4, Boundary.knots = BND) +
-      Age + Sex + Diabetes + Hypertension + Smoking + MI_history +
-      LVEF + eGFR + Haemoglobin +
-      ACE_inhibitor_ARB + Beta_blockers + Lipid_lowering +
-      Revascularisation_acute,
-    x = TRUE, y = TRUE
-  ))
-  
-  # Simplified base (uses 'keep')
-  rhs_s <- paste0("ns(BMI, knots = K4, Boundary.knots = BND) + ", paste(keep, collapse = " + "))
-  fit_simpl <- with(impH, coxph(
-    as.formula(paste("Surv(Survival_time_h, Status_cs1_h) ~", rhs_s)),
-    x = TRUE, y = TRUE
-  ))
-  
-  ## Load in the extended model 
-  fit_ext <- readRDS("fit_list_cs1_extended.RDS")
-  
-  
-  list(full = fit_full, simpl = fit_simpl, ext = fit_ext)
+# Likelihood-ratio tests for each predictor
+lrt <- drop1(fit_full, test = "Chisq")
+
+# Clean table
+lrt_tbl <- data.frame(
+  term = rownames(lrt),
+  LR_stat = lrt$LRT,
+  df = lrt$Df,
+  p_value = lrt$`Pr(>Chi)`
+) %>%
+  filter(!grepl("^ns\\(BMI", term)) %>%   # BMI spline handled separately
+  arrange(p_value)
+
+lrt_tbl
+
+
+add_horizon_vars <- function(mids_obj, H) {
+  mids_obj$data <- mids_obj$data %>%
+    mutate(
+      Survival_time_h = pmin(Survival_time, H),
+      Status_cs1_h    = ifelse(Survival_time <= H & Status == 1, 1L, 0L)
+    )
+  mids_obj
 }
 
 
+## Calibration (slope & intercept)for all models 
+
+fit_models_at_horizon <- function(imp_base, imp_ext, H, K4, BND) {
+  impB <- add_horizon_vars(imp_base, H)
+  impE <- add_horizon_vars(imp_ext,  H)
+  
+  # capture knots inside formula environment (avoids "BND not found")
+  f_base <- local({
+    K4_local <- K4; BND_local <- BND
+    as.formula(
+      Surv(Survival_time_h, Status_cs1_h) ~
+        ns(BMI, knots = K4_local, Boundary.knots = BND_local) +
+        Age + Sex + Diabetes + Hypertension + Smoking + MI_history +
+        LVEF + eGFR + Haemoglobin +
+        ACE_inhibitor_ARB + Beta_blockers + Lipid_lowering +
+        Revascularisation_acute
+    )
+  })
+  
+  f_ext <- local({
+    K4_local <- K4; BND_local <- BND
+    as.formula(
+      Surv(Survival_time_h, Status_cs1_h) ~
+        ns(BMI, knots = K4_local, Boundary.knots = BND_local) +
+        Age + Sex + Diabetes + Hypertension + Smoking + MI_history +
+        LVEF + eGFR + Haemoglobin +
+        ACE_inhibitor_ARB + Beta_blockers + Lipid_lowering +
+        Revascularisation_acute +
+        Cholesterol + HDL + LDL + Triglycerides +
+        Stroke_TIA + ICD_status + Cancer + COPD_cat
+    )
+  })
+  
+  fit_base <- with(impB, coxph(f_base, x = TRUE, y = TRUE))
+  fit_ext  <- with(impE, coxph(f_ext,  x = TRUE, y = TRUE))
+  
+  list(base = fit_base, ext = fit_ext)
+}
 
 
 
@@ -529,18 +581,16 @@ get_calib <- function(fit_list){
 }
 
 horizons <- c(60, 90, 120)
-nb <- 10
+nb <- 20
 
 for (H in horizons) {
-  fitsH <- fit_models_at_horizon(imp, H, keep, K4, BND)
+  fitsH <- fit_models_at_horizon(imp_base = imp, imp_ext = imp2, H = 90, K4 = K4, BND = BND)
   
   cal_full  <- .calib_from_fitlist(fitsH$full,  t0 = H, nbins = nb)
-  cal_simpl <- .calib_from_fitlist(fitsH$simpl, t0 = H, nbins = nb)
   cal_ext   <- .calib_from_fitlist(fitsH$ext,   t0 = H, nbins = nb)
   
   cal_plot_df <- bind_rows(
-    mutate(cal_full,  Model = "Full base"),
-    mutate(cal_simpl, Model = "Simplified base"),
+    mutate(cal_full,  Model = "Base"),
     mutate(cal_ext,   Model = "Extended")
   ) %>% filter(!is.na(pred_mean) & !is.na(obs_mean))
   
@@ -578,6 +628,47 @@ write.csv(variable_selection_summary,
 write.csv(data.frame(retained_variable = keep),
           "Simplified_base_retained_variables.csv",
           row.names = FALSE)
+
+
+summarise_calibration <- function(cal_df) {
+  data.frame(
+    Slope_mean     = mean(cal_df$cal_slope, na.rm = TRUE),
+    Slope_sd       = sd(cal_df$cal_slope,   na.rm = TRUE),
+    Intercept_mean = mean(cal_df$cal_intercept, na.rm = TRUE),
+    Intercept_sd   = sd(cal_df$cal_intercept,   na.rm = TRUE)
+  )
+}
+
+horizons <- c(60, 90, 120)
+
+calibration_summary_all <- do.call(rbind, lapply(horizons, function(H) {
+  
+  fitsH <- fit_models_at_horizon(imp, H, K4, BND)
+  
+  cal_base <- get_calib(fitsH$base)
+  cal_ext  <- get_calib(fitsH$ext)
+  
+  rbind(
+    cbind(
+      Horizon = H,
+      Model   = "Baseline",
+      summarise_calibration(cal_base)
+    ),
+    cbind(
+      Horizon = H,
+      Model   = "Extended",
+      summarise_calibration(cal_ext)
+    )
+  )
+}))
+
+calibration_summary_all
+
+write.csv(
+  calibration_summary_all,
+  "Calibration_slope_intercept_summary_60_90_120.csv",
+  row.names = FALSE
+)
 
 
 
