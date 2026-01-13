@@ -13,6 +13,7 @@ library(mice)
 library(splines)
 library(dplyr)
 library(broom)
+library(ggplot2)
 
 setwd("T:/Dokumente/PROFID/Study6")
 
@@ -49,6 +50,19 @@ K5 <- as.numeric(quantile(imp$data$BMI, probs = c(.05,.275,.50,.725,.95), na.rm 
 # Recode Status: event of interest = 1, everything else (0 or 2) = 0
 imp$data$Status_cs1 <- ifelse(imp$data$Status == 1, 1L, 0L)
 
+HORIZON <- 90  # months
+
+imp$data <- imp$data %>%
+  mutate(
+    Survival_time_h = pmin(Survival_time, HORIZON),
+    Status_cs1_h    = ifelse(Survival_time <= HORIZON & Status == 1, 1L, 0L)
+  )
+
+# sanity checks
+stopifnot(max(imp$data$Survival_time_h, na.rm = TRUE) <= HORIZON)
+stopifnot(sum(imp$data$Status_cs1_h == 1 & imp$data$Survival_time > HORIZON, na.rm = TRUE) == 0)
+
+
 # Quick sanity check
 table(imp$data$Status, imp$data$Status_cs1, useNA = "ifany")
 
@@ -56,15 +70,16 @@ table(imp$data$Status, imp$data$Status_cs1, useNA = "ifany")
 fit_list_cs1 <- with(
   imp,
   coxph(
-    Surv(Survival_time, Status_cs1) ~
+    Surv(Survival_time_h, Status_cs1_h) ~
       ns(BMI, knots = K4, Boundary.knots = BND) +
       Age + Sex + Diabetes + Hypertension + Smoking + MI_history +
-      LVEF  + eGFR + Haemoglobin +
+      LVEF + eGFR + Haemoglobin +
       ACE_inhibitor_ARB + Beta_blockers + Lipid_lowering +
       Revascularisation_acute,
     x = TRUE, y = TRUE
   )
 )
+
 
 pool_fit_cs1 <- pool(fit_list_cs1)
 summary(pool_fit_cs1)
@@ -79,6 +94,8 @@ pooled_tidy <- broom::tidy(pool_fit_cs1, conf.int = TRUE)
 write.csv(pooled_tidy,
           "T:/Dokumente/PROFID/Study6/cox_RCS_pooled_results.csv",
           row.names = FALSE)
+
+
 
 
 #  model comparison/AIC across imputations
@@ -239,18 +256,26 @@ aic_summary
 # Build helpers
 build_formula <- function(vars){
   as.formula(paste0(
-    "Surv(Survival_time, Status_cs1) ~ ",
+    "Surv(Survival_time_h, Status_cs1_h) ~ ",
     "ns(BMI, knots = K4, Boundary.knots = BND) + ",
     paste(vars, collapse = " + ")
   ))
 }
 
+
 # Work on the first completed dataset
 d1 <- mice::complete(imp, 1)
 
-# Full model (base set)
+# make sure horizon vars exist in d1 too
+d1 <- d1 %>%
+  mutate(
+    Survival_time_h = pmin(Survival_time, HORIZON),
+    Status_cs1_h    = ifelse(Survival_time <= HORIZON & Status == 1, 1L, 0L)
+  )
+
 f_full <- build_formula(vars_base)
 fit1_full <- coxph(f_full, data = d1, x = TRUE, y = TRUE)
+
 
 # Report variables with p<0.10 in the full model (per term, LR test)
 full_drop <- drop1(fit1_full, test = "Chisq")
@@ -290,9 +315,10 @@ stopifnot("Survival_time" %in% names(imp$data))
 fit_list_cs1_simpl <- with(imp, {
   rhs  <- paste0("ns(BMI, knots = K4, Boundary.knots = BND) + ",
                  paste(keep, collapse = " + "))
-  form <- as.formula(paste("Surv(Survival_time, Status_cs1) ~", rhs))
+  form <- as.formula(paste("Surv(Survival_time_h, Status_cs1_h) ~", rhs))
   coxph(form, x = TRUE, y = TRUE)
 })
+
 
 pool_fit_cs1_simpl <- pool(fit_list_cs1_simpl)
 summary(pool_fit_cs1_simpl)
@@ -310,18 +336,37 @@ data.frame(model = c("Full base", "Simplified base"),
            sd_AIC   = c(sd(aic_full),   sd(aic_simpl)))
 # lower mean_AIC is better
 
+
 # Compare discrimination
 cidx_full <- sapply(fit_list_cs1$analyses, function(fm){
-  y <- fm$y; lp <- predict(fm, type="lp")
+  y <- fm$y
+  lp <- predict(fm, type = "lp")
   survival::survConcordance(Surv(y[,1], y[,2]) ~ lp)$concordance
 })
+
 cidx_simpl <- sapply(fit_list_cs1_simpl$analyses, function(fm){
-  y <- fm$y; lp <- predict(fm, type="lp")
+  y <- fm$y
+  lp <- predict(fm, type = "lp")
   survival::survConcordance(Surv(y[,1], y[,2]) ~ lp)$concordance
 })
-cindex_summary <- data.frame(model=c("Full base","Simplified base"),
-           mean_C = c(mean(cidx_full), mean(cidx_simpl)),
-           sd_C   = c(sd(cidx_full),   sd(cidx_simpl)))
+
+# Function to compute mean and 95% CI
+cindex_ci <- function(x) {
+  m  <- mean(x)
+  sd <- sd(x)
+  lower <- m - 1.96 * sd
+  upper <- m + 1.96 * sd
+  c(mean = m, lower = lower, upper = upper)
+}
+
+cindex_summary <- data.frame(
+  model = c("Full base", "Simplified base"),
+  rbind(
+    cindex_ci(cidx_full),
+    cindex_ci(cidx_simpl)
+  )
+)
+
 write.csv(cindex_summary, "Cindex_comparison_base.csv", row.names = FALSE)
 
 
@@ -342,10 +387,50 @@ print(aic_summary)
 write.csv(aic_summary, "AIC_comparison_base.csv", row.names = FALSE)
 
 
+
+add_horizon_vars <- function(mids_obj, H) {
+  mids_obj$data <- mids_obj$data %>%
+    mutate(
+      Survival_time_h = pmin(Survival_time, H),
+      Status_cs1_h    = ifelse(Survival_time <= H & Status == 1, 1L, 0L)
+    )
+  mids_obj
+}
+
+
+
 ## Calibration (slope & intercept)for all models 
 
-## Load in the extended model 
-fit_list_ext <- readRDS("fit_list_cs1_extended.RDS")
+fit_models_at_horizon <- function(imp, H, keep, K4, BND) {
+  impH <- add_horizon_vars(imp, H)
+  
+  # Full base
+  fit_full <- with(impH, coxph(
+    Surv(Survival_time_h, Status_cs1_h) ~
+      ns(BMI, knots = K4, Boundary.knots = BND) +
+      Age + Sex + Diabetes + Hypertension + Smoking + MI_history +
+      LVEF + eGFR + Haemoglobin +
+      ACE_inhibitor_ARB + Beta_blockers + Lipid_lowering +
+      Revascularisation_acute,
+    x = TRUE, y = TRUE
+  ))
+  
+  # Simplified base (uses 'keep')
+  rhs_s <- paste0("ns(BMI, knots = K4, Boundary.knots = BND) + ", paste(keep, collapse = " + "))
+  fit_simpl <- with(impH, coxph(
+    as.formula(paste("Surv(Survival_time_h, Status_cs1_h) ~", rhs_s)),
+    x = TRUE, y = TRUE
+  ))
+  
+  ## Load in the extended model 
+  fit_ext <- readRDS("fit_list_cs1_extended.RDS")
+  
+  
+  list(full = fit_full, simpl = fit_simpl, ext = fit_ext)
+}
+
+
+
 
 
 # Simple recalibration by fitting a Cox model of y ~ lp per imputation
@@ -374,40 +459,9 @@ get_calib <- function(fit_list){
 }
 
 
-cal_full  <- get_calib(fit_list_cs1)
-cal_simpl <- get_calib(fit_list_cs1_simpl)
-cal_ext   <- get_calib(fit_list_ext)
-
-calibration_summary <- data.frame(
-  model          = c("Full base","Simplified base","Extended"),
-  mean_slope     = c(mean(cal_full$cal_slope),
-                     mean(cal_simpl$cal_slope),
-                     mean(cal_ext$cal_slope)),
-  sd_slope       = c(sd(cal_full$cal_slope),
-                     sd(cal_simpl$cal_slope),
-                     sd(cal_ext$cal_slope)),
-  mean_intercept = c(mean(cal_full$cal_intercept),
-                     mean(cal_simpl$cal_intercept),
-                     mean(cal_ext$cal_intercept)),
-  sd_intercept   = c(sd(cal_full$cal_intercept),
-                     sd(cal_simpl$cal_intercept),
-                     sd(cal_ext$cal_intercept)),
-  n_imps         = nrow(cal_full)  # same m for all
-)
-
-write.csv(cal_full,  "Calibration_per_imputation_full.csv",       row.names = FALSE)
-write.csv(cal_simpl, "Calibration_per_imputation_simplified.csv", row.names = FALSE)
-write.csv(cal_ext,   "Calibration_per_imputation_extended.csv",   row.names = FALSE)
-write.csv(calibration_summary, "Calibration_comparison_all.csv",  row.names = FALSE)
-
-
-
 # Calibration plots across all imputations for all models 
-# deps 
-library(dplyr)
-library(ggplot2)
-library(dplyr)
-library(ggplot2)
+
+
 
 .calib_from_fitlist <- function(fit_list, t0, nbins = 10) {
   # For each imputation-specific Cox model in fit_list$analyses:
@@ -474,49 +528,34 @@ library(ggplot2)
   res
 }
 
+horizons <- c(60, 90, 120)
+nb <- 10
 
-time_horizons <- c(30, 60, 90, 120, 150, 180)   # adjust if we want to 
-nb <- 10                               # test 10, change to 5 if bins are sparse
-
-for (t0 in time_horizons) {
-  cal_full  <- .calib_from_fitlist(fit_list_cs1,       t0 = t0, nbins = nb)
-  cal_simpl <- .calib_from_fitlist(fit_list_cs1_simpl, t0 = t0, nbins = nb)
-  cal_ext   <- .calib_from_fitlist(fit_list_ext,       t0 = t0, nbins = nb)
+for (H in horizons) {
+  fitsH <- fit_models_at_horizon(imp, H, keep, K4, BND)
   
-  std <- function(df) {
-    if ("pred" %in% names(df))  df <- rename(df, pred_mean = pred)
-    if ("obs"  %in% names(df))  df <- rename(df, obs_mean  = obs)
-    df
-  }
-  cal_full  <- std(cal_full)
-  cal_simpl <- std(cal_simpl)
-  cal_ext   <- std(cal_ext)
+  cal_full  <- .calib_from_fitlist(fitsH$full,  t0 = H, nbins = nb)
+  cal_simpl <- .calib_from_fitlist(fitsH$simpl, t0 = H, nbins = nb)
+  cal_ext   <- .calib_from_fitlist(fitsH$ext,   t0 = H, nbins = nb)
   
   cal_plot_df <- bind_rows(
     mutate(cal_full,  Model = "Full base"),
     mutate(cal_simpl, Model = "Simplified base"),
     mutate(cal_ext,   Model = "Extended")
-  ) %>%
-    filter(!is.na(pred_mean) & !is.na(obs_mean))
-  
-  if (nrow(cal_plot_df) == 0) {
-    message(sprintf("t0 = %d: no usable bins (try a smaller t0 or fewer bins).", t0))
-    next
-  }
+  ) %>% filter(!is.na(pred_mean) & !is.na(obs_mean))
   
   p <- ggplot(cal_plot_df, aes(x = pred_mean, y = obs_mean, color = Model)) +
     geom_point() + geom_line() +
     geom_abline(slope = 1, intercept = 0, linetype = "dotted") +
-    labs(
-      x = sprintf("Predicted risk by %d days", t0),
-      y = sprintf("Observed risk by %d days (KM)", t0),
-      title = "Calibration plot (pooled across imputations)"
-    ) +
     coord_equal() +
-    theme_bw()
+    theme_bw() +
+    labs(
+      x = sprintf("Predicted risk by %d months", H),
+      y = sprintf("Observed risk by %d months (KM)", H),
+      title = sprintf("Calibration (horizon-censored at %d months)", H)
+    )
   
-  ggsave(sprintf("calibration_plot_all_models_t%d.pdf", t0),
-         p, width = 7, height = 5)
+  ggsave(sprintf("calibration_plot_all_models_horizon_%dmo.pdf", H), p, width = 7, height = 5)
 }
 
 print(p)
