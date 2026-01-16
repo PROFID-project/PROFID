@@ -111,3 +111,4 @@ message(sprintf("[OK] df_handled: n=%d, columns=%d", nrow(df_handled), ncol(df_h
                # df_handled: n=139915, columnss=107
 saveRDS(df_handled, file.path(getwd(), "df_handled.rds"))
 
+
