@@ -17,7 +17,6 @@ The ultimate goal is to successfully prevent the majority of the catastrophic su
 Thus, PROFID aims to close the huge gap of current clinical practice with regard to protection from sudden cardiac death after myocardial infarction.
 
 # How to install and run pipelines for the project 
-![Python Version](https://img.shields.io/badge/python-3.11-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 [![CRAN](https://www.r-pkg.org/badges/version/yourPackageName)](https://cran.r-project.org/package=yourPackageName)
 
