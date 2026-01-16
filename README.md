@@ -32,12 +32,6 @@ Study 3- ICD Shock Rates Analysis (Analytical lead: Irini Verdun)
 
 Study 4- Age-Stratified SCD Incidence Analysis (Analytical Lead: Amina Boudamaana)
 
-[8_Validation COX model  1 performance.R.txt](https://github.com/user-attachments/files/23505887/8_Validation.COX.model.1.performance.R.txt)
-[7_Validation FG Model & Performance.R.txt](https://github.com/user-attachments/files/23505886/7_Validation.FG.Model.Performance.R.txt)
-[6_Risk_factors_identification.R.txt](https://github.com/user-attachments/files/23505880/6_Risk_factors_identification.R.txt)
-[5_ Survival analysis fromwark.R.txt](https://github.com/user-attachments/files/23505879/5_.Survival.analysis.fromwark.R.txt)
-[3__ Incidence Rate calculations.R.txt](https://github.com/user-attachments/files/23505877/3__.Incidence.Rate.calculations.R.txt)
-
 Study 5- Heart Failure Therapy Adherence Analysis (Analytical Lead: Amina Boudamaana)
 
 Study 6- U-shaped Body Mass Index and Sudden Cardiac Death Analysis (Analytical Lead: Claire Coffey)
