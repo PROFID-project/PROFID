@@ -1,10 +1,9 @@
 
 ##################################################################################################################
 ##################################################################################################################
-# projet: UmBIZO- PROFID_Study4 (SCD post-MI, age- stratified)
-# Script: 10_Multiple_Imputation_strategy.R
+# project: UmBIZO- PROFID_Study4 (SCD post-MI, age- stratified)
+# Script: Multiple_Imputation_strategy.R
 # Author: Amina Boudamaana
-#  ================================================================================================================
 ## ================= MI EXPORT  & chatty (uses df_handled_cc) =================
 suppressPackageStartupMessages({
   library(mice); library(survival)
@@ -563,4 +562,5 @@ fg_cc <- data.frame(
 
 ## MI vs CC Comparison + Export
 fg_sum <- merge(fg_mi, fg_cc, by = "term", all = TRUE, suffixes = c("_MI", "_CC"))
+
 write.csv(fg_sum, file.path(OUT_MI, "FG_MI_vs_CC.csv"), row.names = FALSE)
