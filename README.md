@@ -10,18 +10,15 @@ In the first phase, a variety of data from different settings will be analysed. 
 **Clinical trial**
 In the second phase, a non-inferiority randomised clinical trial will compare OMT versus ICD implantation plus OMT in post-MI patients with LVEF ≤ 35% who would receive an ICD according to current clinical guidelines.
 
-# How to install/run the project 
-(dependencies, Python version, etc.).
-
-Usage examples.
-
-# Publications
-
+# How to install and run pipelines for the project 
 ![Python Version](https://img.shields.io/badge/python-3.11-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 [![CRAN](https://www.r-pkg.org/badges/version/yourPackageName)](https://cran.r-project.org/package=yourPackageName)
+Instructions here
 
+Usage examples.
 
+# Project descriptions
 Study 1- ICD Therapy and Mortality Analysis (Nishat)
 
 Study 2- Seasonal SCD Patterns Analysis (Alexia)
@@ -66,5 +63,8 @@ Study 8- Atrial Fibrillation Risk Stratification Analysis (Hassan)
 
 Study 9- Temporal Trends in Sudden Cardiac Death Analysis (Ahmad)
 
-### legacy scripts are included that may be of use to current analysts that detail previous imputation and sample size calculation processes.
-### A bibliography of pre 2020 papers used to inform the original study is available in this folder: https://www.dropbox.com/scl/fo/92jaytesu294f8pi8u1ra/AMb7UplNqDbqKSy7i_hBPQw/bibliography?rlkey=cjsdagohl25dagyghqkzzxymh&subfolder_nav_tracking=1&st=uft8b2qs&dl=0
+# Publications
+TBA
+
+### legacy scripts are included in this repository that may be of use to analysts, that detail imputation and sample size calculation processes, from the initial PROFID study analysis.
+### A bibliography of pre-2020 papers used to inform the original study is available in this folder: https://www.dropbox.com/scl/fo/92jaytesu294f8pi8u1ra/AMb7UplNqDbqKSy7i_hBPQw/bibliography?rlkey=cjsdagohl25dagyghqkzzxymh&subfolder_nav_tracking=1&st=uft8b2qs&dl=0
