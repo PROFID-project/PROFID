@@ -1,5 +1,4 @@
 ##################################################################################################################
-##################################################################################################################
 # projet: UmBIZO- PROFID_Study4 (SCD post-MI, age- stratified)
 # Script: 09_Sensitivity_analyses.R
 # Author: Amina Boudamaana
@@ -341,4 +340,5 @@ analyze_dataset <- function(d, scenario_label, alt_age = NULL){
     sum_all <- read.csv(file.path(TAB_DIR, "sens_COX_SUM_ALL.csv"))
     aggregate(cbind(N_CC, events, EPV) ~ scenario + age_band, sum_all, function(x) c(min=min(x), max=max(x)))
     
+
    
