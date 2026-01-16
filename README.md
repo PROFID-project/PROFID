@@ -19,13 +19,13 @@ Instructions here
 Usage examples.
 
 # Project descriptions
-Study 1- ICD Therapy and Mortality Analysis (Nishat)
+Study 1- ICD Therapy and Mortality Analysis (Analytical lead: Nishat Girkar)
 
-Study 2- Seasonal SCD Patterns Analysis (Alexia)
+Study 2- Seasonal SCD Patterns Analysis (Analytical lead: Alexia)
 
-Study 3- ICD Shock Rates Analysis (Irini)
+Study 3- ICD Shock Rates Analysis (Analytical lead: Irini Verdun)
 
-Study 4- Age-Stratified SCD Incidence Analysis (Amina)
+Study 4- Age-Stratified SCD Incidence Analysis (Analytical Lead: Amina Boudamaana)
 [Script10_Forest plots_ Heterogeneity_ Diagnistics.txt](https://github.com/user-attachments/files/24460122/Script10_Forest.plots_.Heterogeneity_.Diagnistics.txt)
 
 [9_ Sensitivity analyses_CC.R.txt](https://github.com/user-attachments/files/23505889/9_.Sensitivity.analyses_CC.R.txt)
@@ -38,7 +38,7 @@ Study 4- Age-Stratified SCD Incidence Analysis (Amina)
 [2_ Handlign of complex variables_df_handled.R.txt](https://github.com/user-attachments/files/23505875/2_.Handlign.of.complex.variables_df_handled.R.txt)
 [1_Study_Hamonisation Data_ Quality Control_Age Stratification.R.txt](https://github.com/user-attachments/files/23505874/1_Study_Hamonisation.Data_.Quality.Control_Age.Stratification.R.txt)
 
-Study 5- Heart Failure Therapy Adherence Analysis (Amina)
+Study 5- Heart Failure Therapy Adherence Analysis (Analytical Lead: Amina Boudamaana)
 [Script10_ Forest plots_ Heterogeneity_ Diagnostics.txt](https://github.com/user-attachments/files/24459836/Script10_.Forest.plots_.Heterogeneity_.Diagnostics.txt)
 
 [Script9_ BH ( Benjamini-Hochberg) tests.R.txt](https://github.com/user-attachments/files/24456986/Script9_.BH.Benjamini-Hochberg.tests.R.txt)
@@ -54,14 +54,15 @@ Study 5- Heart Failure Therapy Adherence Analysis (Amina)
 [Script2_study 5_ descriptives _ and _ trends_ Regression logistic model univariate.R.txt](https://github.com/user-attachments/files/23964365/Script2_study.5_.descriptives._.and._.trends_.Regression.logistic.model.univariate.R.txt)
 [Script1_ study 5_ build_cohort_and_end_points_ESC.R.txt](https://github.com/user-attachments/files/23964364/Script1_.study.5_.build_cohort_and_end_points_ESC.R.txt)
 
+Study 6- BMI and Sudden Cardiac Death Analysis (Analytical Lead: Claire Coffey)
 
-Study 6- BMI and Sudden Cardiac Death Analysis (Claire)
+Study 7- Geographic Disparities in Sudden Cardiac Death Incidence (Analytical Lead: Manali Jain)
 
-Study 7- Geographic Disparities in Sudden Cardiac Death Incidence (Manali)
+Study 8- Atrial Fibrillation Risk Stratification Analysis (Analytical Lead: Hassan Raza)
 
-Study 8- Atrial Fibrillation Risk Stratification Analysis (Hassan)
+Study 9- Temporal Trends in Sudden Cardiac Death Analysis (Analytical Lead: Amina Boudamaana)
 
-Study 9- Temporal Trends in Sudden Cardiac Death Analysis (Ahmad)
+Please raise tickets directly in this repo for technical support issues, and see the corresponding author on published studies below for academic responses.
 
 # Publications
 TBA
