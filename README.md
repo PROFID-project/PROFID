@@ -1,4 +1,4 @@
-![Project Logo](assets/image1.jpg) ![Project Logo2](assets/image2.jpg) ![Project Logo3](assets/image3.jpg)  
+![Project Logo](assets/image1.jpg) ![Project Logo2](assets/image2.png) ![Project Logo3](assets/image3.jpg)  
 
 # PREVENTION OF SUDDEN CARDIAC DEATH AFTER MYOCARDIAL INFARCTION BY DEFIBRILLATOR IMPLANTATION
 
