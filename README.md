@@ -18,7 +18,6 @@ Thus, PROFID aims to close the huge gap of current clinical practice with regard
 
 # How to install and run pipelines for the project 
 ![License](https://img.shields.io/badge/license-MIT-green)
-[![CRAN](https://www.r-pkg.org/badges/version/yourPackageName)](https://cran.r-project.org/package=yourPackageName)
 
 Instructions here
 
