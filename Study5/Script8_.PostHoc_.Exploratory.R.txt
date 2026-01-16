@@ -1,0 +1,565 @@
+# ==================================================================================
+# PROFID Study 5 — Script 8 (Post-hoc / Exploratory)
+#
+# Objectives:
+# (1) Centre/DB variation (observed proportions; stacked across MI datasets)
+# (2) Therapy-pattern clustering (PAM on Gower distance; imp=1 for phenotype discovery)
+# (3) ML variable importance (Random Forest permutation + XGBoost Gain; repeated across MI)
+#
+# =================================================================================
+
+rm(list = ls())
+options(stringsAsFactors = FALSE)
+
+#  USER EDIT: Paths 
+results_root <- "T:/Study_5/Results_Study5"
+imp_path <- file.path(results_root, "imp_study5_mice.rds")
+out_dir_preferred <- file.path(results_root, "Script8_PostHoc")
+
+#   USER EDIT: Main choices 
+ml_outcomes <- c("GDMT_BIN_geq3", "GDMT_BIN_geq4")
+geo_group_var <- "DB" # centre/site proxy in analysis dataset
+min_n_per_group <- 50 # minimum N to display group in GEO plots/tables
+
+# Therapy variables (SAP-harmonised)
+therapy_vars_sap <- c(
+  "ACE_inhibitor_ARB_BIN_Yes",
+  "Beta_blockers_BIN_Yes",
+  "MRA_BIN_Yes",
+  "Anti_platelet_BIN_Yes",
+  "Anti_coagulant_BIN_Yes",
+  "Lipid_lowering_BIN_Yes"
+)
+
+# Candidate predictors (filtered to those present)
+rhs_primary <- c(
+  "Year_index", "Age3", "Age4_SAP", "LVEF_ESC",
+  "Sex_BIN_Male", "DB",
+  "ICD_BIN_Yes", "Time_index_MI_CHD_log1p",
+  "Diabetes_BIN_Yes", "Hypertension_BIN_Yes", "Smoking_BIN_Yes",
+  "AF_atrial_flutter_BIN_Yes", "Stroke_TIA_BIN_Yes",
+  "eGFR_log1p", "Haemoglobin_log1p",
+  "PCI_BIN_Yes", "CABG_BIN_Yes", "Revascularisation_acute_BIN_Yes",
+  "GDMT_n_classes" # will be excluded from ML (leakage)
+)
+
+# ==============================================================================
+# Packages
+# ==============================================================================
+pkgs <- c("dplyr","tidyr","ggplot2","mice","tibble","stringr",
+          "cluster","ranger","xgboost","Matrix","forcats","writexl")
+for (p in pkgs) {
+  if (!requireNamespace(p, quietly = TRUE)) install.packages(p)
+}
+suppressPackageStartupMessages({
+  library(dplyr); library(tidyr); library(ggplot2); library(mice); library(tibble)
+  library(stringr); library(cluster); library(ranger)
+  library(xgboost); library(Matrix); library(forcats); library(writexl)
+})
+
+# ==============================================================================
+# Helpers: directories 
+# ==============================================================================
+ensure_dir <- function(path) {
+  dir.create(path, recursive = TRUE, showWarnings = FALSE)
+  normalizePath(path, winslash = "/", mustWork = FALSE)
+}
+
+is_writable_dir <- function(path) {
+  path <- ensure_dir(path)
+  tf <- file.path(path, paste0(".__write_test__", Sys.getpid(), ".tmp"))
+  ok <- tryCatch({
+    writeLines("test", tf)
+    file.remove(tf)
+    TRUE
+  }, error = function(e) FALSE)
+  ok
+}
+
+pick_output_dir <- function(preferred) {
+  preferred <- ensure_dir(preferred)
+  if (is_writable_dir(preferred)) return(preferred)
+  
+  fallback1 <- ensure_dir(file.path(getwd(), "Script8_PostHoc"))
+  if (is_writable_dir(fallback1)) return(fallback1)
+  
+  fallback2 <- ensure_dir(file.path(tempdir(), "Study5_Script8_PostHoc"))
+  if (is_writable_dir(fallback2)) return(fallback2)
+  
+  stop("No writable output directory found.  choose a folder with write permissions.")
+}
+
+out_dir <- pick_output_dir(out_dir_preferred)
+cat("[INFO] Output directory:", out_dir, "\n")
+
+safe_write_xlsx <- function(df, path_xlsx) {
+  if (is.null(df) || (is.data.frame(df) && nrow(df) == 0)) df <- tibble(message = "EMPTY/NULL output")
+  tryCatch(
+    { writexl::write_xlsx(df, path_xlsx); invisible(path_xlsx) },
+    error = function(e) {
+      stamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
+      alt <- sub("\\.xlsx$", paste0("_", stamp, ".xlsx"), path_xlsx)
+      cat("[WARN] Could not write XLSX:", path_xlsx, "\n",
+          " Reason:", conditionMessage(e), "\n",
+          " Writing to:", alt, "\n")
+      writexl::write_xlsx(df, alt)
+      invisible(alt)
+    }
+  )
+}
+
+write_table_xlsx <- function(df, base_path_no_ext) {
+  safe_write_xlsx(df, paste0(base_path_no_ext, ".xlsx"))
+  invisible(TRUE)
+}
+
+# ==============================================================================
+# Helper: robust binary coercion (0/1)
+# ==============================================================================
+to_num01 <- function(x) {
+  if (is.factor(x)) x <- as.character(x)
+  if (is.logical(x)) return(as.integer(x))
+  if (is.numeric(x)) return(ifelse(is.na(x), NA_integer_, as.integer(x != 0)))
+  
+  x2 <- tolower(trimws(as.character(x)))
+  ifelse(is.na(x2), NA_integer_,
+         ifelse(x2 %in% c("1","yes","y","true","t"), 1L,
+                ifelse(x2 %in% c("0","no","n","false","f"), 0L, NA_integer_)))
+}
+
+# ==============================================================================
+# Derive GDMT outcomes from SAP therapy variables
+# ==============================================================================
+derive_gdmt_from_sap_vars <- function(d) {
+  nm <- names(d)
+  present <- therapy_vars_sap[therapy_vars_sap %in% nm]
+  
+  if (length(present) == 0) {
+    if (!"GDMT_n_classes" %in% nm) d$GDMT_n_classes <- NA_real_
+    if (!"GDMT_BIN_geq3" %in% nm) d$GDMT_BIN_geq3 <- NA_integer_
+    if (!"GDMT_BIN_geq4" %in% nm) d$GDMT_BIN_geq4 <- NA_integer_
+    return(d)
+  }
+  
+  d <- d %>% mutate(across(all_of(present), to_num01))
+  mat <- as.matrix(d[, present, drop = FALSE])
+  mat[is.na(mat)] <- 0
+  d$GDMT_n_classes <- rowSums(mat)
+  
+  if (!"GDMT_BIN_geq3" %in% names(d)) d$GDMT_BIN_geq3 <- as.integer(d$GDMT_n_classes >= 3)
+  if (!"GDMT_BIN_geq4" %in% names(d)) d$GDMT_BIN_geq4 <- as.integer(d$GDMT_n_classes >= 4)
+  
+  d$GDMT_BIN_geq3 <- as.integer(to_num01(d$GDMT_BIN_geq3))
+  d$GDMT_BIN_geq4 <- as.integer(to_num01(d$GDMT_BIN_geq4))
+  d
+}
+
+# ==============================================================================
+# Prepare key categories (Age3, Age4_SAP, LVEF_ESC) 
+# ==============================================================================
+prep_categories <- function(d) {
+  
+  if (!"Age_num" %in% names(d)) {
+    age_raw <- intersect(c("Age","age","AGE","Age_years"), names(d))
+    if (length(age_raw) > 0) d$Age_num <- suppressWarnings(as.numeric(d[[age_raw[1]]]))
+  }
+  if (!"LVEF_num" %in% names(d)) {
+    lvef_raw <- intersect(c("LVEF","lvef","EF","ef","LVEF_pct","LVEF_percent"), names(d))
+    if (length(lvef_raw) > 0) d$LVEF_num <- suppressWarnings(as.numeric(d[[lvef_raw[1]]]))
+  }
+  
+  if ("Year_index" %in% names(d)) d$Year_index <- suppressWarnings(as.numeric(d$Year_index))
+  if ("Sex_BIN_Male" %in% names(d)) d$Sex_BIN_Male <- factor(to_num01(d$Sex_BIN_Male), levels = c(0,1))
+  if ("ICD_BIN_Yes" %in% names(d)) d$ICD_BIN_Yes <- factor(to_num01(d$ICD_BIN_Yes), levels = c(0,1))
+  if ("DB" %in% names(d)) d$DB <- factor(as.character(d$DB))
+  
+  # Primary Age : <=65, 66–75, >75
+  if (!"Age3" %in% names(d) && "Age_num" %in% names(d)) {
+    d$Age3 <- cut(d$Age_num, breaks = c(-Inf, 65, 75, Inf),
+                  labels = c("<=65","66-75",">75"), right = TRUE)
+  }
+  
+  # SAP age (descriptive/sensitivity): <50, 50–64, 65–74, >=75
+  if (!"Age4_SAP" %in% names(d) && "Age_num" %in% names(d)) {
+    d$Age4_SAP <- cut(d$Age_num, breaks = c(-Inf, 50, 65, 75, Inf),
+                      labels = c("<50","50-64","65-74",">=75"), right = FALSE)
+  }
+  
+  # ESC LVEF: <40, 40–49, >=50
+  if (!"LVEF_ESC" %in% names(d) && "LVEF_num" %in% names(d)) {
+    d$LVEF_ESC <- cut(d$LVEF_num, breaks = c(-Inf, 40, 50, Inf),
+                      labels = c("<40%","40-49%",">=50%"), right = FALSE)
+  }
+  
+  d
+}
+
+# ==============================================================================
+# 0) Load MICE object + build completed datasets
+# ==============================================================================
+if (!file.exists(imp_path)) stop("[ERROR] Cannot find imputation RDS at: ", imp_path)
+imp <- readRDS(imp_path)
+stopifnot(inherits(imp, "mids"))
+cat("[OK] Loaded mids object. m =", imp$m, "\n")
+
+completed_list <- mice::complete(imp, action = "all")
+completed_list <- lapply(completed_list, derive_gdmt_from_sap_vars)
+completed_list <- lapply(completed_list, prep_categories)
+
+stacked <- bind_rows(lapply(seq_along(completed_list), function(i) {
+  completed_list[[i]] %>% mutate(.imp = i)
+}))
+
+# Basic audit (professional reproducibility)
+audit_tbl <- tibble(
+  step = c("m (number of imputations)", "stacked rows", "unique DB (stacked)"),
+  value = c(imp$m, nrow(stacked), if ("DB" %in% names(stacked)) dplyr::n_distinct(stacked$DB) else NA)
+)
+write_table_xlsx(audit_tbl, file.path(out_dir, "AUDIT_basic"))
+
+# ==============================================================================
+# 1) Centre/DB variation (observed proportions; stacked MI)
+# ==============================================================================
+run_geo_variation <- function(dat, group_var, outcomes, out_dir, min_n = 50) {
+  
+  if (!group_var %in% names(dat)) {
+    write_table_xlsx(tibble(message = paste0("Group variable not found: ", group_var)),
+                     file.path(out_dir, "GEO_SKIPPED_group_var_missing"))
+    return(invisible(NULL))
+  }
+  
+  res_list <- list()
+  
+  for (outc in outcomes) {
+    if (!outc %in% names(dat)) next
+    
+    tmp <- dat %>%
+      mutate(y = as.integer(to_num01(.data[[outc]]))) %>%
+      filter(!is.na(.data[[group_var]]), !is.na(y)) %>%
+      group_by(.data[[group_var]]) %>%
+      summarise(
+        n = n(),
+        rate = mean(y),
+        .groups = "drop"
+      ) %>%
+      filter(n >= min_n) %>%
+      mutate(outcome = outc, .before = 1) %>%
+      arrange(desc(rate), desc(n))
+    
+    res_list[[outc]] <- tmp
+    
+    p <- ggplot(tmp, aes(x = reorder(as.character(.data[[group_var]]), rate), y = rate)) +
+      geom_col() +
+      coord_flip() +
+      labs(
+        title = paste0("Variation by ", group_var, ": ", outc),
+        subtitle = paste0("Observed proportion (stacked across MI); groups with n ≥ ", min_n),
+        x = group_var, y = "Observed proportion"
+      ) +
+      theme_bw()
+    
+    ggsave(
+      file.path(out_dir, paste0("GEO_rate_by_", group_var, "_", outc, ".png")),
+      plot = p, width = 10, height = 6, dpi = 300
+    )
+  }
+  
+  out_tbl <- bind_rows(res_list)
+  write_table_xlsx(out_tbl, file.path(out_dir, paste0("GEO_summary_by_", group_var)))
+  invisible(out_tbl)
+}
+
+geo_tbl <- run_geo_variation(
+  stacked, geo_group_var, ml_outcomes, out_dir, min_n = min_n_per_group
+)
+
+# ==============================================================================
+# 2) Therapy-pattern clustering (imp=1; phenotype discovery)
+# ==============================================================================
+build_therapy_matrix <- function(d) {
+  present <- therapy_vars_sap[therapy_vars_sap %in% names(d)]
+  if (length(present) < 3) return(NULL)
+  
+  X <- d %>% transmute(across(all_of(present), to_num01))
+  X <- as.data.frame(lapply(X, function(z) {
+    z <- suppressWarnings(as.numeric(z))
+    z[!is.finite(z)] <- NA
+    z[is.na(z)] <- 0
+    as.integer(z != 0)
+  }))
+  X
+}
+
+run_clustering <- function(dat, out_dir, k_min = 2, k_max = 6) {
+  
+  d <- dat %>% filter(.imp == 1)
+  
+  X <- build_therapy_matrix(d)
+  if (is.null(X)) {
+    write_table_xlsx(
+      tibble(message = "Too few therapy variables detected for clustering (need >=3)."),
+      file.path(out_dir, "CLUSTER_SKIPPED_not_enough_therapy_vars")
+    )
+    return(invisible(NULL))
+  }
+  
+  # Drop all-zero profiles
+  keep <- rowSums(X) > 0
+  dropped_n <- sum(!keep)
+  if (dropped_n > 0) {
+    X <- X[keep, , drop = FALSE]
+    write_table_xlsx(
+      tibble(message = paste0("Dropped ", dropped_n, " rows with all-zero therapy profile (imp=1).")),
+      file.path(out_dir, "CLUSTER_note_dropped_allzero_rows")
+    )
+  }
+  
+  # Gower distance with asymmetric binary
+  diss <- cluster::daisy(X, metric = "gower", type = list(asymm = colnames(X)))
+  
+  # Remove rows causing NA distances
+  diss_mat <- as.matrix(diss)
+  if (anyNA(diss_mat)) {
+    bad <- which(apply(diss_mat, 1, function(r) anyNA(r)))
+    write_table_xlsx(
+      tibble(bad_row_index = bad),
+      file.path(out_dir, "CLUSTER_bad_rows_with_NA_distance")
+    )
+    
+    X2 <- X[-bad, , drop = FALSE]
+    diss <- cluster::daisy(X2, metric = "gower", type = list(asymm = colnames(X2)))
+    
+    if (anyNA(as.matrix(diss))) {
+      stop("Still NA values in distance matrix after removing bad rows. See CLUSTER_bad_rows_with_NA_distance.xlsx")
+    }
+    X <- X2
+  }
+  
+  sil_tbl <- tibble()
+  pam_fits <- list()
+  
+  for (k in k_min:k_max) {
+    fit <- cluster::pam(diss, k = k)
+    pam_fits[[as.character(k)]] <- fit
+    sil_tbl <- bind_rows(sil_tbl, tibble(k = k, avg_sil_width = fit$silinfo$avg.width))
+  }
+  
+  write_table_xlsx(sil_tbl, file.path(out_dir, "CLUSTER_silhouette_by_k"))
+  
+  best_k <- sil_tbl$k[which.max(sil_tbl$avg_sil_width)]
+  best_fit <- pam_fits[[as.character(best_k)]]
+  cl <- best_fit$clustering
+  
+  sum_tbl <- bind_cols(cluster = factor(cl), X) %>%
+    group_by(cluster) %>%
+    summarise(
+      across(everything(), ~mean(.x, na.rm = TRUE)),
+      n = n(),
+      .groups = "drop"
+    ) %>%
+    relocate(n, .after = cluster)
+  
+  write_table_xlsx(sum_tbl, file.path(out_dir, paste0("CLUSTER_summary_therapy_rates_k", best_k)))
+  
+  sum_long <- sum_tbl %>%
+    pivot_longer(cols = -c(cluster, n), names_to = "therapy", values_to = "rate")
+  
+  p <- ggplot(sum_long, aes(x = therapy, y = rate, fill = cluster)) +
+    geom_col(position = "dodge") +
+    labs(
+      title = paste0("Therapy pattern by cluster (PAM k=", best_k, ", imp=1)"),
+      x = "Therapy class", y = "Proportion within cluster"
+    ) +
+    theme_bw()
+  
+  ggsave(
+    file.path(out_dir, paste0("CLUSTER_therapy_rates_k", best_k, ".png")),
+    plot = p, width = 11, height = 6, dpi = 300
+  )
+  
+  invisible(list(best_k = best_k, silhouette = sil_tbl, summary = sum_tbl))
+}
+
+clust_res <- run_clustering(stacked, out_dir)
+
+# ==============================================================================
+# 3) ML variable importance (RF + XGBoost), repeated across MI datasets
+# ==============================================================================
+rhs_ml <- setdiff(rhs_primary, c("GDMT_n_classes", "Age4_SAP"))
+
+simple_impute_for_ml <- function(dd) {
+  for (v in names(dd)) {
+    if (v == "y") next
+    if (is.numeric(dd[[v]])) {
+      med <- suppressWarnings(median(dd[[v]], na.rm = TRUE))
+      if (!is.finite(med)) med <- 0
+      dd[[v]][is.na(dd[[v]])] <- med
+    } else {
+      dd[[v]] <- as.character(dd[[v]])
+      dd[[v]][is.na(dd[[v]])] <- "Missing"
+      dd[[v]] <- factor(dd[[v]])
+    }
+  }
+  dd
+}
+
+prep_ml_frame <- function(d, outcome, predictors) {
+  if (!outcome %in% names(d)) return(NULL)
+  
+  y <- as.integer(to_num01(d[[outcome]]))
+  if (all(is.na(y)) || length(unique(y[!is.na(y)])) < 2) return(NULL)
+  
+  preds <- predictors[predictors %in% names(d)]
+  if (length(preds) < 3) return(NULL)
+  
+  dd <- d %>% select(all_of(preds)) %>% mutate(y = y) %>% filter(!is.na(y))
+  if (nrow(dd) < 50) return(NULL)
+  
+  simple_impute_for_ml(dd)
+}
+
+rf_importance_one <- function(dd) {
+  dd2 <- dd
+  dd2$y <- factor(dd2$y, levels = c(0,1))
+  
+  fit <- ranger::ranger(
+    y ~ ., data = dd2,
+    probability = TRUE,
+    importance = "permutation",
+    num.trees = 500
+  )
+  
+  imp <- ranger::importance(fit)
+  tibble(term = names(imp), importance = as.numeric(imp))
+}
+
+xgb_importance_one <- function(dd) {
+  y <- as.numeric(dd$y)
+  X <- dd %>% select(-y)
+  
+  mm <- Matrix::sparse.model.matrix(~ . - 1, data = X)
+  if (ncol(mm) == 0) stop("No columns after one-hot encoding (0 columns).")
+  
+  dtrain <- xgboost::xgb.DMatrix(data = mm, label = y, missing = NA)
+  
+  fit <- xgboost::xgb.train(
+    params = list(
+      objective = "binary:logistic",
+      eval_metric = "logloss",
+      max_depth = 4,
+      eta = 0.05,
+      subsample = 0.8,
+      colsample_bytree = 0.8
+    ),
+    data = dtrain,
+    nrounds = 200,
+    verbose = 0
+  )
+  
+  imp <- xgboost::xgb.importance(model = fit)
+  if (is.null(imp) || nrow(imp) == 0) return(tibble(term = character(), importance = numeric()))
+  tibble(term = imp$Feature, importance = imp$Gain)
+}
+
+run_ml_importance <- function(completed_list, outcomes, predictors, out_dir) {
+  
+  for (outc in outcomes) {
+    rf_list <- list()
+    xgb_list <- list()
+    
+    for (i in seq_along(completed_list)) {
+      dd <- prep_ml_frame(completed_list[[i]], outc, predictors)
+      if (is.null(dd)) next
+      
+      rf_i <- tryCatch(rf_importance_one(dd), error = function(e) NULL)
+      if (!is.null(rf_i) && nrow(rf_i) > 0) rf_list[[length(rf_list) + 1]] <- rf_i %>% mutate(.imp = i)
+      
+      xgb_i <- tryCatch(
+        xgb_importance_one(dd),
+        error = function(e) {
+          log_path <- file.path(out_dir, paste0("XGB_ERROR_", outc, "_imp", i, ".txt"))
+          msg <- paste0("XGBoost error | outcome=", outc, " | imp=", i, "\n", conditionMessage(e), "\n")
+          try(writeLines(msg, log_path), silent = TRUE)
+          NULL
+        }
+      )
+      if (!is.null(xgb_i) && nrow(xgb_i) > 0) xgb_list[[length(xgb_list) + 1]] <- xgb_i %>% mutate(.imp = i)
+    }
+    
+    # RF summary (mean importance across successful imputations)
+    if (length(rf_list) > 0) {
+      rf_tbl <- bind_rows(rf_list) %>%
+        group_by(term) %>%
+        summarise(
+          importance = mean(importance, na.rm = TRUE),
+          n_imp = n(),
+          .groups = "drop"
+        ) %>%
+        arrange(desc(importance))
+      
+      write_table_xlsx(rf_tbl, file.path(out_dir, paste0("ML_RF_varimp_", outc)))
+      
+      top <- rf_tbl %>% slice_head(n = 25)
+      p <- ggplot(top, aes(x = reorder(term, importance), y = importance)) +
+        geom_col() + coord_flip() +
+        labs(
+          title = paste0("Random Forest permutation importance (avg across MI): ", outc),
+          x = "Predictor", y = "Permutation importance"
+        ) +
+        theme_bw()
+      
+      ggsave(
+        file.path(out_dir, paste0("ML_RF_varimp_TOP25_", outc, ".png")),
+        plot = p, width = 10, height = 7, dpi = 300
+      )
+      
+    } else {
+      write_table_xlsx(
+        tibble(message = "RF importance skipped (no successful fits).", outcome = outc),
+        file.path(out_dir, paste0("ML_RF_SKIPPED_", outc))
+      )
+    }
+    
+    # XGB summary (mean gain across successful imputations)
+    if (length(xgb_list) > 0) {
+      xgb_tbl <- bind_rows(xgb_list) %>%
+        group_by(term) %>%
+        summarise(
+          importance = mean(importance, na.rm = TRUE),
+          n_imp = n(),
+          .groups = "drop"
+        ) %>%
+        arrange(desc(importance))
+      
+      write_table_xlsx(xgb_tbl, file.path(out_dir, paste0("ML_XGB_varimp_", outc)))
+      
+      top <- xgb_tbl %>% slice_head(n = 25)
+      p <- ggplot(top, aes(x = reorder(term, importance), y = importance)) +
+        geom_col() + coord_flip() +
+        labs(
+          title = paste0("XGBoost importance (Gain; avg across MI): ", outc),
+          x = "Feature", y = "Gain"
+        ) +
+        theme_bw()
+      
+      ggsave(
+        file.path(out_dir, paste0("ML_XGB_varimp_TOP25_", outc, ".png")),
+        plot = p, width = 10, height = 7, dpi = 300
+      )
+      
+    } else {
+      write_table_xlsx(
+        tibble(message = "XGBoost skipped (no successful fits). Check XGB_ERROR_*.txt logs.", outcome = outc),
+        file.path(out_dir, paste0("ML_XGB_SKIPPED_", outc))
+      )
+    }
+  }
+  
+  invisible(TRUE)
+}
+
+run_ml_importance(completed_list, ml_outcomes, rhs_ml, out_dir)
+
+cat("\n[DONE] Script 8 completed.\n")
+cat("Outputs -> ", out_dir, "\n", sep = "")
+
