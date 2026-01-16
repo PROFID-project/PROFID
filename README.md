@@ -1,14 +1,21 @@
-# PROFID
+# PREVENTION OF SUDDEN CARDIAC DEATH AFTER MYOCARDIAL INFARCTION BY DEFIBRILLATOR IMPLANTATION
 
-Project title and description.
+The ambition of PROFID is to reassess the role of routine prophylactic ICD implantation in patients with reduced LVEF ≤ 35% after myocardial infarction under contemporary OMT and fundamentally improve clinical practice, potentially resulting in a substantial reduction of the enormous burden that sudden cardiac death places on society as a whole and on the individual patient.
 
-Objective or research question.
+PROFID is expected to change SCD prevention in clinical practice. In order to reach the final goal, the following main phases have been designed for the PROFID project:
 
-How to install/run the project (dependencies, Python version, etc.).
+**Data analysis**
+In the first phase, a variety of data from different settings will be analysed. The analysis will be based on a collection of existing highly phenotyped data with the largest number of post- myocardial infarction patients ever in this regard (~200,000 patients of both sexes).The databases represent a wide variety of data sources such as national registries, institutional research databases, electronic health records and claims databases. This repository contains code used to conduct a range of cohort studies within the PROFID data lake, to be submitted for publication in 2026.
+
+**Clinical trial**
+In the second phase, a non-inferiority randomised clinical trial will compare OMT versus ICD implantation plus OMT in post-MI patients with LVEF ≤ 35% who would receive an ICD according to current clinical guidelines.
+
+# How to install/run the project 
+(dependencies, Python version, etc.).
 
 Usage examples.
 
-Publications
+# Publications
 
 ![Python Version](https://img.shields.io/badge/python-3.11-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
