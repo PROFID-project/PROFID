@@ -76,5 +76,4 @@ TBA
 
  ![Project Logo2](assets/image2.png) ![Project Logo3](assets/image3.jpg)  
 ```
-Legacy scripts are included in this repository that may be of use to analysts, that detail imputation and sample size calculation processes, from the initial PROFID study analysis.
-A bibliography of pre-2020 papers used to inform the original study is available in this folder: https://www.dropbox.com/scl/fo/92jaytesu294f8pi8u1ra/AMb7UplNqDbqKSy7i_hBPQw/bibliography?rlkey=cjsdagohl25dagyghqkzzxymh&subfolder_nav_tracking=1&st=uft8b2qs&dl=0
+Scripts are included in the preparation folder that may be of use to analysts, that detail imputation and sample size calculation processes, from the initial PROFID study analysis.
