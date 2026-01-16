@@ -1,0 +1,244 @@
+# =================================================================================
+# Study 5 — Script 10 (FIGURES):
+#  Forest plots for subgroup (stratified-year effect) + heterogeneity p-values
+#  GLM residual diagnostics on 1st imputed dataset
+#
+# Inputs:
+# - Script 5 outputs: STRAT_pooled_OR_year_*.csv (stratified year-effect)
+# - Joint tests files: *joint_tests*.csv (interaction/heterogeneity p-values)
+# - imputed mids object (RDS) for residual diagnostics
+# ==================================================================================
+suppressPackageStartupMessages({
+  library(readr)
+  library(dplyr)
+  library(purrr)
+  library(stringr)
+  library(ggplot2)
+  library(forcats)
+  library(tibble)
+  library(mice)
+})
+
+#  0) PATHS 
+RESULTS_ROOT <- "T:/Study_5/Results_Study5" 
+FIG_DIR <- file.path(RESULTS_ROOT, "Figures_Script10")
+dir.create(FIG_DIR, showWarnings = FALSE, recursive = TRUE)
+
+#  imputed data for diagnostics 
+IMP_PATH <- "T:/Study_5/Results_Study5/imp_study5_mice.rds"
+#  1) HELPERS 
+read_csv_all_char <- function(path) {
+  tryCatch(
+    readr::read_csv(
+      path,
+      show_col_types = FALSE,
+      col_types = cols(.default = col_character())
+    ) %>% mutate(source_path = path),
+    error = function(e) NULL
+  )
+}
+
+to_num <- function(x) suppressWarnings(as.numeric(x))
+
+ensure_cols <- function(df, cols) {
+  for (nm in cols) if (!nm %in% names(df)) df[[nm]] <- NA_character_
+  df
+}
+# ================================================================================
+#  2) LOAD STRATIFIED YEAR-EFFECT FILES
+# =================================================================================
+strat_files <- list.files(
+  RESULTS_ROOT,
+  pattern = "^STRAT_pooled_OR_year_.*\\.csv$",
+  recursive = TRUE,
+  full.names = TRUE
+)
+
+if (length(strat_files) == 0) {
+  stop("No STRAT_pooled_OR_year_*.csv found under: ", RESULTS_ROOT)
+}
+
+strat_df <- strat_files %>%
+  map(read_csv_all_char) %>%
+  compact() %>%
+  bind_rows()
+
+# We ensure expected columns exist (some files may miss 'outcome', etc.)
+strat_df <- strat_df %>%
+  ensure_cols(c("outcome", "strat_var", "level",
+                "n_fits", "OR_year", "conf_low", "conf_high",
+                "p_value", "p_raw", "p_num", "p_raw_for_b_p_bh"))
+
+# We derive 'outcome' from filename if missing/empty
+# (e.g., GDMT_BIN_geq3 or GDMT_BIN_geq4 detected in source_path)
+strat_df <- strat_df %>%
+  mutate(
+    outcome = ifelse(
+      is.na(outcome) | outcome == "",
+      coalesce(str_match(basename(source_path), "(GDMT_BIN_geq[34])")[,2], "GDMT"),
+      outcome
+    ),
+    strat_var = as.character(strat_var),
+    level = as.character(level)
+  )
+
+# Convert numeric columns 
+num_cols <- intersect(
+  c("n_fits","OR_year","conf_low","conf_high","p_value","p_raw","p_num","p_raw_for_b_p_bh"),
+  names(strat_df)
+)
+
+strat_df <- strat_df %>%
+  mutate(across(all_of(num_cols), to_num))
+
+# We keep rows that are estimable and meaningful for forest plots
+# (log-scale requires >0)
+strat_keep <- strat_df %>%
+  filter(!is.na(outcome), !is.na(strat_var), !is.na(level)) %>%
+  filter(!is.na(n_fits) & n_fits >= 5) %>%
+  filter(!is.na(OR_year), !is.na(conf_low), !is.na(conf_high)) %>%
+  filter(OR_year > 0, conf_low > 0, conf_high > 0)
+# =====================================================================================
+# 3) LOAD JOINT INTERACTION TESTS (HETEROGENEITY P-VALUES)
+# =====================================================================================
+jt_files <- list.files(
+  RESULTS_ROOT,
+  pattern = "joint_tests.*\\.csv$",
+  recursive = TRUE,
+  full.names = TRUE
+)
+
+jt_df <- jt_files %>%
+  map(read_csv_all_char) %>%
+  compact() %>%
+  bind_rows()
+
+if (nrow(jt_df) > 0) {
+  jt_df <- jt_df %>%
+    ensure_cols(c("test", "p_value", "outcome")) %>%
+    mutate(
+      test = as.character(test),
+      p_value = to_num(p_value),
+      outcome = ifelse(
+        is.na(outcome) | outcome == "",
+        coalesce(str_match(basename(source_path), "(GDMT_BIN_geq[34])")[,2], "GDMT"),
+        outcome
+      )
+    )
+}
+
+# Map joint-test labels to strat vars 
+jt_map <- tibble::tribble(
+  ~strat_var, ~pattern_regex,
+  "Age3", "Year\\s*[xX]\\s*Age3|Year\\s*×\\s*Age3|Year:Age3",
+  "LVEF_ESC", "Year\\s*[xX]\\s*LVEF_ESC|Year\\s*×\\s*LVEF_ESC|Year:LVEF_ESC",
+  "DB", "Year\\s*[xX]\\s*DB|Year\\s*×\\s*DB|Year:DB",
+  "ICD_BIN_Yes", "Year\\s*[xX]\\s*ICD|Year\\s*×\\s*ICD|Year:ICD",
+  "time_period", "Year\\s*[xX]\\s*time_period|Year\\s*×\\s*time_period|Year:time_period"
+)
+
+get_p_heterogeneity <- function(outcome_x, strat_var_x) {
+  if (nrow(jt_df) == 0) return(NA_real_)
+  pat <- jt_map$pattern_regex[jt_map$strat_var == strat_var_x]
+  if (length(pat) == 0) return(NA_real_)
+  
+  x <- jt_df %>%
+    filter(outcome == outcome_x) %>%
+    filter(!is.na(test)) %>%
+    filter(str_detect(test, regex(pat, ignore_case = TRUE))) %>%
+    summarise(p_int = min(p_value, na.rm = TRUE))
+  
+  if (nrow(x) == 0 || is.infinite(x$p_int)) NA_real_ else x$p_int
+}
+# ================================================================================
+# 4) FOREST PLOTS (OR_year within strata) 
+# ================================================================================
+make_forest <- function(df_sub, outcome_x, strat_var_x) {
+  if (nrow(df_sub) == 0) return(invisible(NULL))
+  
+  p_int <- get_p_heterogeneity(outcome_x, strat_var_x)
+  subtitle <- if (!is.na(p_int)) {
+    paste0("Heterogeneity (interaction) p = ", format.pval(p_int, digits = 3, eps = 0.001))
+  } else {
+    "Heterogeneity p-value not available (no matching joint test found)"
+  }
+  
+  df_sub <- df_sub %>%
+    arrange(level) %>%
+    mutate(level = fct_rev(factor(level, levels = unique(level))))
+  
+  p <- ggplot(df_sub, aes(x = OR_year, y = level)) +
+    geom_vline(xintercept = 1, linetype = "dashed") +
+    geom_errorbarh(aes(xmin = conf_low, xmax = conf_high), height = 0.2) +
+    geom_point(size = 2) +
+    scale_x_log10() +
+    labs(
+      title = paste0("Year effect within subgroups — ", outcome_x, " — stratified by ", strat_var_x),
+      subtitle = subtitle,
+      x = "OR per 1-unit increase in Year_index (log scale)",
+      y = NULL,
+      caption = "Displayed only for strata with n_fits >= 5 pooled imputations."
+    ) +
+    theme_minimal()
+  
+  out_png <- file.path(FIG_DIR, paste0("FOREST_OR_year_", strat_var_x, "_", outcome_x, ".png"))
+  ggsave(out_png, p, width = 9, height = 6, dpi = 300)
+  message("[OK] Saved: ", out_png)
+}
+
+# Forest for all outcomes and all strat_vars that exist in the data
+all_outcomes <- sort(unique(strat_keep$outcome))
+all_stratvars <- sort(unique(strat_keep$strat_var))
+
+for (oc in all_outcomes) {
+  for (sv in all_stratvars) {
+    make_forest(strat_keep %>% filter(outcome == oc, strat_var == sv), oc, sv)
+  }
+}
+# ================================================================================
+#  6) RESIDUAL DIAGNOSTICS (GLM)
+# ================================================================================
+IMP_PATH <- "T:/Study_5/Results_Study5/imp_study5_mice.rds"
+
+if (!file.exists(IMP_PATH)) {
+  message("[WARN] IMP_PATH not found -> skipping residual diagnostics: ", IMP_PATH)
+} else {
+  imp <- readRDS(IMP_PATH)
+  stopifnot(inherits(imp, "mids"))
+  dat1 <- mice::complete(imp, 1)
+  
+  if (!all(c("GDMT_BIN_geq3", "Year_index") %in% names(dat1))) {
+    message("[WARN] dat1 missing GDMT_BIN_geq3 or Year_index -> cannot run diagnostics.")
+  } else {
+    # Use a simple core model (avoid failing if some covariates are missing)
+    core_vars <- c("Year_index","Age3","LVEF_ESC","Sex_BIN_Male","DB","ICD_BIN_Yes")
+    rhs <- intersect(core_vars, names(dat1))
+    fml <- as.formula(paste("GDMT_BIN_geq3 ~", paste(rhs, collapse = " + ")))
+    
+    fit <- glm(fml, data = dat1, family = binomial)
+    
+    out_pdf <- file.path(FIG_DIR, "GLM_diagnostics_GDMT_BIN_geq3_dat1.pdf")
+    pdf(out_pdf, width = 9, height = 7)
+    
+    plot(fitted(fit), resid(fit, type="deviance"),
+         xlab="Fitted values", ylab="Deviance residuals",
+         main="Residuals vs fitted")
+    abline(h=0, lty=2)
+    
+    qqnorm(resid(fit, type="deviance"), main="QQ plot (deviance residuals)")
+    qqline(resid(fit, type="deviance"))
+    
+    plot(cooks.distance(fit), type="h",
+         main="Cook's distance", ylab="Cook's D", xlab="Observation index")
+    
+    plot(hatvalues(fit), resid(fit, type="deviance"),
+         xlab="Leverage (hatvalues)", ylab="Deviance residuals",
+         main="Leverage vs residuals")
+    abline(h=0, lty=2)
+    
+    dev.off()
+    message("[OK] Saved: ", out_pdf)
+  }
+}
+
+cat("\n[DONE] Script 10 finished.\n")
