@@ -37,7 +37,6 @@ Study 4- Age-Stratified SCD Incidence Analysis (Analytical Lead: Amina Boudamaan
 [7_Validation FG Model & Performance.R.txt](https://github.com/user-attachments/files/23505886/7_Validation.FG.Model.Performance.R.txt)
 [6_Risk_factors_identification.R.txt](https://github.com/user-attachments/files/23505880/6_Risk_factors_identification.R.txt)
 [5_ Survival analysis fromwark.R.txt](https://github.com/user-attachments/files/23505879/5_.Survival.analysis.fromwark.R.txt)
-[4_ Competing risk  analysis.R.txt](https://github.com/user-attachments/files/23505878/4_.Competing.risk.analysis.R.txt)
 [3__ Incidence Rate calculations.R.txt](https://github.com/user-attachments/files/23505877/3__.Incidence.Rate.calculations.R.txt)
 
 Study 5- Heart Failure Therapy Adherence Analysis (Analytical Lead: Amina Boudamaana)
