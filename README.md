@@ -76,4 +76,4 @@ TBA
 
  ![Project Logo2](assets/image2.png) ![Project Logo3](assets/image3.jpg)  
 ```
-Scripts are included in the preparation folder that may be of use to analysts, that detail imputation and sample size calculation processes, from the initial PROFID study analysis.
+Scripts are included in the preprocessing folder that may be of use to analysts, that detail imputation and sample size calculation processes, from the initial PROFID study analysis.
