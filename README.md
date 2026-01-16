@@ -41,10 +41,6 @@ Study 4- Age-Stratified SCD Incidence Analysis (Analytical Lead: Amina Boudamaan
 Study 5- Heart Failure Therapy Adherence Analysis (Analytical Lead: Amina Boudamaana)
 [Script10_ Forest plots_ Heterogeneity_ Diagnostics.txt](https://github.com/user-attachments/files/24459836/Script10_.Forest.plots_.Heterogeneity_.Diagnostics.txt)
 
-[Script9_ BH ( Benjamini-Hochberg) tests.R.txt](https://github.com/user-attachments/files/24456986/Script9_.BH.Benjamini-Hochberg.tests.R.txt)
-
-[Script8_ PostHoc_ Exploratory.R.txt](https://github.com/user-attachments/files/24441211/Script8_.PostHoc_.Exploratory.R.txt)
-
 [Script7_ Model Development_ Steps 1__5.txt](https://github.com/user-attachments/files/24419435/Script7_.Model.Development_.Steps.1__5.txt)
 [Script6_ Study5_ Decision _Curves_ Analysis.R.txt](https://github.com/user-attachments/files/24419434/Script6_.Study5_.Decision._Curves_.Analysis.R.txt)
 [Script5_ Interactions_Stratified_Sensitivity Analyses.txt](https://github.com/user-attachments/files/24419433/Script5_.Interactions_Stratified_Sensitivity.Analyses.txt)
