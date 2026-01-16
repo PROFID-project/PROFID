@@ -1,3 +1,5 @@
+
+
 # PREVENTION OF SUDDEN CARDIAC DEATH AFTER MYOCARDIAL INFARCTION BY DEFIBRILLATOR IMPLANTATION
 
 The ambition of PROFID is to reassess the role of routine prophylactic ICD implantation in patients with reduced LVEF ≤ 35% after myocardial infarction under contemporary OMT and fundamentally improve clinical practice, potentially resulting in a substantial reduction of the enormous burden that sudden cardiac death places on society as a whole and on the individual patient.
@@ -10,6 +12,10 @@ In the first phase, a variety of data from different settings will be analysed. 
 **Clinical trial**
 In the second phase, a non-inferiority randomised clinical trial will compare OMT versus ICD implantation plus OMT in post-MI patients with LVEF ≤ 35% who would receive an ICD according to current clinical guidelines.
 
+The ultimate goal is to successfully prevent the majority of the catastrophic sudden cardiac death events that occur after myocardial infarction.
+
+Thus, PROFID aims to close the huge gap of current clinical practice with regard to protection from sudden cardiac death after myocardial infarction.
+
 # How to install and run pipelines for the project 
 ![Python Version](https://img.shields.io/badge/python-3.11-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -20,9 +26,9 @@ Instructions here
 Usage examples.
 
 # Project descriptions
-Study 1- ICD Therapy and Mortality Analysis (Analytical lead: Nishat Girkar)
+Study 1- Is Inappropriate ICD Therapy Associated with Higher Mortality? A Comparison in Patients with and without Inappropriate ICD Interventions (Analytical lead: Nishat Girkar)
 
-Study 2- Seasonal SCD Patterns Analysis (Analytical lead: Alexia)
+Study 2- Exploring Seasonal Patterns in SCD Incidence Post-Myocardial Infarc (Analytical lead: Alexia Sampri)
 
 Study 3- ICD Shock Rates Analysis (Analytical lead: Irini Verdun)
 
@@ -55,11 +61,11 @@ Study 5- Heart Failure Therapy Adherence Analysis (Analytical Lead: Amina Boudam
 [Script2_study 5_ descriptives _ and _ trends_ Regression logistic model univariate.R.txt](https://github.com/user-attachments/files/23964365/Script2_study.5_.descriptives._.and._.trends_.Regression.logistic.model.univariate.R.txt)
 [Script1_ study 5_ build_cohort_and_end_points_ESC.R.txt](https://github.com/user-attachments/files/23964364/Script1_.study.5_.build_cohort_and_end_points_ESC.R.txt)
 
-Study 6- BMI and Sudden Cardiac Death Analysis (Analytical Lead: Claire Coffey)
+Study 6- U-shaped Body Mass Index and Sudden Cardiac Death Analysis (Analytical Lead: Claire Coffey)
 
 Study 7- Geographic Disparities in Sudden Cardiac Death Incidence (Analytical Lead: Manali Jain)
 
-Study 8- Atrial Fibrillation Risk Stratification Analysis (Analytical Lead: Hassan Raza)
+Study 8- Risk Stratification for Sudden Cardiac Death in Post-Myocardial Infarction Patients with Atrial Fibrillation (Analytical Lead: Hassan Raza)
 
 Study 9- Temporal Trends in Sudden Cardiac Death Analysis (Analytical Lead: Amina Boudamaana)
 
