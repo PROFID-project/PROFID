@@ -1,10 +1,11 @@
-############################################################################################################
-############################################################################################################
-# projet: UmBIZO- PROFID_Study4 (SCD post-MI, age- stratified)
-# Script: 01_Study_Harmonisation_Data_Quality_Age_stratification.R
+########################################################################################################################
+########################################################################################################################
+# projet: UmBIZO- PROFID (SCD post-MI, age- stratified)
+# Script: 01_pipeline_professionnel.R
 # Author: Amina Boudamaana
+# Date: 2025-10-24
 # 
-# ========================================================================================================
+#
 # Purpose: 
 #       1)  Harmonization of ICD& non-ICD cohorts
 #       2)  Data Quality Control (Table 1 bounds + <= 40day rule)
@@ -12,6 +13,7 @@
 #       4)  Age stratification (<= 50, 51-65, 66-75, >75)
 
 # SAP references: Variable selection & Harmonization, Data Quality Control
+######################################################"
 
 ## ========================================================================================================
 ## 0. Reproducibility & Session Info
@@ -28,14 +30,12 @@ library(dplyr)
 library(janitor)
 library(stringr)
 library(readr)
-library(cmprsk)
-library(survival)
+
 ## ========================================================================================================
 ## 2. Data import
 ## ========================================================================================================
 getwd()
-setwd("S:/AG/f-dhzc-profid/Data Transfer to Charite")
-combined_dataset <- read.csv("combined_dataset.csv")
+
 ICD_all          <- read.csv("ICD_all.csv")  #(Reference)
 ICD              <- read.csv("ICD.csv")
 NonICD_preserved <-read.csv("NonICD_preserved.csv")
@@ -63,7 +63,7 @@ ICD$LVEF_category              <- "Reduced"     # ICD cohort (post-IM, reduced E
 NonICD_preserved$LVEF_category <- "Preserved"   # Non-ICD preserved EF
 
 NonICD_reduced$LVEF_category   <- "Reduced"     # Non-ICD reduced EF
-
+ 
 
 # Clean factors with stable ordering for reporting 
 ICD$LVEF_category               <- as.factor(ICD$LVEF_category)
@@ -160,19 +160,19 @@ set.seed(1); print(sample(dat$LVEF_category, 20))
 ## 7.  Choose which variables to log1p
 ## ========================================================================================================
 # Rationale for log1p candidate selection:
-## We do NOT log-tranform every numeric field, Instead, we add *_log1p only for continuous variables
-#  that are strictly non-negative and show clear right-skew,where a multiplicative scale is clinically sensible and improves model fit!
+   ## We do NOT log-tranform every numeric field, Instead, we add *_log1p only for continuous variables
+     #  that are strictly non-negative and show clear right-skew,where a multiplicative scale is clinically sensible and improves model fit!
 
-
+          
 #  1) Safely coerce to numeric:
-## We parse each column to numeric with suppressWarnings(); character columns
-#  are treated as "numeric-like" only if >=70% of values can be parsed as finite numbers.
-#  This avoids spuriously analysing  codes/labels as numbers.
+      ## We parse each column to numeric with suppressWarnings(); character columns
+    #  are treated as "numeric-like" only if >=70% of values can be parsed as finite numbers.
+    #  This avoids spuriously analysing  codes/labels as numbers.
 as_num<-function(x) suppressWarnings(as.numeric(x))
 
 # 2) Quartile (Bowly) skewness: robuste to outliers:
-##We compute Bowley (quartile) skewness:
-# (Q3+Q1-2*Q2)/(Q3-Q1), which depends on quartiles (Q1,Q2,Q3) and is  robust to outliers.
+      ##We compute Bowley (quartile) skewness:
+       # (Q3+Q1-2*Q2)/(Q3-Q1), which depends on quartiles (Q1,Q2,Q3) and is  robust to outliers.
 bowley_skew <- function(x) {
   x <- x[is.finite(x)]
   if (length(x) <20) return(NA_real_)
@@ -217,12 +217,12 @@ metrics  <- do.call(rbind, lapply(numeric_like, function(v){
 cand_report <- metrics
 print(head(cand_report, 50), digits = 3)  # Only 38 variables metrics
 # 4) Heuristic decision rule: Hard-exclude variables where log is rarely useful 
-## A variable is flagged for log1p if: 
-# prop_negative ==0 AND 
-# at least two of {bowley_skew> 0.6, r_q95_q50 >3, r_max_med >10}
-#This captures clearly right-skewed, positive distribution (NTProBNP, Troponin_T, CRP, Greyzone_size,
-# often TSH/BUN,  and some sacr/volume metrics) while leaving physiologically bounded or clinically  linear variables
-# Age, LVEF, SBP/DBP, HR, PR, QRS, QTc, electrolytes, lipides, eGFR) on the original scale.
+   ## A variable is flagged for log1p if: 
+                                        # prop_negative ==0 AND 
+                                        # at least two of {bowley_skew> 0.6, r_q95_q50 >3, r_max_med >10}
+    #This captures clearly right-skewed, positive distribution (NTProBNP, Troponin_T, CRP, Greyzone_size,
+   # often TSH/BUN,  and some sacr/volume metrics) while leaving physiologically bounded or clinically  linear variables
+   # Age, LVEF, SBP/DBP, HR, PR, QRS, QTc, electrolytes, lipides, eGFR) on the original scale.
 
 hard_exclude  <- c( "Age", "LVEF", "SBP", "DBP", "HR", "PR", "QRS", "QTc",
                     "Sodium", "Haemoglobin", "Cholesterol","HDL", "LDL",
@@ -232,9 +232,9 @@ hard_exclude  <- c( "Age", "LVEF", "SBP", "DBP", "HR", "PR", "QRS", "QTc",
 # 5) Heuristic to flag "very right-skewed & positive" candidates
 cand <- subset(metrics,
                prop_negative <= 0.01 &  # should be >= 0 for log1p
-                 (bowley_skew   > 0.6 |      # strongly right-skewed
-                    r_q95_q50    > 3   |      # 95th >> median
-                    r_max_med    > 10))       # extreme range
+              (bowley_skew   > 0.6 |      # strongly right-skewed
+                r_q95_q50    > 3   |      # 95th >> median
+                r_max_med    > 10))       # extreme range
 cand_vars <- intersect(trimws(cand$variable), names(dat))
 
 # 6) Remove hard-excluded variables and keep only columns that exist in dat
@@ -246,11 +246,11 @@ cand_vars <- setdiff(cand_vars, hard_exclude)
 cand_report <- cand[order(-cand$bowley_skew), c("variable", "n_nonmiss", "prop_zero",
                                                 "bowley_skew", "r_q95_q50", "r_max_med", "median", "q95", "max")]
 print(head(cand_report, 20),  digits=3)
-## Based on the screening metrics, we will log-transform NTProBNP, Troponin_T, CRP, and Greyzone_size, 
-# as each shows marked right-skew (meets >2 of: r_q95_q50 >3, r_max_med >10, Bowley_skew >0.6) and contains no negatives
-
-##   The SAP requires the inclusion of BMI and eGFR log-transformed versions for model stability, 
-#   regardless of the statistical skewness test results
+       ## Based on the screening metrics, we will log-transform NTProBNP, Troponin_T, CRP, and Greyzone_size, 
+       # as each shows marked right-skew (meets >2 of: r_q95_q50 >3, r_max_med >10, Bowley_skew >0.6) and contains no negatives
+ 
+  ##   The SAP requires the inclusion of BMI and eGFR log-transformed versions for model stability, 
+   #   regardless of the statistical skewness test results
 vars_sap <- c("BMI", "eGFR")
 
 # Merge the automatic selection (cand_vars) with the required variables (SA)
@@ -259,11 +259,11 @@ cand_vars_final <- unique(c(cand_vars, vars_sap))
 # verification of the final list
 cat("Final_list of log-transformed candidates (SAP+skewness): \n")
 print(cand_vars_final)
-
+           
 # 8) create log1p companions ONLY for the chosen candidates (the final shortlist):
-## Apply log1p only to variables that (i) exist in 'dat' and (ii) passed the skewness screen('cand_vars').
-# Values <0 are set to NA because log1p is not appropriate for negatives on these clinical scales
-# The function returns 'dat' with new columns named <var>_log1p
+  ## Apply log1p only to variables that (i) exist in 'dat' and (ii) passed the skewness screen('cand_vars').
+  # Values <0 are set to NA because log1p is not appropriate for negatives on these clinical scales
+  # The function returns 'dat' with new columns named <var>_log1p
 
 
 add_log1p <- function (df, vars){
@@ -280,8 +280,8 @@ dat  <- add_log1p(dat, cand_vars_final)
 created_logs  <- paste0(cand_vars_final, "_log1p")
 created_logs  <- created_logs[created_logs %in% names(dat)]
 cat ("Created log1p variables:\n"); print(created_logs) 
-# Created log1p variables:
-#  [1] "CRP_log1p"   "Greyzone_size_log1p" "NTProBNP_log1p"   "Troponin_T_log1p, "BMI_log1p","eGFR_log1p" 
+            # Created log1p variables:
+                  #  [1] "CRP_log1p"   "Greyzone_size_log1p" "NTProBNP_log1p"   "Troponin_T_log1p, "BMI_log1p","eGFR_log1p" 
 
 ## ========================================================================================================
 ## 8.  Standardise binary indicators to an ordered factor {No, Yes}
@@ -292,7 +292,7 @@ cat ("Created log1p variables:\n"); print(created_logs)
 # to a single, ordered factor with levels c("No", "Yes")
 
 ## - Preserves NA values- Converts safely when values are clearly binary; otherwise leaves the vector as a factor (fallback) 
-# so we do not silently recode non-binary values
+   # so we do not silently recode non-binary values
 
 to_no_yes <- function (x) {
   ## Standarise to factor ("No", "Yes")
@@ -300,15 +300,15 @@ to_no_yes <- function (x) {
   
   ## 1/ Numeric/integer 0/1 already
   if (is.numeric(x)|| is.integer(x)) {
-    if (all(na.omit(x)%in% c(0,1))) {  
-      return(factor(x, levels = c(0,1), labels = c("No", "Yes")))
-    }
+   if (all(na.omit(x)%in% c(0,1))) {  
+     return(factor(x, levels = c(0,1), labels = c("No", "Yes")))
+   }
   }
   ## 2/ Character "0"/"1"
-  if (is.character(x) && all(na.omit(x)%in% c("0","1"))) {
+    if (is.character(x) && all(na.omit(x)%in% c("0","1"))) {
     y <- as.numeric(x)
     return(factor(y, levels=c(0,1), labels=c("No", "Yes")))
-  }
+    }
   ## 3/ Logical TRUE/FALSE
   if (is.logical(x)) {
     return(factor(ifelse(x, "Yes", "No"), levels=c("No", "Yes")))   
@@ -321,19 +321,20 @@ to_no_yes <- function (x) {
     out <- ifelse(z== "yes", "Yes", ifelse(z=="no", "No", NA))
     return(factor(out, levels = c("No", "Yes")))
   }
-  ##fallback:  we return as factor without forcing a binary mapping 
+   ##fallback:  we return as factor without forcing a binary mapping 
   return(as.factor(x))
 }
 
 ## Priority binaires to standardise if they exist in data##
 priority_bin <-c(
-  "Diabetes","Hypertension","HF", "COPD","Stroke_TIA","Smoking","FH_CAD","FH_SCD",
-  "AV_block","AV_blokc_II_or_III", "RBBB","LBBB",
-  ## Medications
-  "ACE_inhibitor","ARB","ACE_inhibitor_ARB","Beta_blockers","Diuretics","Calcium_antagonistes",
-  "Aldosterone_antagonist","Anti_arrhythmic_III","Anti_coagulant","Anti_platelet","Lipid_lowering",
-  "Anti_diabetic","Anti_diabetic_oral","Anti_diabetic_insulin",
-  "CABG", "PCI", "Thromolysis_acute","Revascularisation_acute","CABG_acute","PCI_acute","HaMRI"
+            "Diabetes","Hypertension","HF", "COPD","Stroke_TIA","Smoking","FH_CAD","FH_SCD",
+            "AV_block","AV_blokc_II_or_III", "RBBB","LBBB",
+            ## Medications
+            "ACE_inhibitor","ARB","ACE_inhibitor_ARB","Beta_blockers","Diuretics","Calcium_antagonistes",
+            "Aldosterone_antagonist","Anti_arrhythmic_III","Anti_coagulant","Anti_platelet","Lipid_lowering",
+            "Anti_diabtetic","Anti_diabetic_oral","Anti_diabetic_insulin",
+      
+            "CABG", "PCI", "Thromolysis_acute","Revascularisation_acute","CABG_acute","PCI_acute","HaMRI"
 )
 # Apply the standardization ONLY to variables that are present in 'dat' 
 for (v in intersect(priority_bin, names(dat))) {
@@ -365,9 +366,9 @@ print(log_chk)
 ##  DATA QUALITY- Table 1 invalide-value bounds 
 
 ## =================================================================================================================================
-# for each variable listed in Table 1 , we set clearly inadmissible values to NA on the original clinical scale,
-# Boundry inclusions follow Table 1 exactly 
-# Important: the "measured <=40 days  after MI- rule is applied elsewhere and is intentionally Not handled in this function
+   # for each variable listed in Table 1 , we set clearly inadmissible values to NA on the original clinical scale,
+   # Boundry inclusions follow Table 1 exactly 
+   # Important: the "measured <=40 days  after MI- rule is applied elsewhere and is intentionally Not handled in this function
 ## -----------------------------------------------------------------------------------------------------------------------------------
 ## numeric coercion without stopping on non-numeric  strings
 as_num  <- function(x) suppressWarnings(as.numeric(x)) 
@@ -375,7 +376,7 @@ as_num  <- function(x) suppressWarnings(as.numeric(x))
 ## 1A. Inadmissible bounds from Table 1   ##
 set_bounds <- function(x, lower=-Inf, upper= Inf,
                        include_lower=TRUE, include_upper=TRUE) {
-  
+                         
   v<- as_num(x)
   # lower bound
   if (is.finite(lower)) {
@@ -389,63 +390,63 @@ set_bounds <- function(x, lower=-Inf, upper= Inf,
 }
 ## Apply Table 1 bounds only if columns  exist
 apply_table1_bounds <- function(df) {
-  
-  ## BMI< 12 or >69 -> NA 
+ 
+      ## BMI< 12 or >69 -> NA 
   if ("BMI" %in% names(df)) {
     v<- as_num(df$BMI); v[v <12 | v> 69] <- NA; df$BMI <-v
   }
-  ## BUN >900 mmo/L --> NA
+     ## BUN >900 mmo/L --> NA
   if ("BUN" %in% names(df)){  
     df$BUN <- set_bounds(df$BUN, upper = 900, include_upper= FALSE)
-  } 
-  ## Cholesterol <= 50 mg/dL -> NA
+    } 
+    ## Cholesterol <= 50 mg/dL -> NA
   if ("Cholesterol"  %in% names(df)) {
     df$Cholesterol <- set_bounds(df$Cholesterol, lower = 50, include_lower= TRUE)
   } 
-  ## Haemoglobin <2 or >110 g/dL -> NA
+   ## Haemoglobin <2 or >110 g/dL -> NA
   if ("Haemoglobin" %in% names(df)) 
     v<- as_num(df$Haemoglobin); v[v < 2 | v> 110] <- NA; df$Haemoglobin <-v
-    ## HbA1c < 2.5% -> NA 
-    if ("HbA1c"  %in% names(df)) {
-      df$HbA1c <- set_bounds(df$HbA1c, lower = 2.5, include_lower= FALSE)
-    }
-    ## HDL 0 mg/dL -> NA (<=0)
-    if ("HDL"  %in% names(df)) {
-      df$HDL <- set_bounds(df$HDL, lower = 0, include_lower= TRUE)
-    } 
-    ## LDL 0 mg/dL --> NA (<= 0)
-    if ("LDL" %in% names(df)) {
-      df$LDL <- set_bounds(df$LDL, lower = 0, include_lower= TRUE)
-    }
-    ## Sodium < 99 mmol/L ->NA 
-    if ("Sodium" %in% names(df)) {
-      df$Sodium <- set_bounds(df$Sodium, lower = 99, include_lower= FALSE)
-    } 
-    ## Triglycerides <20 mg/dL -> NA (20 is OK)
-    if ("Triglycerides" %in% names(df)) {
-      df$Triglycerides <- set_bounds(df$Triglycerides, lower = 20, include_lower= FALSE)
-    }
-    ## TSH 0 mU/L -> NA (<=0)
-    if ("TSH" %in%  names(df)){
-      df$TSH <- set_bounds(df$TSH, lower = 0, include_lower= TRUE)
-    } 
-    ## HR < 25 or >140 bpm -> NA  
-    if ("HR" %in% names(df)) {
-      v<- as_num(df$HR); v[v < 25 | v> 140] <- NA; df$HR<-v
-    }
-    ## PR < 50 or >1000 ms -> NA
-    if ("PR" %in% names(df)) {
-      v<- as_num(df$PR); v[v < 50 | v> 1000] <- NA; df$PR<-v
-    }
-    ## QRS <50 ms-> NA (50 Okay)
-    if ("QRS" %in% names(df)) {
-      df$QRS <- set_bounds(df$QRS, lower = 50, include_lower= FALSE)
-    }
-    ## QTc <= 250 or >790 ms -> NA
-    if ("QTc" %in% names(df)) {
-      v<- as_num(df$QTc); v[v <= 250 | v> 790] <- NA; df$QTC<-v
-    }
-    df
+  ## HbA1c < 2.5% -> NA 
+  if ("HbA1c"  %in% names(df)) {
+    df$HbA1c <- set_bounds(df$HbA1c, lower = 2.5, include_lower= FALSE)
+  }
+  ## HDL 0 mg/dL -> NA (<=0)
+  if ("HDL"  %in% names(df)) {
+    df$HDL <- set_bounds(df$HDL, lower = 0, include_lower= TRUE)
+  } 
+  ## LDL 0 mg/dL --> NA (<= 0)
+  if ("LDL" %in% names(df)) {
+    df$LDL <- set_bounds(df$LDL, lower = 0, include_lower= TRUE)
+  }
+  ## Sodium < 99 mmol/L ->NA 
+  if ("Sodium" %in% names(df)) {
+    df$Sodium <- set_bounds(df$Sodium, lower = 99, include_lower= FALSE)
+  } 
+  ## Triglycerides <20 mg/dL -> NA (20 is OK)
+  if ("Triglycerides" %in% names(df)) {
+    df$Triglycerides <- set_bounds(df$Triglycerides, lower = 20, include_lower= FALSE)
+  }
+  ## TSH 0 mU/L -> NA (<=0)
+  if ("TSH" %in%  names(df)){
+    df$TSH <- set_bounds(df$TSH, lower = 0, include_lower= TRUE)
+  } 
+  ## HR < 25 or >140 bpm -> NA  
+  if ("HR" %in% names(df)) {
+    v<- as_num(df$HR); v[v < 25 | v> 140] <- NA; df$HR<-v
+ }
+  ## PR < 50 or >1000 ms -> NA
+  if ("PR" %in% names(df)) {
+    v<- as_num(df$PR); v[v < 50 | v> 1000] <- NA; df$PR<-v
+ }
+  ## QRS <50 ms-> NA (50 Okay)
+  if ("QRS" %in% names(df)) {
+    df$QRS <- set_bounds(df$QRS, lower = 50, include_lower= FALSE)
+  }
+  ## QTc <= 250 or >790 ms -> NA
+  if ("QTc" %in% names(df)) {
+    v<- as_num(df$QTc); v[v <= 250 | v> 790] <- NA; df$QTC<-v
+  }
+  df
 }
 # Save pre-Quality Controle (pre-QC) copy for audit
 preQC <- dat
@@ -461,7 +462,7 @@ relog1p <- function(df, vars){
   df
 }
 dat<- relog1p(dat, c("BMI", "eGFR", "NTProBNP", "CRP", "Troponin_T", "Greyzone_size"))
-
+ 
 # Audit: How many values were set to NA by QC??
 na_delta <- function (before, after)sum(is.na(after) & !is.na(before))
 vars_chek <- c("BMI", "BUN","Cholesterol", "Haemoglobin", "HbA1c", "HDL","LDL","Sodium", "Triglycerides","TSH","HR", "PR", "QRS", "QTc" )
@@ -491,28 +492,28 @@ within_40d_flag <- function(df){
   n<- nrow(df)
   flag<- rep(FALSE, n)
   
-  # A/ Use Baseline_type : match 'before', 'pre-40', '<=40', <40', 'within 40', 'early' 
+# A/ Use Baseline_type : match 'before', 'pre-40', '<=40', <40', 'within 40', 'early' 
   if("Baseline_type" %in% names(df)){
     bt<- tolower(trimws(as.character(df$Baseline_type)))
     bt<- gsub("\\s+", " ", bt) ## normalize spaces##
-    ## 'pre' only when followed by -40 or 40 (avoid matching 'preserved')
+   ## 'pre' only when followed by -40 or 40 (avoid matching 'preserved')
     pat<- "(before|pre[ -]?40|<=\\s*40|<\\s*40|within\\s*40|within40|early|<=\\s*40)"
-    flag<- flag | grepl(pat,bt)
+        flag<- flag | grepl(pat,bt)
   }
-  # B/ Use numeric time sine MI in years(Time_zero_Y)(covert threshold into years =40/365.25 years)
+# B/ Use numeric time sine MI in years(Time_zero_Y)(covert threshold into years =40/365.25 years)
   year_threshold <- 40/365.25
   
   if("Time_zero_Y" %in% names(df)){
     y<- suppressWarnings(as.numeric(df$Time_Y))
     flag<- flag | (is.na(y) & y< year_threshold)
   }
-  
-  # C/ If we also have another "years since MI" fiels  => same threshold
+
+# C/ If we also have another "years since MI" fiels  => same threshold
   if("Time_zero_Ym" %in% names(df)){
     ym<- suppressWarnings(as.numeric(df$Time_zero_Ym))
     flag<- flag | (is.na(ym) & ym <year_threshold)
   }
-  # D/ Explicit days since MI(Time_index_MI_CHD) last  
+# D/ Explicit days since MI(Time_index_MI_CHD) last  
   if("Time_index_MI_CHD" %in% names(df)) {
     ty<- suppressWarnings(as.numeric(df$Time_index_MI_CHD))
     flag<- flag | (is.na(ty) & ty<year_threshold)
@@ -567,13 +568,13 @@ count_40d_na <- function(df, var, flag){
 }
 report_40d <- do.call(rbind, lapply(vars_40d, function(v) count_40d_na(dat, v, flag40)))
 print(report_40d)     # variable    nonNA_before
-#                 SBP          8906
-#                  DBP         8904
-#                  CRP         6416
-#              Troponin_T      6216
-#                  NYHA        15008
-#             AV_block         8010
-#   AV_block_II_or_III         8254
+     #                 SBP          8906
+    #                  DBP         8904
+    #                  CRP         6416
+    #              Troponin_T      6216
+    #                  NYHA        15008
+    #             AV_block         8010
+    #   AV_block_II_or_III         8254
 
 ## 4/ Apply the <= 40 days rule: set values to NA where flag40 is TRUE
 for(v in vars_40d){
@@ -604,8 +605,8 @@ relog1p<- function(df, vars){
   df
 }
 dat<- relog1p(dat, c("CRP", "Troponin_T")) # We only recomputed CRP_log1p and Troponin_T_log1p because 
-# The <= 40 days rule affects only these two variables among those with log transformation. 
-# Recomputing the other _log1p variables isn't necessary
+                                           # The <= 40 days rule affects only these two variables among those with log transformation. 
+                                           # Recomputing the other _log1p variables isn't necessary
 
 summary(dat$Time_index_MI_CHD)    # Min=1314 (years), so the shortest delay is =480 days (>40 days)
 sum(flag40, na.rm = TRUE)         # ==0 is consistent: no measurements <= 40 days, so nothing needs to be set to NA under this rule
@@ -655,9 +656,9 @@ if("NTProBNP" %in% names(dat)){
 }
 ##Quick sanity check ##
 summary(dat$NTProBNP_log1p)
-#  NTProBNP_log1p summary (after recomputation):
-# Min= 0.40, Q1= 2.80, Median=3.75, Q3=4.84, Max=9.26
-# NA'S=133.220 -this reflects limited availability for NTProBNP in the cohort and is NOT due to the 7*IQR screening (no values were set to NA)
+ #  NTProBNP_log1p summary (after recomputation):
+ # Min= 0.40, Q1= 2.80, Median=3.75, Q3=4.84, Max=9.26
+ # NA'S=133.220 -this reflects limited availability for NTProBNP in the cohort and is NOT due to the 7*IQR screening (no values were set to NA)
 ## =================================================================================================================================
 ##        AGE STRATIFICATION
 # <= 50 = young adults
@@ -668,7 +669,7 @@ summary(dat$NTProBNP_log1p)
 # Create the 4 age cohorts per SAP: 
 dat$age_group<- cut(as.numeric(dat$Age),
                     breaks=c(-Inf,50, 65, 75, Inf),
-                    labels=c("<=50", "51-65", "66-75", ">75"),
+                      labels=c("<=50", "51-65", "66-75", ">75"),
                     right=TRUE)
 
 # Ensure a consistent ordered factor( same order everywhere)
@@ -678,29 +679,26 @@ dat$age_group <- factor(dat$age_group,
 
 # A descriptive label version 
 dat$age_group_desc <- factor(dat$age_group,
-                             levels = c("<=50", "51-65", "66-75", ">75"),
-                             labels = c("<=50  (young adults)",
-                                        "51-65 (middle-aged)",
-                                        "66-75 (older adults)", 
-                                        ">75   (elderly)"),
-                             ordered = TRUE)
+                        levels = c("<=50", "51-65", "66-75", ">75"),
+                        labels = c("<=50  (young adults)",
+                                   "51-65 (middle-aged)",
+                                   "66-75 (older adults)", 
+                                   ">75   (elderly)"),
+                        ordered = TRUE)
+
+                        
 ## Sanity check 
 stopifnot(sum(!is.na(dat$Age)) == sum(!is.na(dat$age_group)))
-print(table(dat$age_group, dat$ICD_status,     useNA = "ifany")) #  ICD_status        0      1
-# young-adult "<=50"     9507   845
-# middle-aged "51-65"    39728  3061
-# Older adults "66-75"   40063  2558
-# elderly      ">75"     43363  1077
-# <NA>                   0      2
+print(table(dat$age_group, dat$ICD_status,     useNA = "ifany")) #  ICD_status             0      1
+                                                                  # young-adult "<=50"     9507   845
+                                                                  # middle-aged "51-65"    39728  3061
+                                                                  # Older adults "66-75"   40063  2558
+                                                                  # elderly      ">75"     43363  1077
+                                                                  # <NA>                   0      2
 print(table(dat$age_group, dat$LVEF_category,  useNA = "ifany"))
-##  LVEF_category        Reduced Preserved
-#     young-adult "<=50"     1922      8430
-#     middle-aged  "51-65"   8532      34257
-#     Older-adults "66-75"   9705      32916
-#     elderly       ">75"     12440     32000
-#     <NA>                    2         0
-
-
-nrow(dat)  # 140204 ob
-ncol(dat) # 102 variables
-
+  ##  LVEF_category        Reduced Preserved
+ #     young-adult "<=50"     1922      8430
+ #     middle-aged  "51-65"   8532      34257
+ #     Older-adults "66-75"   9705      32916
+ #    elderly       ">75"     12440     32000
+ #    <NA>                    2         0
