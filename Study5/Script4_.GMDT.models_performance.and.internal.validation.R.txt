@@ -1,0 +1,620 @@
+## =============================================================================
+## Study 5 – Script 4
+## GDMT_BIN_geq3: model performance, bootstrap validation & calibration
+## =============================================================================
+# ==============================================================================
+##            0) Packages + helper functions 
+# ==============================================================================
+suppressPackageStartupMessages({
+  library(mice)
+  library(dplyr)
+  library(tidyr)
+  library(purrr)
+  library(ggplot2)
+  library(pROC)
+  library(tibble)
+  library(ResourceSelection)
+})
+
+# Logit with bounds to avoid Inf
+logit_safe <- function(p, eps = 1e-6) {
+  p <- pmin(pmax(p, eps), 1 - eps)
+  log(p / (1 - p))
+}
+
+# AUC with 95% CI (DeLong)
+compute_auc_ci <- function(y, p_hat) {
+  roc_obj <- pROC::roc(response = y,
+                       predictor = p_hat,
+                       quiet = TRUE,
+                       direction = "<")
+  ci_auc <- pROC::ci.auc(roc_obj)
+  tibble(
+    auc = as.numeric(roc_obj$auc),
+    auc_low = as.numeric(ci_auc[1]),
+    auc_high = as.numeric(ci_auc[3])
+  )
+}
+
+# Safe Hosmer–Lemeshow: reduce number of bins if needed
+safe_hl <- function(y, p_hat, g = 10) {
+  n <- length(y)
+  # at least 5 observations per bin, minimum 2 bins
+  g_max <- min(g, max(2, floor(n / 5)))
+  out <- try(ResourceSelection::hoslem.test(y, p_hat, g = g_max),
+             silent = TRUE)
+  if (inherits(out, "try-error")) return(NA_real_)
+  out$p.value
+}
+
+# Helper to build formulas safely
+make_formula <- function(outcome, predictors, data) {
+  predictors <- predictors[predictors %in% names(data)]
+  if (length(predictors) == 0) {
+    as.formula(paste(outcome, "~ 1"))
+  } else {
+    as.formula(paste(outcome, "~", paste(predictors, collapse = " + ")))
+  }
+}
+# ==============================================================================
+##    1) Load data 
+# ==============================================================================
+setwd("S:/AG/f-dhzc-profid/Data Transfer to Charite")
+stopifnot(file.exists("df_study5.rds"))
+
+df_st5 <- readRDS("df_study5.rds")
+cat("[INFO] df_study5 loaded: n =", nrow(df_st5),
+    "| p =", ncol(df_st5), "\n")
+
+results_dir <- "T:/Study_5/Results_Study5"
+if (!dir.exists(results_dir)) {
+  dir.create(results_dir, recursive = TRUE)
+  cat("[INFO] Created results folder:", results_dir, "\n")
+} else {
+  cat("[INFO] Using existing results folder:", results_dir, "\n")
+}
+
+outcome_name <- "GDMT_BIN_geq3"
+
+# Variables required (as in Script 3)
+required_vars <- c(
+  outcome_name,
+  # Temporal
+  "Year_index",
+  # Demographic
+  "Age_num", "Sex_BIN_Male", "DB",
+  # Clinical (NYHA intentionally excluded)
+  "LVEF_num",
+  "ICD_BIN_Yes",
+  "Baseline_within40d", "Time_index_MI_CHD_log1p",
+  "Diabetes_BIN_Yes", "Hypertension_BIN_Yes",
+  "Smoking_BIN_Yes", "AF_atrial_flutter_BIN_Yes",
+  "Stroke_TIA_BIN_Yes",
+  # Labs
+  "eGFR_log1p", "NTProBNP_log1p", "Haemoglobin_log1p",
+  "Sodium_log1p", "Potassium_log1p",
+  # Procedures
+  "PCI_BIN_Yes", "CABG_BIN_Yes", "Revascularisation_acute_BIN_Yes"
+)
+
+missing_req <- setdiff(required_vars, names(df_st5))
+if (length(missing_req) > 0) {
+  stop("[ERROR] Missing variables in df_st5: ",
+       paste(missing_req, collapse = ", "))
+}
+
+# Basic type checks / coercions (same as Script 3)
+df_st5 <- df_st5 %>%
+  mutate(
+    !!outcome_name := as.integer(.data[[outcome_name]]),
+    Year_index = suppressWarnings(as.integer(Year_index)),
+    Age_num = suppressWarnings(as.numeric(Age_num)),
+    LVEF_num = suppressWarnings(as.numeric(LVEF_num)),
+    Sex_BIN_Male = as.integer(Sex_BIN_Male),
+    DB = factor(DB)
+  )
+
+# Quick check for Baseline_within40d
+cat("\n[INFO] Distribution of Baseline_within40d in df_st5:\n")
+print(table(df_st5$Baseline_within40d, useNA = "ifany"))
+cat("[NOTE] Baseline_within40d is constant (=1) in the analysis data.\n",
+    " -> It is excluded from multivariable models.\n\n", sep = "")
+# ==============================================================================
+##   2) Predictor blocks  
+# ==============================================================================
+temporal_vars <- c("Year_index")
+demographic_vars <- c("Age_num", "Sex_BIN_Male", "DB")
+clinical_vars <- c(
+  "LVEF_num",
+  "ICD_BIN_Yes",
+  "Time_index_MI_CHD_log1p",
+  "Diabetes_BIN_Yes", "Hypertension_BIN_Yes",
+  "Smoking_BIN_Yes", "AF_atrial_flutter_BIN_Yes",
+  "Stroke_TIA_BIN_Yes"
+)
+lab_vars_all <- c(
+  "eGFR_log1p", "NTProBNP_log1p", "Haemoglobin_log1p",
+  "Sodium_log1p", "Potassium_log1p"
+)
+procedure_vars <- c(
+  "PCI_BIN_Yes", "CABG_BIN_Yes", "Revascularisation_acute_BIN_Yes"
+)
+
+# Keep only variables that actually exist in df_st5
+temporal_vars <- intersect(temporal_vars, names(df_st5))
+demographic_vars<- intersect(demographic_vars, names(df_st5))
+clinical_vars <- intersect(clinical_vars, names(df_st5))
+lab_vars_all <- intersect(lab_vars_all, names(df_st5))
+procedure_vars <- intersect(procedure_vars, names(df_st5))
+
+# Drop lab variables with >=80% missingness 
+if (length(lab_vars_all) > 0) {
+  lab_na_prop <- sapply(lab_vars_all, function(v) mean(is.na(df_st5[[v]])))
+  lab_vars <- names(lab_na_prop[lab_na_prop < 0.80])
+  labs_dropped<- names(lab_na_prop[lab_na_prop >= 0.80])
+  
+  cat("[INFO] Lab variables kept for modelling (missingness <80%):\n")
+  print(lab_vars)
+  
+  if (length(labs_dropped) > 0) {
+    cat("\n[INFO] Lab variables dropped from models (>=80% missing):\n")
+    print(labs_dropped)
+  }
+} else {
+  lab_vars <- character(0)
+  labs_dropped <- character(0)
+  cat("[INFO] No lab variables available in df_st5.\n")
+}
+# ==============================================================================
+##    3) Model formulas  
+# ==============================================================================
+formulas_cc <- list(
+  M1_temporal =
+    make_formula(outcome_name, temporal_vars, df_st5),
+  
+  M2_temporal_demo =
+    make_formula(outcome_name,
+                 c(temporal_vars, demographic_vars), df_st5)
+)
+
+formulas_mi <- list(
+  M3_temporal_clinical =
+    make_formula(outcome_name,
+                 c(temporal_vars, demographic_vars, clinical_vars), df_st5),
+  
+  M4_full_extended =
+    make_formula(outcome_name,
+                 c(temporal_vars, demographic_vars,
+                   clinical_vars, lab_vars, procedure_vars), df_st5)
+)
+
+cat("\n[INFO] Complete-case model formulas (M1–M2):\n")
+print(formulas_cc)
+
+cat("\n[INFO] MI-based model formulas (M3–M4):\n")
+print(formulas_mi)
+# ==============================================================================
+##        4) Apparent performance: complete-case models 
+# ==============================================================================
+fit_cc_with_perf <- function(formula, data, model_name) {
+  
+  vars_needed <- all.vars(formula)
+  outcome <- vars_needed[1]
+  
+  d_sub <- data[, vars_needed, drop = FALSE]
+  
+  # Complete-case dataset
+  d_cc <- d_sub[complete.cases(d_sub), , drop = FALSE]
+  n_total <- nrow(d_sub)
+  n_cc <- nrow(d_cc)
+  
+  if (n_cc == 0) {
+    warning("Model ", model_name, ": no complete cases -> skipping.")
+    return(NULL)
+  }
+  
+  # Drop factor predictors that are constant among complete cases
+  pred_names <- setdiff(names(d_cc), outcome)
+  bad_factors <- vapply(pred_names, function(v) {
+    x <- d_cc[[v]]
+    is.factor(x) && length(unique(x[!is.na(x)])) < 2
+  }, logical(1))
+  
+  drop_pred <- names(bad_factors)[bad_factors]
+  if (length(drop_pred) > 0) {
+    message("Model ", model_name,
+            ": dropping constant factor predictors (complete cases): ",
+            paste(drop_pred, collapse = ", "))
+    pred_names <- setdiff(pred_names, drop_pred)
+    d_cc <- d_cc[, c(outcome, pred_names), drop = FALSE]
+  }
+  
+  if (length(pred_names) == 0) {
+    warning("Model ", model_name,
+            ": no predictors left after dropping constants -> skipping.")
+    return(NULL)
+  }
+  
+  # Check outcome variation
+  y <- d_cc[[outcome]]
+  n_events <- sum(y == 1, na.rm = TRUE)
+  n_nonevents <- sum(y == 0, na.rm = TRUE)
+  
+  if (n_events == 0 || n_nonevents == 0) {
+    warning("Model ", model_name,
+            ": outcome has no variation among complete cases -> skipping.")
+    return(NULL)
+  }
+  
+  # Final formula and fit
+  formula_cc <- as.formula(
+    paste(outcome, "~", paste(pred_names, collapse = " + "))
+  )
+  
+  fit <- glm(formula_cc, data = d_cc, family = binomial)
+  
+  # Predicted probabilities
+  p_hat <- predict(fit, type = "response")
+  
+  # AUC + CI
+  auc_tab <- compute_auc_ci(y, p_hat)
+  
+  # Calibration intercept and slope
+  logit_p <- logit_safe(p_hat)
+  # intercept with offset
+  calib_int_fit <- glm(y ~ offset(logit_p), family = binomial)
+  calib_intercept <- coef(calib_int_fit)[1]
+  # slope
+  calib_slope_fit <- glm(y ~ logit_p, family = binomial)
+  calib_slope <- coef(calib_slope_fit)["logit_p"]
+  
+  # Hosmer–Lemeshow using safe helper
+  hl_p <- safe_hl(y, p_hat, g = 10)
+  
+  # AIC / BIC
+  aic_val <- AIC(fit)
+  bic_val <- BIC(fit)
+  
+  tibble(
+    model = model_name,
+    analysis = "complete_case",
+    n_analysis = n_cc,
+    n_events = n_events,
+    n_nonevents = n_nonevents,
+    auc = auc_tab$auc,
+    auc_low = auc_tab$auc_low,
+    auc_high = auc_tab$auc_high,
+    calib_intercept = calib_intercept,
+    calib_slope = calib_slope,
+    hl_pvalue = hl_p,
+    AIC = aic_val,
+    BIC = bic_val
+  )
+}
+
+cat("\n[INFO] Apparent performance – complete-case models (M1–M2)\n")
+perf_cc <- purrr::imap_dfr(
+  formulas_cc,
+  ~ fit_cc_with_perf(.x, df_st5, model_name = .y)
+)
+print(perf_cc)
+# ==============================================================================
+##   5) Multiple imputation  
+# ==============================================================================
+# Variables used in MI (outcome + all predictors appearing in M3/M4)
+all_predictors_mi <- unique(c(
+  temporal_vars,
+  demographic_vars,
+  clinical_vars,
+  lab_vars,
+  procedure_vars
+))
+mi_vars <- c(outcome_name, all_predictors_mi)
+mi_vars <- mi_vars[mi_vars %in% names(df_st5)]
+
+df_mi <- df_st5 %>%
+  select(all_of(mi_vars)) %>%
+  filter(!is.na(.data[[outcome_name]]))
+
+cat("\n[INFO] MI dataset dimensions (rows x cols):",
+    nrow(df_mi), "x", ncol(df_mi), "\n")
+
+set.seed(20251224)
+imp <- mice(
+  df_mi,
+  m = 20,
+  maxit = 20,
+  method = "pmm",
+  printFlag = TRUE
+)
+cat("\n[INFO] Multiple imputation completed.\n")
+
+# Save basic convergence diagnostics (traceplots) 
+diag_file <- file.path(results_dir,
+                       "study5_MI_traceplots_GDMT_BIN_geq3_script4.pdf")
+pdf(diag_file)
+plot(imp)
+dev.off()
+cat("[INFO] MICE traceplots saved to:\n ", diag_file, "\n")
+# ==============================================================================
+##    6) Apparent performance – MI models 
+# ==============================================================================
+fit_mi_with_perf <- function(formula, imp, model_name, outcome_name) {
+  
+  vars_needed <- all.vars(formula)
+  outcome <- vars_needed[1]
+  
+  data_orig <- imp$data
+  y <- data_orig[[outcome_name]]
+  n_total <- length(y)
+  n_events <- sum(y == 1, na.rm = TRUE)
+  n_nonevents<- sum(y == 0, na.rm = TRUE)
+  
+  if (n_events == 0 || n_nonevents == 0) {
+    warning("Model ", model_name,
+            ": outcome has no variation -> skipping MI model.")
+    return(NULL)
+  }
+  
+  m <- imp$m
+  # predicted probabilities in each imputed dataset
+  preds_mat <- matrix(NA_real_, nrow = n_total, ncol = m)
+  
+  for (i in 1:m) {
+    dat_i <- complete(imp, action = i)
+    dat_i <- dat_i[, vars_needed, drop = FALSE]
+    fit_i <- glm(formula, data = dat_i, family = binomial)
+    preds_mat[, i] <- predict(fit_i, type = "response")
+  }
+  
+  # Average predicted probability across imputations
+  p_hat <- rowMeans(preds_mat)
+  
+  # AUC + CI
+  auc_tab <- compute_auc_ci(y, p_hat)
+  
+  # Calibration intercept and slope
+  logit_p <- logit_safe(p_hat)
+  calib_int_fit <- glm(y ~ offset(logit_p), family = binomial)
+  calib_intercept <- coef(calib_int_fit)[1]
+  
+  calib_slope_fit <- glm(y ~ logit_p, family = binomial)
+  calib_slope <- coef(calib_slope_fit)["logit_p"]
+  
+  # Hosmer–Lemeshow using safe helper
+  hl_p <- safe_hl(y, p_hat, g = 10)
+  
+  # For AIC/BIC we approximate using the first imputed dataset only
+  dat1 <- complete(imp, action = 1)
+  dat1 <- dat1[, vars_needed, drop = FALSE]
+  fit1 <- glm(formula, data = dat1, family = binomial)
+  aic1 <- AIC(fit1)
+  bic1 <- BIC(fit1)
+  
+  tibble(
+    model = model_name,
+    analysis = "multiple_imputation",
+    n_analysis = n_total,
+    n_events = n_events,
+    n_nonevents = n_nonevents,
+    auc = auc_tab$auc,
+    auc_low = auc_tab$auc_low,
+    auc_high = auc_tab$auc_high,
+    calib_intercept = calib_intercept,
+    calib_slope = calib_slope,
+    hl_pvalue = hl_p,
+    AIC = aic1,
+    BIC = bic1
+  )
+}
+
+cat("\n[INFO] Apparent performance – MI-based models (M3–M4)\n")
+perf_mi <- purrr::imap_dfr(
+  formulas_mi,
+  ~ fit_mi_with_perf(.x, imp, model_name = .y, outcome_name = outcome_name)
+)
+print(perf_mi)
+# ==============================================================================
+##      7) Save apparent performance summary 
+# ==============================================================================
+perf_all <- bind_rows(perf_cc, perf_mi)
+
+saveRDS(
+  perf_all,
+  file = file.path(results_dir, "study5_GDMT_model_performance_summary.rds")
+)
+write.csv(
+  perf_all,
+  file = file.path(results_dir, "study5_GDMT_model_performance_summary.csv"),
+  row.names = FALSE
+)
+cat("\n[OK] Apparent performance summary saved in:\n ",
+    results_dir, "\n")
+# ==============================================================================
+##    8) Bootstrap internal validation (B = 1000)   
+# ==============================================================================
+bootstrap_validate <- function(formula, data, model_name,
+                               outcome_name, B = 1000, seed = 20251225) {
+  
+  set.seed(seed)
+  vars_needed <- all.vars(formula)
+  outcome <- vars_needed[1]
+  
+  d <- data[, vars_needed, drop = FALSE]
+  y <- d[[outcome_name]]
+  
+  # Apparent fit
+  fit_app <- glm(formula, data = d, family = binomial)
+  p_app <- predict(fit_app, type = "response")
+  auc_app <- compute_auc_ci(y, p_app)$auc
+  
+  # Store optimism values
+  optimism <- numeric(B)
+  
+  for (b in 1:B) {
+    idx_boot <- sample(seq_len(nrow(d)), replace = TRUE)
+    d_boot <- d[idx_boot, , drop = FALSE]
+    
+    fit_boot <- try(glm(formula, data = d_boot, family = binomial),
+                    silent = TRUE)
+    if (inherits(fit_boot, "try-error")) {
+      optimism[b] <- NA_real_
+      next
+    }
+    
+    # AUC in bootstrap sample
+    p_boot_fit <- predict(fit_boot, type = "response")
+    y_boot <- d_boot[[outcome_name]]
+    auc_boot_fit <- compute_auc_ci(y_boot, p_boot_fit)$auc
+    
+    # AUC when bootstrap model is evaluated on original data
+    p_boot_orig <- predict(fit_boot, newdata = d, type = "response")
+    auc_boot_orig <- compute_auc_ci(y, p_boot_orig)$auc
+    
+    optimism[b] <- auc_boot_fit - auc_boot_orig
+  }
+  
+  optimism <- optimism[!is.na(optimism)]
+  mean_opt <- mean(optimism)
+  auc_corr <- auc_app - mean_opt
+  
+  tibble(
+    model = model_name,
+    B_bootstrap = B,
+    auc_apparent = auc_app,
+    auc_optimism_mean= mean_opt,
+    auc_corrected = auc_corr
+  )
+}
+
+cat("\n[INFO] Bootstrap internal validation for MI models M3 and M4\n")
+dat1 <- complete(imp, action = 1)
+
+boot_M3 <- bootstrap_validate(
+  formula = formulas_mi$M3_temporal_clinical,
+  data = dat1,
+  model_name = "M3_temporal_clinical",
+  outcome_name = outcome_name,
+  B = 1000
+)
+
+boot_M4 <- bootstrap_validate(
+  formula = formulas_mi$M4_full_extended,
+  data = dat1,
+  model_name = "M4_full_extended",
+  outcome_name = outcome_name,
+  B = 1000
+)
+
+boot_results <- bind_rows(boot_M3, boot_M4)
+
+saveRDS(
+  boot_results,
+  file = file.path(results_dir, "study5_GDMT_model_bootstrap_validation.rds")
+)
+write.csv(
+  boot_results,
+  file = file.path(results_dir, "study5_GDMT_model_bootstrap_validation.csv"),
+  row.names = FALSE
+)
+print(boot_results)
+cat("\n[OK] Bootstrap validation results saved in:\n ",
+    results_dir, "\n")
+# ==============================================================================
+##     9) Calibration plots 
+# ==============================================================================
+# Helper: create calibration data (grouped by quantiles of prediction)
+calibration_data <- function(y, p_hat, n_groups = 10) {
+  df <- tibble(
+    y = y,
+    p_hat = p_hat
+  ) %>%
+    mutate(
+      group = ntile(p_hat, n_groups)
+    ) %>%
+    group_by(group) %>%
+    summarise(
+      n    = n(),
+      obs  = mean(y),
+      pred = mean(p_hat),
+      .groups = "drop"
+    )
+  df
+}
+
+# calibration 
+make_calibration_plot <- function(formula, data, outcome_name,
+                                  main_title, subtitle,
+                                  n_groups = 10) {
+  
+  vars_needed <- all.vars(formula)
+  outcome <- vars_needed[1]
+  
+  d_sub <- data[, vars_needed, drop = FALSE]
+  d_cc  <- d_sub[complete.cases(d_sub), , drop = FALSE]
+  
+  fit   <- glm(formula, data = d_cc, family = binomial)
+  p_hat <- predict(fit, type = "response")
+  y     <- d_cc[[outcome_name]]
+  
+  calib_df <- calibration_data(y, p_hat, n_groups = n_groups)
+  
+  ggplot(calib_df, aes(x = pred, y = obs)) +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+    geom_point(size = 2) +
+    geom_line() +
+    labs(
+      title    = main_title,
+      subtitle = subtitle,
+      x = "Mean predicted probability of GDMT ≥3",
+      y = "Observed proportion with GDMT ≥3"
+    ) +
+    coord_equal(xlim = c(0, 1), ylim = c(0, 1)) +
+    theme_minimal()
+}
+
+#
+# M2 : complete-case model
+p_cal_M2 <- make_calibration_plot(
+  formula     = formulas_cc$M2_temporal_demo,
+  data        = df_st5,
+  outcome_name = outcome_name,
+  main_title = "Calibration of GDMT ≥3 model",
+  subtitle   = "Model 2 – Temporal and demographic predictors "
+)
+
+# M4 : extended MI model, first completed dataset
+p_cal_M4 <- make_calibration_plot(
+  formula     = formulas_mi$M4_full_extended,
+  data        = dat1,   # first completed MI dataset
+  outcome_name = outcome_name,
+  main_title = "Calibration of GDMT ≥3 model",
+  subtitle   = "Model 4 – Extended clinical, laboratory and procedural predictors"
+)
+
+# Show plots 
+p_cal_M2
+p_cal_M4
+
+# Save plots as PNG images (300 dpi)
+png_M2 <- file.path(results_dir,
+                    "study5_GDMT_BIN_geq3_calibration_M2.png")
+png_M4 <- file.path(results_dir,
+                    "study5_GDMT_BIN_geq3_calibration_M4.png")
+
+png(png_M2, width = 7, height = 6, units = "in", res = 300)
+print(p_cal_M2)
+dev.off()
+
+png(png_M4, width = 7, height = 6, units = "in", res = 300)
+print(p_cal_M4)
+dev.off()
+
+cat("\n[OK] Calibration plots saved as PNG images in:\n ",
+    results_dir, "\n")
+
+## =====================================================================
+## End of Script 4
+## =====================================================================
+cat("\n[DONE] Script 4 completed successfully.\n")
+

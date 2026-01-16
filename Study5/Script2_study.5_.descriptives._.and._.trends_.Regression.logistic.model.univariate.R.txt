@@ -1,0 +1,443 @@
+###############################################################################
+# Project : PROFID – Study 5
+# Script : 02_study5_descriptives_and_trends.R
+# Author : Amina Boudamaana
+#
+# Purpose :
+# - Load df_study5.rds (Study 5 analysis dataset)
+# - Provide baseline descriptive summaries (overall and by GDMT_BIN_geq3)
+# - Describe therapy utilisation by calendar time (Year_index, Year_epoch)
+# - Fit simple logistic regression models for temporal trends in therapy use
+#
+# Input : df_study5.rds (created in 01_study5_build_cohort_and_endpoints_ESC.R)
+# Output : Summary tables and model objects 
+# ==============================================================================
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(ggplot2)
+  library(tidyr)
+  library(broom) # for tidy() regression output
+})
+# ==============================================================================
+## 0. Load Study 5 dataset
+# ==============================================================================
+setwd("S:/AG/f-dhzc-profid/Data Transfer to Charite")
+
+stopifnot(file.exists("df_study5.rds"))
+df_st5 <- readRDS("df_study5.rds")
+cat("[INFO] df_study5 loaded: n =", nrow(df_st5), "| p =", ncol(df_st5), "\n")
+
+# Check that key variables are available in the expected format
+stopifnot(all(c("GDMT_BIN_geq3",
+                "Year_index",
+                "Year_epoch",
+                "Age_num",
+                "Age_cat",
+                "LVEF_num",
+                "LVEF_cat30",
+                "LVEF_ESC_group",
+                "Sex_BIN_Male",
+                "DB") %in% names(df_st5)))
+
+# Make sure some are in the right class
+df_st5 <- df_st5 %>%
+  mutate(
+    GDMT_BIN_geq3 = as.integer(GDMT_BIN_geq3),
+    Year_index = suppressWarnings(as.integer(Year_index)),
+    Year_epoch = factor(Year_epoch,
+                        levels = c("<2005","2005-2009","2010-2014",">=2015")),
+    Age_cat = factor(Age_cat),
+    LVEF_cat30 = factor(LVEF_cat30),
+    LVEF_ESC_group = factor(LVEF_ESC_group,
+                            levels = c("HFrEF","HFmrEF","HFpEF")),
+    Sex_BIN_Male = as.integer(Sex_BIN_Male),
+    DB = factor(DB)
+  )
+
+# Quick check of key distributions
+cat("\n[CHECK] Year_epoch distribution:\n")
+print(table(df_st5$Year_epoch, useNA = "ifany"))
+     # <2005   2005-2009    2010-2014    >=2015 
+    #  0       2769         3776         2342 
+cat("\n[CHECK] LVEF_ESC_group distribution:\n")
+print(table(df_st5$LVEF_ESC_group, useNA = "ifany"))
+   # HFrEF  HFmrEF  HFpEF 
+   # 5110   2128    1649 
+cat("\n[CHECK] GDMT_BIN_geq3 distribution:\n")
+print(table(df_st5$GDMT_BIN_geq3, useNA = "ifany"))
+   #  0    1      <NA> 
+  #   609  3093   5185 
+# ==============================================================================
+## 1. Baseline descriptive summaries
+## (overall and stratified by GDMT_BIN_geq3)
+# ==============================================================================
+## Helper: summarise one continuous variable overall
+summarise_continuous_overall <- function(data, var) {
+  v <- rlang::sym(var)
+  data %>%
+    summarise(
+      n_nonmiss = sum(!is.na(!!v)),
+      mean = mean(!!v, na.rm = TRUE),
+      sd = sd(!!v, na.rm = TRUE),
+      median = median(!!v, na.rm = TRUE),
+      p25 = quantile(!!v, 0.25, na.rm = TRUE),
+      p75 = quantile(!!v, 0.75, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    mutate(variable = var, .before = 1)
+}
+
+## Helper: summarise one continuous variable by GDMT_BIN_geq3 (0/1 only)
+summarise_continuous_by_gdmt <- function(data, var) {
+  v <- rlang::sym(var)
+  data %>%
+    filter(!is.na(GDMT_BIN_geq3)) %>%
+    group_by(GDMT_BIN_geq3) %>%
+    summarise(
+      n_nonmiss = sum(!is.na(!!v)),
+      mean = mean(!!v, na.rm = TRUE),
+      sd = sd(!!v, na.rm = TRUE),
+      median = median(!!v, na.rm = TRUE),
+      p25 = quantile(!!v, 0.25, na.rm = TRUE),
+      p75 = quantile(!!v, 0.75, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    mutate(variable = var, .before = 1)
+}
+
+## Helper: summarise one categorical variable overall
+summarise_categorical_overall <- function(data, var) {
+  v <- rlang::sym(var)
+  data %>%
+    filter(!is.na(!!v)) %>%
+    count(!!v, name = "n") %>%
+    mutate(
+      prop = n / sum(n),
+      variable = var,
+      .before = 1
+    )
+}
+
+## Helper: summarise one categorical variable by GDMT_BIN_geq3 (0/1 only)
+summarise_categorical_by_gdmt <- function(data, var) {
+  v <- rlang::sym(var)
+  data %>%
+    filter(!is.na(GDMT_BIN_geq3), !is.na(!!v)) %>%
+    group_by(GDMT_BIN_geq3, !!v) %>%
+    summarise(
+      n = n(),
+      .groups = "drop_last"
+    ) %>%
+    mutate(
+      prop = n / sum(n),
+      variable = var,
+      .before = 1
+    ) %>%
+    ungroup()
+}
+
+## Continuous baseline variables to describe
+cont_vars <- intersect(
+  c("Age_num", "LVEF_num", "eGFR_num",
+    "NTProBNP_log1p", "Haemoglobin_log1p",
+    "Sodium_log1p", "Potassium_log1p",
+    "Time_index_MI_CHD_num"),
+  names(df_st5)
+)
+
+## Categorical baseline variables to describe
+cat_vars <- intersect(
+  c("Age_cat", "Sex_BIN_Male", "DB",
+    "LVEF_cat30", "LVEF_ESC_group",
+    "NYHA_BIN_geq_II", "NYHA_BIN_geq_III", "NYHA_BIN_eq_IV",
+    "ICD_BIN_Yes", "Baseline_within40d",
+    "Diabetes_BIN_Yes", "Hypertension_BIN_Yes",
+    "Smoking_BIN_Yes", "AF_atrial_flutter_BIN_Yes",
+    "Stroke_TIA_BIN_Yes",
+    "PCI_BIN_Yes", "CABG_BIN_Yes",
+    "Revascularisation_acute_BIN_Yes"),
+  names(df_st5)
+)
+
+## 1a. Continuous – overall
+baseline_cont_overall <- bind_rows(
+  lapply(cont_vars, summarise_continuous_overall, data = df_st5)
+)
+
+cat("\n[INFO] Baseline continuous variables – overall:\n")
+print(baseline_cont_overall)
+
+## 1b. Continuous – by GDMT_BIN_geq3
+baseline_cont_by_gdmt <- bind_rows(
+  lapply(cont_vars, summarise_continuous_by_gdmt, data = df_st5)
+)
+
+cat("\n[INFO] Baseline continuous variables by GDMT_BIN_geq3 (0/1):\n")
+print(baseline_cont_by_gdmt)
+
+## 1c. Categorical – overall
+baseline_cat_overall <- bind_rows(
+  lapply(cat_vars, summarise_categorical_overall, data = df_st5)
+)
+
+cat("\n[INFO] Baseline categorical variables – overall:\n")
+print(baseline_cat_overall)
+
+## 1d. Categorical – by GDMT_BIN_geq3
+baseline_cat_by_gdmt <- bind_rows(
+  lapply(cat_vars, summarise_categorical_by_gdmt, data = df_st5)
+)
+
+cat("\n[INFO] Baseline categorical variables by GDMT_BIN_geq3 (0/1):\n")
+print(baseline_cat_by_gdmt)
+
+setwd("T:/Study_5") 
+getwd()
+list.files("Results_Study5")
+baseline_cat_overall <- read.csv("Results_Study5/study5_baseline_cat_overall.csv")
+
+
+library(dplyr)
+library(tidyr)
+
+baseline_cat_overall <- read.csv("Results_Study5/study5_baseline_cat_overall.csv")
+
+level_cols <- setdiff(names(baseline_cat_overall),
+                      c("variable", "n", "prop"))
+
+baseline_cat_clean <- baseline_cat_overall %>%
+  mutate(across(all_of(level_cols), as.character)) %>% # <- important
+  pivot_longer(
+    cols = all_of(level_cols),
+    names_to = "tmp_var",
+    values_to = "level"
+  ) %>%
+  filter(!is.na(level)) %>% 
+  select(variable, level, n, prop)
+
+
+write.csv(
+  baseline_cat_clean,
+  "Results_Study5/study5_baseline_cat_overall_clean.csv",
+  row.names = FALSE
+)
+# ==============================================================================
+## 2. Therapy utilisation over calendar time (Year_index & Year_epoch)
+# ==============================================================================
+therapy_vars <- c("ACE_inhibitor_ARB_BIN_Yes",
+                  "Beta_blockers_BIN_Yes",
+                  "MRA_BIN_Yes",
+                  "Anti_platelet_BIN_Yes",
+                  "Anti_coagulant_BIN_Yes",
+                  "Lipid_lowering_BIN_Yes",
+                  "GDMT_BIN_geq3")
+
+# nicer labels for legend (optional)
+therapy_labels <- c(
+  ACE_inhibitor_ARB_BIN_Yes = "ACEi/ARB",
+  Beta_blockers_BIN_Yes = "Beta-blocker",
+  MRA_BIN_Yes = "MRA",
+  Anti_platelet_BIN_Yes = "Antiplatelet",
+  Anti_coagulant_BIN_Yes = "Anticoagulant",
+  Lipid_lowering_BIN_Yes = "Lipid-lowering",
+  GDMT_BIN_geq3 = "GDMT ≥3/5"
+)
+
+## 2a. Yearly utilisation (Year_index)
+
+yearly_therapy <- df_st5 %>%
+  filter(!is.na(Year_index)) %>%
+  group_by(Year_index) %>%
+  summarise(
+    n = n(),
+    across(all_of(therapy_vars),
+           ~ mean(.x == 1L, na.rm = TRUE),
+           .names = "rate_{.col}"),
+    .groups = "drop"
+  )
+
+cat("\n[INFO] Yearly therapy utilisation summary (first rows):\n")
+print(head(yearly_therapy, 10))
+
+yearly_long <- yearly_therapy %>%
+  select(Year_index, starts_with("rate_")) %>%
+  pivot_longer(
+    cols = starts_with("rate_"),
+    names_to = "therapy",
+    values_to = "prop"
+  ) %>%
+  mutate(
+    therapy = gsub("^rate_", "", therapy),
+    therapy = factor(therapy, levels = therapy_vars),
+    therapy = forcats::fct_relabel(therapy, ~ therapy_labels[.x])
+  )
+
+p_year <- ggplot(yearly_long,
+                 aes(x = Year_index, y = prop, group = therapy, colour = therapy)) +
+  geom_line() +
+  geom_point() +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  labs(
+    x = "Calendar year",
+    y = "Proportion treated",
+    colour = "Therapy",
+    title = "Temporal trends in heart failure (HF) / cardiovascular (CV) therapy utilisation"
+  ) +
+  theme_minimal()
+
+print(p_year)
+
+## 2b. Utilisation by Year_epoch
+
+yearly_epoch <- df_st5 %>%
+  filter(!is.na(Year_epoch)) %>%
+  group_by(Year_epoch) %>%
+  summarise(
+    n = n(),
+    across(all_of(therapy_vars),
+           ~ mean(.x == 1L, na.rm = TRUE),
+           .names = "rate_{.col}"),
+    .groups = "drop"
+  )
+
+cat("\n[INFO] Therapy utilisation by Year_epoch:\n")
+print(yearly_epoch)
+
+# ==============================================================================
+## 3. Logistic regression models for temporal trends (per year and per 5 years)
+# ==============================================================================
+
+run_trend_model <- function(outcome_var, data) {
+  outcome_sym <- rlang::sym(outcome_var)
+  
+  d_complete <- data %>%
+    select(Year_index, !!outcome_sym) %>%
+    filter(!is.na(Year_index),
+           !is.na(!!outcome_sym))
+  
+  if (nrow(d_complete) == 0) return(NULL)
+  
+  # Event / non-event counts
+  events <- sum(d_complete[[outcome_var]] == 1L)
+  non_events <- sum(d_complete[[outcome_var]] == 0L)
+  
+  # Fit logistic regression: outcome ~ Year_index
+  fit <- glm(
+    formula = as.formula(paste(outcome_var, "~ Year_index")),
+    data = d_complete,
+    family = binomial
+  )
+  
+  tidy_fit <- tidy(fit, conf.int = TRUE, exponentiate = TRUE)
+  
+  # Extract OR for 1-year increase (Year_index term)
+  year_row <- tidy_fit[tidy_fit$term == "Year_index", ]
+  
+  if (nrow(year_row) != 1L) return(NULL)
+  
+  or_1yr <- year_row$estimate
+  lcl_1yr <- year_row$conf.low
+  ucl_1yr <- year_row$conf.high
+  p_val <- year_row$p.value
+  
+  # Convert to 5-year OR (raise to power 5)
+  or_5yr <- or_1yr^5
+  lcl_5yr <- lcl_1yr^5
+  ucl_5yr <- ucl_1yr^5
+  
+  tibble(
+    outcome_var = outcome_var,
+    n_events = events,
+    n_non_events = non_events,
+    or_per_1yr = or_1yr,
+    lcl_per_1yr = lcl_1yr,
+    ucl_per_1yr = ucl_1yr,
+    or_per_5yr = or_5yr,
+    lcl_per_5yr = lcl_5yr,
+    ucl_per_5yr = ucl_5yr,
+    p_value = p_val
+  )
+}
+
+trend_results <- bind_rows(
+  lapply(therapy_vars, run_trend_model, data = df_st5)
+)
+
+cat("\n[RESULT] Unadjusted temporal trend models (per year and per 5 years):\n")
+print(trend_results)
+
+# ==============================================================================
+vars_missing <- c("Age_num","LVEF_num","eGFR_num","NYHA","Diabetes",
+                  "Hypertension","Smoking","AF_atrial_flutter","Stroke_TIA")
+sapply(df_st5[vars_missing], function(x) mean(is.na(x))*100)
+
+#   Age_num          LVEF_num          eGFR_num              NYHA          Diabetes      Hypertension           Smoking AF_atrial_flutter 
+   # 0.01125239         0.00000000       10.65601440       85.87824913        0.01125239        5.80623382       17.21615843        5.81748622 
+         # Stroke_TIA 
+         # 1.49656802 
+# =============================================================================== #
+
+## 4. Save key results 
+# =============================================================================== #
+
+# Folder for outputs 
+results_dir <- "Results_Study5"
+
+if (!dir.exists(results_dir)) {
+  dir.create(results_dir)
+  cat("[INFO] Created results folder:", results_dir, "\n")
+} else {
+  cat("[INFO] Using existing results folder:", results_dir, "\n")
+}
+
+## 4a. Save baseline tables (RDS + CSV)
+
+saveRDS(baseline_cont_overall,
+        file.path(results_dir, "study5_baseline_cont_overall.rds"))
+write.csv(baseline_cont_overall,
+          file.path(results_dir, "study5_baseline_cont_overall.csv"),
+          row.names = FALSE)
+
+saveRDS(baseline_cont_by_gdmt,
+        file.path(results_dir, "study5_baseline_cont_by_gdmt.rds"))
+write.csv(baseline_cont_by_gdmt,
+          file.path(results_dir, "study5_baseline_cont_by_gdmt.csv"),
+          row.names = FALSE)
+
+saveRDS(baseline_cat_overall,
+        file.path(results_dir, "study5_baseline_cat_overall.rds"))
+write.csv(baseline_cat_overall,
+          file.path(results_dir, "study5_baseline_cat_overall.csv"),
+          row.names = FALSE)
+
+saveRDS(baseline_cat_by_gdmt,
+        file.path(results_dir, "study5_baseline_cat_by_gdmt.rds"))
+write.csv(baseline_cat_by_gdmt,
+          file.path(results_dir, "study5_baseline_cat_by_gdmt.csv"),
+          row.names = FALSE)
+
+## 4b. Save yearly therapy summaries and trend models
+
+saveRDS(yearly_therapy,
+        file.path(results_dir, "study5_yearly_therapy.rds"))
+write.csv(yearly_therapy,
+          file.path(results_dir, "study5_yearly_therapy.csv"),
+          row.names = FALSE)
+
+saveRDS(trend_results,
+        file.path(results_dir, "study5_trend_models.rds"))
+write.csv(trend_results,
+          file.path(results_dir, "study5_trend_models.csv"),
+          row.names = FALSE)
+
+## 4c. Save main figure (temporal trends in therapy utilisation)
+
+ggsave(
+  filename = file.path(results_dir, "Fig1_therapy_trends.png"),
+  plot = p_year,
+  width = 8,
+  height = 6,
+  dpi = 300
+)
+
+cat("[OK] Study 5 results saved in folder:", results_dir, "\n")

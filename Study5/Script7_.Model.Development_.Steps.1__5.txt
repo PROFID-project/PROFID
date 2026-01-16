@@ -1,0 +1,733 @@
+# ==============================================================================
+# PROFID Study 5 — Script7
+# Model development pipeline (exploratory) for GDMT ≥3
+#
+# Key features:
+# - Candidate screening (univariate, correlation)
+# - Redundancy cleanup (incl. rules for Age/Year/DB/LVEF)
+# - Robust model fit:
+# * glm default
+# * penalized fallback (brglm2) if separation detected (optional)
+# - Alias-fix with priority rules for forced terms
+# - Backward elimination with multiple fallbacks for term p-values
+# - VIF/GVIF from lm() design matrix
+#
+# IMPORTANT:
+# This is an exploratory pipeline (not the primary MI interaction model).
+# ==============================================================================
+
+# ==============================================================================
+# 0) Packages (checked)
+# ==============================================================================
+required_pkgs <- c("dplyr", "tidyr", "purrr", "stringr", "tibble", "forcats", "car")
+missing_pkgs <- required_pkgs[!vapply(required_pkgs, requireNamespace, logical(1), quietly = TRUE)]
+if (length(missing_pkgs) > 0) {
+  stop("[ERROR] Missing required packages: ", paste(missing_pkgs, collapse = ", "),
+       "\nPlease install them before running this script.")
+}
+
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(tidyr)
+  library(purrr)
+  library(stringr)
+  library(tibble)
+  library(forcats)
+  library(car)
+})
+
+# ==============================================================================
+# 1) Input data
+# ==============================================================================
+data_path_candidates <- c(
+  "T:/Study_5/df_study5.rds",
+  "T:/Study_5/df_handled.rds",
+  "T:/Study_5/df_study5.RDS",
+  "T:/Study_5/df_handled.RDS"
+)
+
+if (!exists("df_st5", inherits = TRUE)) {
+  existing <- data_path_candidates[file.exists(data_path_candidates)]
+  if (length(existing) == 0) {
+    stop("[ERROR] No input .rds found. Checked: ", paste(data_path_candidates, collapse = " | "))
+  }
+  df_st5 <- readRDS(existing[1])
+}
+stopifnot(is.data.frame(df_st5))
+
+# ==============================================================================
+# 2) Settings
+# ==============================================================================
+outcome_name <- "GDMT_BIN_geq3"
+
+exclude_vars <- c(
+  outcome_name,
+  "patient_id", "ID", "id", "record_id",
+  "gdmt_count"
+)
+
+exclude_regex <- "^(GDMT_|ACE_|Beta_|MRA_|Anti_|Lipid_)|(^gdmt_count$)"
+
+# Forced-in covariates (always included if present)
+force_in <- c("Year_index", "Age_num", "Sex_BIN_Male", "DB", "LVEF_num")
+force_in <- intersect(force_in, names(df_st5)) # <- IMPORTANT: ensure in data
+
+forced_keep_priority <- c("Age_num", "Sex_BIN_Male", "LVEF_num", "Year_index", "DB")
+
+min_n_univariate <- 50
+p_uni_keep <- 0.10
+p_retain <- 0.05
+
+corr_method <- "pearson"
+corr_threshold <- 0.70
+vif_threshold <- 5
+
+collapse_sparse_levels <- TRUE
+min_level_total <- 20
+min_level_events <- 5
+
+use_all_when_blocks_missing <- TRUE
+
+# ==============================================================================
+# 2b) Output folder + safe writers
+# ==============================================================================
+results_dir_md <- file.path("T:/Study_5", "results_model_development")
+if (!dir.exists("T:/")) results_dir_md <- file.path(path.expand("~"), "Study_5", "results_model_development")
+dir.create(results_dir_md, showWarnings = FALSE, recursive = TRUE)
+
+# write permission test
+test_file <- file.path(results_dir_md, ".__write_test__.txt")
+ok_write <- tryCatch({ writeLines("test", test_file); file.remove(test_file); TRUE }, error = function(e) FALSE)
+if (!ok_write) {
+  results_dir_md <- file.path(tempdir(), "Study_5_results_model_development")
+  dir.create(results_dir_md, showWarnings = FALSE, recursive = TRUE)
+  message("[WARN] Cannot write to original output folder. Using: ", results_dir_md)
+}
+
+write_tbl <- function(x, stem) {
+  path <- file.path(results_dir_md, paste0(stem, ".csv"))
+  ok <- tryCatch({ write.csv(x, path, row.names = FALSE); TRUE }, error = function(e) FALSE)
+  if (!ok) {
+    ts <- format(Sys.time(), "%Y%m%d_%H%M%S")
+    alt <- file.path(results_dir_md, paste0(stem, "_", ts, ".csv"))
+    write.csv(x, alt, row.names = FALSE)
+    message("[WARN] Could not write: ", path, "\nWrote instead: ", alt)
+    return(invisible(alt))
+  }
+  message("[OK] Saved: ", path)
+  invisible(path)
+}
+
+save_rds <- function(x, stem) {
+  path <- file.path(results_dir_md, paste0(stem, ".rds"))
+  ok <- tryCatch({ saveRDS(x, path); TRUE }, error = function(e) FALSE)
+  if (!ok) {
+    ts <- format(Sys.time(), "%Y%m%d_%H%M%S")
+    alt <- file.path(results_dir_md, paste0(stem, "_", ts, ".rds"))
+    saveRDS(x, alt)
+    message("[WARN] Could not write: ", path, "\nSaved instead: ", alt)
+    return(invisible(alt))
+  }
+  message("[OK] Saved: ", path)
+  invisible(path)
+}
+
+# ==============================================================================
+# 3) Outcome checks + coding
+# ==============================================================================
+if (!outcome_name %in% names(df_st5)) stop("[ERROR] Outcome column not found: ", outcome_name)
+
+coerce_binary01 <- function(x) {
+  if (is.logical(x)) x <- as.integer(x)
+  if (is.factor(x)) x <- as.character(x)
+  if (is.character(x)) {
+    x2 <- trimws(tolower(x))
+    out <- rep(NA_integer_, length(x2))
+    out[x2 %in% c("1","yes","y","true","t")] <- 1L
+    out[x2 %in% c("0","no","n","false","f")] <- 0L
+    suppressWarnings(out <- ifelse(is.na(out), as.integer(x2), out))
+    return(as.integer(out))
+  }
+  if (is.numeric(x) || is.integer(x)) return(as.integer(x))
+  NULL
+}
+
+df_st5[[outcome_name]] <- coerce_binary01(df_st5[[outcome_name]])
+if (is.null(df_st5[[outcome_name]])) stop("[ERROR] Outcome cannot be coerced to 0/1: ", outcome_name)
+
+uv <- unique(df_st5[[outcome_name]][!is.na(df_st5[[outcome_name]])])
+if (!all(uv %in% c(0, 1))) {
+  stop("[ERROR] Outcome has values other than 0/1 after coercion: ", paste(uv, collapse = ", "))
+}
+
+# Stabilise DB as factor if present
+if ("DB" %in% names(df_st5)) df_st5$DB <- droplevels(as.factor(df_st5$DB))
+
+# ==============================================================================
+# 4) Candidate predictors
+# ==============================================================================
+get_block <- function(name) {
+  if (exists(name, inherits = TRUE)) {
+    x <- get(name, inherits = TRUE)
+    if (is.character(x)) return(x)
+  }
+  character(0)
+}
+
+candidate_predictors <- unique(c(
+  get_block("temporal_vars"),
+  get_block("demographic_vars"),
+  get_block("clinical_vars"),
+  get_block("lab_vars"),
+  get_block("procedure_vars"),
+  get_block("nyha_vars")
+))
+
+if (length(candidate_predictors) == 0 && isTRUE(use_all_when_blocks_missing)) {
+  candidate_predictors <- setdiff(names(df_st5), exclude_vars)
+  candidate_predictors <- candidate_predictors[!grepl(exclude_regex, candidate_predictors)]
+}
+
+candidate_predictors <- unique(candidate_predictors)
+candidate_predictors <- setdiff(candidate_predictors, outcome_name)
+candidate_predictors <- intersect(candidate_predictors, names(df_st5))
+
+# IMPORTANT: ensure forced terms are included even if blocks were incomplete
+candidate_predictors <- union(candidate_predictors, force_in)
+
+if (length(candidate_predictors) == 0) stop("[ERROR] No candidate predictors available after exclusions.")
+
+# ================================================================================
+# 4b) Redundancy cleanup
+# ================================================================================
+preferred_over_redundant <- tribble(
+  ~preferred, ~redundant,
+  "AF_atrial_flutter_BIN_Yes", "AF_atrial_flutter",
+  "Smoking_BIN_Yes", "Smoking",
+  "Revascularisation_acute_BIN_Yes", "Revascularisation_acute",
+  "PCI_BIN_Yes", "PCI",
+  "Diabetes_BIN_Yes", "Diabetes",
+  "Hypertension_BIN_Yes", "Hypertension"
+)
+
+redundancy_log <- preferred_over_redundant %>%
+  filter(preferred %in% names(df_st5), redundant %in% names(df_st5)) %>%
+  mutate(action = "Dropped redundant because preferred exists")
+
+candidate_predictors <- setdiff(candidate_predictors, redundancy_log$redundant)
+
+# extra rules
+if ("Age_num" %in% force_in) candidate_predictors <- setdiff(candidate_predictors, c("Age", "age_group", "Age_cat", "age_group_desc"))
+if ("Year_index" %in% force_in) candidate_predictors <- setdiff(candidate_predictors, c("Year_epoch", "Time_zero_Y"))
+if ("DB" %in% force_in) candidate_predictors <- setdiff(candidate_predictors, c("IsSWHR"))
+if ("LVEF_num" %in% force_in) candidate_predictors <- setdiff(candidate_predictors, c("LVEF", "LVEF_cat", "LVEF_category", "LVEF_category_ESC"))
+candidate_predictors <- setdiff(candidate_predictors, c("ICD_status_num"))
+
+write_tbl(
+  bind_rows(
+    redundancy_log %>% select(preferred, redundant, action),
+    tibble(preferred = "Forced variables",
+           redundant = "Common duplicate encodings (Age/Year/DB/LVEF/ICD variants)",
+           action = "Dropped redundant encodings to avoid perfect overlaps")
+  ),
+  "MD_step0_redundancy_cleanup"
+)
+
+# ==============================================================================
+# 5) Helpers 
+# ==============================================================================
+n_unique_nonmiss <- function(x) length(unique(x[!is.na(x)]))
+
+as_factor_safe <- function(x) {
+  if (is.ordered(x)) x <- factor(x, ordered = FALSE)
+  if (is.character(x)) x <- factor(x)
+  if (is.factor(x)) x <- droplevels(x)
+  x
+}
+
+is_single_level_after_filter <- function(x) {
+  if (is.factor(x) || is.character(x)) {
+    xf <- droplevels(as.factor(x))
+    return(nlevels(xf) < 2)
+  }
+  n_unique_nonmiss(x) < 2
+}
+
+glm_separation_flag <- function(fit) {
+  if (is.null(fit)) return(FALSE)
+  p <- tryCatch(fitted(fit), error = function(e) NULL)
+  if (is.null(p)) return(FALSE)
+  any(p < 1e-8 | p > 1 - 1e-8, na.rm = TRUE)
+}
+
+fit_glm_capture <- function(formula, data) {
+  warn_msg <- NA_character_
+  fit <- withCallingHandlers(
+    tryCatch(
+      suppressWarnings(glm(formula, data = data, family = binomial(),
+                           control = glm.control(maxit = 50))),
+      error = function(e) NULL
+    ),
+    warning = function(w) {
+      if (is.na(warn_msg)) warn_msg <<- conditionMessage(w)
+      invokeRestart("muffleWarning")
+    }
+  )
+  list(fit = fit, warning = warn_msg)
+}
+
+fit_binomial_model <- function(formula, data) {
+  got <- fit_glm_capture(formula, data)
+  fit <- got$fit
+  warn_msg <- got$warning
+  sep <- glm_separation_flag(fit)
+  model_type <- "glm"
+  
+  if (isTRUE(sep) && requireNamespace("brglm2", quietly = TRUE)) {
+    fit2 <- tryCatch(
+      brglm2::brglm(formula, data = data, family = binomial(), type = "AS_mean"),
+      error = function(e) NULL
+    )
+    if (!is.null(fit2)) {
+      fit <- fit2
+      warn_msg <- "Separation detected under glm; refit used brglm2::brglm (AS_mean)."
+      model_type <- "brglm2"
+      sep <- FALSE
+    }
+  }
+  
+  list(fit = fit, warning = warn_msg, separation_flag = sep, model_type = model_type)
+}
+
+tidy_or_wald <- function(fit, conf_level = 0.95) {
+  s <- tryCatch(summary(fit)$coefficients, error = function(e) NULL)
+  if (is.null(s) || nrow(s) == 0) return(tibble())
+  
+  est <- s[, "Estimate"]
+  se <- s[, "Std. Error"]
+  pv <- if ("Pr(>|z|)" %in% colnames(s)) s[, "Pr(>|z|)"] else rep(NA_real_, length(est))
+  
+  z <- stats::qnorm(1 - (1 - conf_level) / 2)
+  
+  tibble(
+    term = rownames(s),
+    OR = exp(est),
+    CI_low = exp(est - z * se),
+    CI_high = exp(est + z * se),
+    p_value = as.numeric(pv)
+  ) %>%
+    filter(term != "(Intercept)")
+}
+
+collapse_sparse <- function(d, outcome, var) {
+  if (!is.factor(d[[var]])) return(d)
+  
+  tab <- d %>%
+    filter(!is.na(.data[[outcome]])) %>%
+    group_by(.data[[var]]) %>%
+    summarise(
+      n_total = n(),
+      n_events = sum(.data[[outcome]] == 1, na.rm = TRUE),
+      n_nonevents = sum(.data[[outcome]] == 0, na.rm = TRUE),
+      .groups = "drop"
+    )
+  
+  rare_levels <- tab %>%
+    filter(n_total < min_level_total |
+             n_events < min_level_events |
+             n_nonevents < min_level_events) %>%
+    pull(.data[[var]])
+  
+  if (length(rare_levels) > 0) {
+    d[[var]] <- forcats::fct_collapse(d[[var]], Other = as.character(rare_levels))
+    d[[var]] <- droplevels(d[[var]])
+  }
+  d
+}
+
+terms_from_aliased_coefs <- function(formula, data) {
+  lm_fit <- tryCatch(lm(formula, data = data), error = function(e) NULL)
+  if (is.null(lm_fit)) return(character(0))
+  
+  ali <- is.na(coef(lm_fit))
+  if (!any(ali)) return(character(0))
+  
+  aliased_coef_names <- names(ali)[ali]
+  term_labels <- attr(terms(formula), "term.labels")
+  
+  mapped <- map_chr(aliased_coef_names, function(coef_name) {
+    hit <- term_labels[startsWith(coef_name, term_labels)]
+    if (length(hit) > 0) return(hit[1])
+    hit2 <- term_labels[str_detect(coef_name, fixed(term_labels))]
+    if (length(hit2) > 0) return(hit2[1])
+    NA_character_
+  })
+  
+  unique(na.omit(mapped))
+}
+
+get_term_pvalues <- function(fit) {
+  dr <- tryCatch(drop1(fit, test = "Chisq"), error = function(e) NULL)
+  if (!is.null(dr) && "Pr(>Chi)" %in% colnames(dr)) {
+    dr <- dr[rownames(dr) != "(none)", , drop = FALSE]
+    return(tibble(term = rownames(dr), p = as.numeric(dr[, "Pr(>Chi)"])) %>% filter(is.finite(p)))
+  }
+  
+  an <- tryCatch(car::Anova(fit, type = 2), error = function(e) NULL)
+  if (!is.null(an)) {
+    pv_col <- intersect(colnames(an), c("Pr(>Chisq)", "Pr(>F)"))
+    if (length(pv_col) > 0) {
+      return(tibble(term = rownames(an), p = as.numeric(an[, pv_col[1]])) %>% filter(is.finite(p)))
+    }
+  }
+  
+  s <- tryCatch(summary(fit)$coefficients, error = function(e) NULL)
+  if (is.null(s) || nrow(s) == 0) return(tibble(term = character(0), p = numeric(0)))
+  
+  p_col <- intersect(colnames(s), c("Pr(>|z|)", "Pr(>|t|)", "p.value"))
+  if (length(p_col) == 0) return(tibble(term = character(0), p = numeric(0)))
+  
+  coef_tbl <- tibble(coef_name = rownames(s), p = as.numeric(s[, p_col[1]])) %>%
+    filter(coef_name != "(Intercept)") %>%
+    filter(is.finite(p))
+  
+  term_labels <- attr(terms(fit), "term.labels")
+  map_term <- function(coef_name) {
+    hit <- term_labels[startsWith(coef_name, term_labels)]
+    if (length(hit) > 0) return(hit[1])
+    hit2 <- term_labels[str_detect(coef_name, fixed(term_labels))]
+    if (length(hit2) > 0) return(hit2[1])
+    NA_character_
+  }
+  
+  coef_tbl %>%
+    mutate(term = map_chr(coef_name, map_term)) %>%
+    filter(!is.na(term)) %>%
+    group_by(term) %>%
+    summarise(p = min(p, na.rm = TRUE), .groups = "drop")
+}
+
+# ==============================================================================
+# STEP 1: Univariate screening
+# ==============================================================================
+fit_univariate_or <- function(data, outcome, pred, min_n = 50) {
+  d <- data %>%
+    select(all_of(c(outcome, pred))) %>%
+    filter(!is.na(.data[[outcome]]))
+  
+  d[[pred]] <- as_factor_safe(d[[pred]])
+  if (is.factor(d[[pred]])) d[[pred]] <- forcats::fct_explicit_na(d[[pred]], na_level = "Missing")
+  
+  d_cc <- d[complete.cases(d), , drop = FALSE]
+  if (nrow(d_cc) < min_n) return(NULL)
+  
+  y <- d_cc[[outcome]]
+  if (all(y == 0) || all(y == 1)) return(NULL)
+  if (is_single_level_after_filter(d_cc[[pred]])) return(NULL)
+  
+  f <- as.formula(paste(outcome, "~", pred))
+  got <- fit_glm_capture(f, d_cc)
+  fit <- got$fit
+  if (is.null(fit)) return(NULL)
+  
+  p_overall <- tryCatch({
+    an <- drop1(fit, test = "Chisq")
+    if (pred %in% rownames(an)) as.numeric(an[pred, "Pr(>Chi)"]) else NA_real_
+  }, error = function(e) NA_real_)
+  
+  sep_flag <- glm_separation_flag(fit)
+  
+  tidy_or_wald(fit) %>%
+    mutate(
+      predictor = pred,
+      p_overall = p_overall,
+      n_complete = nrow(d_cc),
+      n_events = sum(d_cc[[outcome]] == 1, na.rm = TRUE),
+      converged = isTRUE(fit$converged),
+      separation_flag = sep_flag,
+      warning = got$warning
+    ) %>%
+    select(predictor, term, OR, CI_low, CI_high, p_value,
+           p_overall, n_complete, n_events, converged, separation_flag, warning)
+}
+
+univariate_tbl <- map_dfr(candidate_predictors, ~fit_univariate_or(df_st5, outcome_name, .x, min_n = min_n_univariate))
+if (nrow(univariate_tbl) == 0) stop("[ERROR] Step 1 produced an empty table. Check outcome coding/predictors.")
+write_tbl(univariate_tbl, "MD_step1_univariate_OR")
+
+uni_pred_summary <- univariate_tbl %>%
+  group_by(predictor) %>%
+  summarise(
+    p_uni = suppressWarnings(min(c(p_overall, p_value), na.rm = TRUE)),
+    any_sep = any(separation_flag, na.rm = TRUE),
+    .groups = "drop"
+  )
+write_tbl(uni_pred_summary, "MD_step1_predictor_summary")
+
+# ==============================================================================
+# STEP 2: Correlation screening (numeric only)
+# ==============================================================================
+num_candidates <- candidate_predictors[
+  vapply(candidate_predictors, function(v) {
+    x <- df_st5[[v]]
+    is.numeric(x) || is.integer(x) || is.logical(x)
+  }, logical(1))
+]
+
+corr_tbl <- tibble()
+drop_due_to_corr <- character(0)
+
+if (length(num_candidates) >= 2) {
+  corr_df <- df_st5 %>%
+    select(all_of(num_candidates)) %>%
+    mutate(across(where(is.logical), as.integer))
+  
+  nzv <- vapply(corr_df, function(x) n_unique_nonmiss(x) >= 2, logical(1))
+  corr_df <- corr_df[, nzv, drop = FALSE]
+  num_candidates2 <- names(corr_df)
+  
+  if (length(num_candidates2) >= 2) {
+    cor_mat <- suppressWarnings(stats::cor(corr_df, use = "pairwise.complete.obs", method = corr_method))
+    cor_mat[lower.tri(cor_mat, diag = TRUE)] <- NA_real_
+    
+    idx <- which(abs(cor_mat) > corr_threshold, arr.ind = TRUE)
+    if (nrow(idx) > 0) {
+      corr_tbl <- tibble(
+        var1 = rownames(cor_mat)[idx[, 1]],
+        var2 = colnames(cor_mat)[idx[, 2]],
+        corr = as.numeric(cor_mat[idx])
+      ) %>% arrange(desc(abs(corr))) %>% distinct()
+      
+      miss_prop <- sapply(num_candidates2, function(v) mean(is.na(df_st5[[v]])))
+      p_map <- setNames(uni_pred_summary$p_uni, uni_pred_summary$predictor)
+      
+      corr_tbl <- corr_tbl %>%
+        mutate(
+          miss1 = miss_prop[var1],
+          miss2 = miss_prop[var2],
+          p1 = ifelse(!is.na(p_map[var1]), p_map[var1], NA_real_),
+          p2 = ifelse(!is.na(p_map[var2]), p_map[var2], NA_real_),
+          drop_suggested = case_when(
+            miss1 > miss2 ~ var1,
+            miss2 > miss1 ~ var2,
+            !is.na(p1) & !is.na(p2) & p1 > p2 ~ var1,
+            !is.na(p1) & !is.na(p2) & p2 > p1 ~ var2,
+            TRUE ~ var2
+          )
+        )
+      
+      drop_due_to_corr <- setdiff(unique(corr_tbl$drop_suggested), force_in)
+    }
+  }
+}
+write_tbl(corr_tbl, "MD_step2_high_correlations")
+
+# ==============================================================================
+# STEP 3: Pre-selection
+# ==============================================================================
+selected_predictors <- uni_pred_summary %>%
+  filter(is.finite(p_uni) & p_uni < p_uni_keep) %>%
+  pull(predictor)
+
+selected_predictors <- union(selected_predictors, force_in)
+selected_predictors <- setdiff(selected_predictors, drop_due_to_corr)
+selected_predictors <- intersect(selected_predictors, candidate_predictors)
+
+write_tbl(tibble(predictor = selected_predictors, forced_in = predictor %in% force_in),
+          "MD_step3_selected_predictors")
+
+if (length(selected_predictors) == 0) stop("[ERROR] No predictors selected. Consider relaxing p_uni_keep.")
+
+# ==============================================================================
+# STEP 4: Full model + alias cleanup + backward elimination
+# ==============================================================================
+d_full <- df_st5 %>%
+  select(all_of(c(outcome_name, selected_predictors))) %>%
+  filter(!is.na(.data[[outcome_name]])) %>%
+  mutate(across(where(is.character), as.factor)) %>%
+  mutate(across(where(is.factor), ~droplevels(.x))) %>%
+  mutate(across(where(is.factor), ~forcats::fct_explicit_na(.x, na_level = "Missing")))
+
+if (isTRUE(collapse_sparse_levels)) {
+  factor_vars <- names(d_full)[vapply(d_full, is.factor, logical(1))]
+  factor_vars <- setdiff(factor_vars, outcome_name)
+  for (v in factor_vars) d_full <- collapse_sparse(d_full, outcome_name, v)
+}
+
+num_in_model <- names(d_full)[vapply(d_full, is.numeric, logical(1))]
+num_in_model <- setdiff(num_in_model, outcome_name)
+
+d_cc <- d_full %>%
+  filter(if (length(num_in_model) > 0) complete.cases(across(all_of(num_in_model))) else TRUE)
+
+if (nrow(d_cc) < 50) stop("[ERROR] Dataset too small after filtering for Step 4.")
+y_cc <- d_cc[[outcome_name]]
+if (all(y_cc == 0) || all(y_cc == 1)) stop("[ERROR] Outcome has no variation after filtering.")
+
+single_level <- selected_predictors[vapply(selected_predictors, function(v) is_single_level_after_filter(d_cc[[v]]), logical(1))]
+kept_predictors <- setdiff(selected_predictors, single_level)
+
+write_tbl(tibble(predictor = single_level, reason = "Single level after filtering"),
+          "MD_step4_dropped_single_level_predictors")
+
+if (length(kept_predictors) == 0) stop("[ERROR] All predictors became unusable after filtering.")
+force_in2 <- intersect(force_in, kept_predictors)
+
+full_formula <- as.formula(paste(outcome_name, "~", paste(kept_predictors, collapse = " + ")))
+fit0 <- fit_binomial_model(full_formula, d_cc)
+fit_current <- fit0$fit
+if (is.null(fit_current)) stop("[ERROR] Full model failed to fit.")
+
+write_tbl(tibble(
+  stage = "initial_full_model",
+  model_type = fit0$model_type,
+  separation_flag = fit0$separation_flag,
+  warning = fit0$warning,
+  n_complete = nrow(d_cc),
+  n_events = sum(d_cc[[outcome_name]] == 1, na.rm = TRUE),
+  n_terms = length(attr(terms(full_formula), "term.labels"))
+), "MD_step4_initial_model_diagnostics")
+
+# Alias cleanup loop
+alias_fix_log <- list()
+alias_iter <- 0
+
+repeat {
+  ali_terms <- terms_from_aliased_coefs(formula(fit_current), d_cc)
+  if (length(ali_terms) == 0) break
+  
+  alias_iter <- alias_iter + 1
+  drop_candidates <- setdiff(ali_terms, force_in2)
+  
+  if (length(drop_candidates) == 0) {
+    forced_in_alias <- intersect(ali_terms, force_in2)
+    if (length(forced_in_alias) == 0) forced_in_alias <- ali_terms
+    ord <- match(forced_in_alias, forced_keep_priority)
+    ord[is.na(ord)] <- max(ord, na.rm = TRUE) + 1
+    term_to_drop <- forced_in_alias[which.max(ord)]
+    note <- "Aliasing among forced terms -> dropped lowest-priority forced term."
+  } else {
+    term_to_drop <- drop_candidates[1]
+    note <- "Dropped non-forced aliased term first."
+  }
+  
+  alias_fix_log[[alias_iter]] <- tibble(
+    alias_iteration = alias_iter,
+    dropped_term = term_to_drop,
+    aliased_terms_detected = paste(ali_terms, collapse = " | "),
+    note = note
+  )
+  
+  new_terms <- setdiff(attr(terms(formula(fit_current)), "term.labels"), term_to_drop)
+  if (length(new_terms) == 0) break
+  
+  new_formula <- as.formula(paste(outcome_name, "~", paste(new_terms, collapse = " + ")))
+  got_next <- fit_binomial_model(new_formula, d_cc)
+  if (is.null(got_next$fit)) break
+  
+  fit_current <- got_next$fit
+  force_in2 <- setdiff(force_in2, term_to_drop)
+}
+
+write_tbl(bind_rows(alias_fix_log), "MD_step4_alias_fix_log")
+
+# Backward elimination
+backward_log <- list()
+iter <- 0
+
+repeat {
+  iter <- iter + 1
+  tp <- get_term_pvalues(fit_current)
+  if (nrow(tp) == 0) break
+  
+  tp2 <- tp %>% filter(!term %in% force_in2)
+  if (nrow(tp2) == 0) break
+  
+  worst <- tp2 %>% arrange(desc(p)) %>% slice(1)
+  if (!is.finite(worst$p) || worst$p <= p_retain) break
+  
+  worst_term <- worst$term
+  
+  backward_log[[iter]] <- tibble(
+    iteration = iter,
+    removed_term = worst_term,
+    removed_p = worst$p
+  )
+  
+  new_terms <- setdiff(attr(terms(formula(fit_current)), "term.labels"), worst_term)
+  if (length(new_terms) == 0) break
+  
+  new_formula <- as.formula(paste(outcome_name, "~", paste(new_terms, collapse = " + ")))
+  got_next <- fit_binomial_model(new_formula, d_cc)
+  if (is.null(got_next$fit)) break
+  
+  fit_current <- got_next$fit
+}
+
+write_tbl(bind_rows(backward_log), "MD_step4_backward_log")
+
+final_or <- tidy_or_wald(fit_current) %>%
+  mutate(
+    n_complete = nrow(d_cc),
+    n_events = sum(d_cc[[outcome_name]] == 1, na.rm = TRUE)
+  )
+write_tbl(final_or, "MD_step4_final_model_OR")
+
+save_rds(list(
+  model = fit_current,
+  formula = formula(fit_current),
+  n_complete = nrow(d_cc),
+  n_events = sum(d_cc[[outcome_name]] == 1, na.rm = TRUE),
+  kept_predictors = attr(terms(formula(fit_current)), "term.labels"),
+  forced_in = force_in2
+), "MD_step4_final_model_object")
+
+# ==============================================================================
+# STEP 5: Alias diagnostics + VIF/GVIF from lm() design matrix
+# ==============================================================================
+lm_fit <- tryCatch(lm(formula(fit_current), data = d_cc), error = function(e) NULL)
+
+alias_tbl <- tibble()
+vif_tbl <- tibble()
+
+if (is.null(lm_fit)) {
+  alias_tbl <- tibble(note = "Could not compute lm() for alias/VIF diagnostics.")
+} else {
+  aliased <- is.na(coef(lm_fit))
+  if (any(aliased)) {
+    alias_tbl <- tibble(coefficient = names(aliased)[aliased],
+                        note = "Aliased coefficient (model not full rank). VIF/GVIF not computed.")
+  } else {
+    v <- tryCatch(car::vif(lm_fit), error = function(e) NULL)
+    if (is.matrix(v)) {
+      vif_tbl <- tibble(
+        term = rownames(v),
+        GVIF = as.numeric(v[, "GVIF"]),
+        Df = as.numeric(v[, "Df"]),
+        GVIF_adj = as.numeric(v[, "GVIF"]^(1 / (2 * v[, "Df"]))),
+        flag_gt5 = GVIF_adj > vif_threshold
+      )
+    } else if (!is.null(v)) {
+      vif_tbl <- tibble(term = names(v), VIF = as.numeric(v), flag_gt5 = as.numeric(v) > vif_threshold)
+    } else {
+      vif_tbl <- tibble(note = "car::vif failed unexpectedly.")
+    }
+  }
+}
+
+write_tbl(alias_tbl, "MD_step5_alias_diagnostics")
+write_tbl(vif_tbl, "MD_step5_vif")
+
+final_diag <- fit_binomial_model(formula(fit_current), d_cc)
+write_tbl(tibble(
+  stage = "final_model",
+  model_type = final_diag$model_type,
+  separation_flag = final_diag$separation_flag,
+  warning = final_diag$warning,
+  n_complete = nrow(d_cc),
+  n_events = sum(d_cc[[outcome_name]] == 1, na.rm = TRUE),
+  n_terms = length(attr(terms(formula(fit_current)), "term.labels"))
+), "MD_step5_final_model_diagnostics")
+
+message("[OK] Script 7 completed. Output folder: ", results_dir_md)
+

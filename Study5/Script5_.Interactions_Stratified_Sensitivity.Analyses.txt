@@ -1,0 +1,664 @@
+# ==============================================================================
+# UmBIZO — PROFID Study 5
+# SCRIPT 5: Interaction + Stratified + Sensitivity + Predicted Trends
+#
+# Joint tests are computed using pooled Wald (MI) from the FULL model:
+# Wald = b' V^{-1} b , df = k , p = 1 - pchisq(Wald, k)
+#
+# This avoids mice::D1 instability and "jt ended empty" issues.
+#
+# PRIMARY outcome: GDMT_BIN_geq3 (>=3 classes)
+# SENSITIVITY outcome: GDMT_BIN_geq4 (>=4 classes)
+# Requires: imp (mice mids) already created OR saved to RDS.
+# ==============================================================================
+#  EDIT PATHS
+# ================================================================================
+setwd("S:/AG/f-dhzc-profid/Data Transfer to Charite")
+results_root <- "T:/Study_5/Results_Study5"
+imp_path <- file.path(results_root, "imp_study5_mice.rds")
+dir.create(results_root, recursive = TRUE, showWarnings = FALSE)
+
+#  PACKAGES 
+pkgs <- c("dplyr","tibble","readr","ggplot2","mice")
+missing <- pkgs[!vapply(pkgs, requireNamespace, logical(1), quietly = TRUE)]
+if (length(missing) > 0) {
+  stop(
+    "Missing packages: ", paste(missing, collapse = ", "),
+    "\nInstall with:\n install.packages(c(",
+    paste(sprintf('"%s"', missing), collapse = ", "),
+    "))"
+  )
+}
+suppressPackageStartupMessages(invisible(lapply(pkgs, library, character.only = TRUE)))
+# ==============================================================================
+# 0) Load imp
+# ==============================================================================
+if (!exists("imp")) {
+  if (file.exists(imp_path)) {
+    imp <- readRDS(imp_path)
+    cat("[OK] Loaded 'imp' from:", imp_path, "\n")
+  } else {
+    stop("[ERROR] 'imp' not found in memory and no RDS found at:\n", imp_path,
+         "\nRun Script 3 first OR save imp to RDS and point imp_path to it.")
+  }
+}
+stopifnot(inherits(imp, "mids"))
+cat("[INFO] imp$m =", imp$m, "\n")
+
+# ==============================================================================
+# 1) Helpers
+# ==============================================================================
+ensure_dir <- function(path) { dir.create(path, recursive = TRUE, showWarnings = FALSE); path }
+
+write_csv_safe <- function(df, path) {
+  if (is.null(df)) df <- tibble::tibble(message = "NULL output (skipped/failed).")
+  tryCatch(readr::write_csv(df, path),
+           error = function(e) utils::write.csv(df, path, row.names = FALSE, fileEncoding = "UTF-8"))
+  invisible(path)
+}
+
+to_num01 <- function(x) {
+  if (is.factor(x)) x <- as.character(x)
+  if (is.logical(x)) return(as.integer(x))
+  if (is.numeric(x)) return(ifelse(is.na(x), NA_integer_, as.integer(x != 0)))
+  x2 <- tolower(trimws(as.character(x)))
+  ifelse(is.na(x2), NA_integer_,
+         ifelse(x2 %in% c("1","yes","y","true","t"), 1L,
+                ifelse(x2 %in% c("0","no","n","false","f"), 0L, NA_integer_)))
+}
+
+format_p <- function(p) {
+  p <- suppressWarnings(as.numeric(p))
+  ifelse(is.na(p), NA_character_,
+         ifelse(p < 0.001, "<0.001", sprintf("%.3f", p)))
+}
+
+pick_first <- function(cands, nm) {
+  v <- intersect(cands, nm)
+  if (length(v) == 0) return(NA_character_)
+  v[1]
+}
+# =======================================================================================
+# 2) Derive GDMT outcomes if missing
+# =======================================================================================
+derive_gdmt_outcomes <- function(d) {
+  col_raas <- pick_first(c("HF_RASSi_ARB_BIN_Yes","ACE_inhibitor_ARB_BIN_Yes","ACEI_ARB_BIN_Yes","ACEI_ARB","ACE_inhibitor_ARB"), names(d))
+  col_bb <- pick_first(c("HF_beta_blocker_BIN_Yes","Beta_blockers_BIN_Yes","beta_blockers","beta_blocker","Beta_blockers"), names(d))
+  col_mra <- pick_first(c("HF_MRA_BIN_Yes","MRA_BIN_Yes","MRA","Aldosterone_antagonist","aldosterone_antagonist"), names(d))
+  col_ap <- pick_first(c("HF_anti_platelet_BIN_Yes","Anti_platelet_BIN_Yes","Anti_platelet","anti_platelet"), names(d))
+  col_ac <- pick_first(c("HF_anti_coagulant_BIN_Yes","Anti_coagulant_BIN_Yes","Anti_coagulant","anti_coagulant","Anti_coagulation"), names(d))
+  col_ll <- pick_first(c("HF_lipid_lowering_BIN_Yes","Lipid_lowering_BIN_Yes","Lipid_lowering","lipid_lowering"), names(d))
+  
+  cols <- c(col_raas, col_bb, col_mra, col_ap, col_ac, col_ll)
+  cols <- cols[!is.na(cols)]
+  
+  if (length(cols) == 0) {
+    if (!"GDMT_n_classes" %in% names(d)) d$GDMT_n_classes <- NA_real_
+    if (!"GDMT_BIN_geq3" %in% names(d)) d$GDMT_BIN_geq3 <- NA_integer_
+    if (!"GDMT_BIN_geq4" %in% names(d)) d$GDMT_BIN_geq4 <- NA_integer_
+    return(d)
+  }
+  
+  d <- d %>% dplyr::mutate(dplyr::across(dplyr::all_of(cols), to_num01))
+  mat <- as.matrix(d[, cols, drop = FALSE]); mat[is.na(mat)] <- 0
+  d$GDMT_n_classes <- rowSums(mat)
+  
+  if (!"GDMT_BIN_geq3" %in% names(d)) d$GDMT_BIN_geq3 <- as.integer(d$GDMT_n_classes >= 3)
+  if (!"GDMT_BIN_geq4" %in% names(d)) d$GDMT_BIN_geq4 <- as.integer(d$GDMT_n_classes >= 4)
+  
+  d$GDMT_BIN_geq3 <- as.integer(to_num01(d$GDMT_BIN_geq3))
+  d$GDMT_BIN_geq4 <- as.integer(to_num01(d$GDMT_BIN_geq4))
+  d
+}
+# =====================================================================================
+# 3) Prep + Harmonize levels (critical to keep SAME coefficient set across imputations)
+# ====================================================================================
+LV_AGE3 <- c("<=65","66-75",">75")
+LV_LVEF <- c("<40%","40-49%",">=50%")
+LV_SEX <- c("0","1")
+LV_ICD <- c("0","1")
+
+get_DB_levels <- function() {
+  dbase <- NULL
+  if (!is.null(imp$data) && "DB" %in% names(imp$data)) dbase <- imp$data$DB
+  if (is.null(dbase)) dbase <- mice::complete(imp, 1)$DB
+  sort(unique(as.character(dbase[!is.na(dbase)])))
+}
+LV_DB <- get_DB_levels()
+
+prep_primary <- function(d) {
+  
+  # numeric
+  if (!"Age_num" %in% names(d)) {
+    age_raw <- pick_first(c("Age","age","AGE","Age_years"), names(d))
+    if (!is.na(age_raw)) d$Age_num <- suppressWarnings(as.numeric(d[[age_raw]]))
+  }
+  if (!"LVEF_num" %in% names(d)) {
+    lvef_raw <- pick_first(c("LVEF","lvef","EF","ef","LVEF_pct","LVEF_percent"), names(d))
+    if (!is.na(lvef_raw)) d$LVEF_num <- suppressWarnings(as.numeric(d[[lvef_raw]]))
+  }
+  if ("Year_index" %in% names(d)) d$Year_index <- suppressWarnings(as.numeric(d$Year_index))
+  
+  # derived categorical
+  if (!"Age3" %in% names(d) && "Age_num" %in% names(d)) {
+    d$Age3 <- cut(d$Age_num, breaks = c(-Inf, 65, 75, Inf),
+                  labels = LV_AGE3, right = TRUE)
+  }
+  if (!"LVEF_ESC" %in% names(d) && "LVEF_num" %in% names(d)) {
+    d$LVEF_ESC <- cut(d$LVEF_num, breaks = c(-Inf, 40, 50, Inf),
+                      labels = LV_LVEF, right = FALSE)
+  }
+  
+  # harmonize factor levels 
+  if ("Sex_BIN_Male" %in% names(d)) d$Sex_BIN_Male <- factor(as.character(to_num01(d$Sex_BIN_Male)), levels = LV_SEX)
+  if ("ICD_BIN_Yes" %in% names(d)) d$ICD_BIN_Yes <- factor(as.character(to_num01(d$ICD_BIN_Yes)), levels = LV_ICD)
+  if ("DB" %in% names(d)) d$DB <- factor(as.character(d$DB), levels = LV_DB)
+  if ("Age3" %in% names(d)) d$Age3 <- factor(as.character(d$Age3), levels = LV_AGE3)
+  if ("LVEF_ESC" %in% names(d)) d$LVEF_ESC <- factor(as.character(d$LVEF_ESC), levels = LV_LVEF)
+  
+  # time_period split
+  if ("Year_index" %in% names(d) && !"time_period" %in% names(d)) {
+    cutv <- median(d$Year_index, na.rm = TRUE)
+    d$time_period <- ifelse(d$Year_index <= cutv, "Early (<= median)", "Recent (> median)")
+    d$time_period <- factor(d$time_period, levels = c("Early (<= median)", "Recent (> median)"))
+  }
+  
+  d
+}
+# ==============================================================================
+# 4) Modeling helpers
+# ==============================================================================
+fit_glm_safe <- function(d, fml) {
+  tryCatch(glm(fml, family = binomial(), data = d),
+           error = function(e) e)
+}
+
+ok_fit <- function(fit) {
+  inherits(fit, "glm") && !any(is.na(coef(fit))) && all(is.finite(coef(fit)))
+}
+
+pool_or <- function(fits, model_label) {
+  m <- mice::as.mira(fits)
+  s <- summary(mice::pool(m), conf.int = TRUE, exponentiate = TRUE)
+  out <- tibble::as_tibble(s)
+  if ("2.5 %" %in% names(out)) out <- dplyr::rename(out, conf_low = `2.5 %`)
+  if ("97.5 %" %in% names(out)) out <- dplyr::rename(out, conf_high = `97.5 %`)
+  out <- dplyr::mutate(out, model = model_label, .before = 1)
+  out
+}
+# ====================================================================================
+   # Rubin pooling for beta + full covariance matrix
+# ===================================================================================
+pool_rubin_beta_vcov <- function(fits) {
+  
+  #  we keep only coefficient names present in ALL fits
+  cn_list <- lapply(fits, function(f) names(stats::coef(f)))
+  common <- Reduce(intersect, cn_list)
+  if (length(common) == 0) stop("No common coefficient names across imputations.")
+  
+  # matrix of coefficients (m x p)
+  Bmat <- do.call(rbind, lapply(fits, function(f) stats::coef(f)[common]))
+  Bmat <- as.matrix(Bmat)
+  
+  # within-imputation covariance W = mean(vcov_i)
+  Vlist <- lapply(fits, function(f) stats::vcov(f)[common, common, drop = FALSE])
+  m <- length(Vlist)
+  W <- Reduce(`+`, Vlist) / m
+  
+  # between-imputation covariance B = cov(b_i)
+  # if m==1, set B=0
+  B <- if (m > 1) stats::cov(Bmat) else (W * 0)
+  
+  # total covariance T (Rubin)
+  Tcov <- W + (1 + 1/m) * B
+  
+  beta_bar <- colMeans(Bmat)
+  
+  list(beta = beta_bar, T = Tcov, m = m, terms = common)
+}
+
+safe_solve_vec <- function(A, b) {
+  tryCatch(solve(A, b),
+           error = function(e) tryCatch(qr.solve(A, b), error = function(e2) e2))
+}
+# =================================================================================
+#  Joint Wald test (chi-square) using Rubin pooled covariance
+# =================================================================================
+joint_wald_from_full <- function(full_fits, pattern, label) {
+  
+  make_row <- function(test, k = NA_real_, stat = NA_real_, p = NA_real_, err = NA_character_) {
+    tibble::tibble(
+      test = as.character(test),
+      k_terms = as.numeric(k),
+      chisq = as.numeric(stat),
+      df = as.numeric(k),
+      p_value = as.numeric(p),
+      p_value_fmt = as.character(format_p(p)),
+      method = "MI pooled Wald (Rubin; chi-square)",
+      error = as.character(err)
+    )
+  }
+  
+  if (length(full_fits) < 5) {
+    return(make_row(label, err = paste0("Too few FULL fits: n_full=", length(full_fits))))
+  }
+  
+  pooled <- tryCatch(pool_rubin_beta_vcov(full_fits), error = function(e) e)
+  if (inherits(pooled, "error")) return(make_row(label, err = conditionMessage(pooled)))
+  
+  b <- pooled$beta
+  V <- pooled$T
+  nm <- names(b)
+  
+  sel <- grep(pattern, nm, value = TRUE)
+  if (length(sel) == 0) {
+    return(make_row(label, err = paste0("No terms matched pattern: ", pattern)))
+  }
+  
+  bsub <- b[sel]
+  Vsub <- V[sel, sel, drop = FALSE]
+  
+  invVb <- safe_solve_vec(Vsub, bsub)
+  if (inherits(invVb, "error")) {
+    return(make_row(label, k = length(sel),
+                    err = paste0("Matrix solve failed (singular?): ", conditionMessage(invVb))))
+  }
+  
+  stat <- as.numeric(t(bsub) %*% invVb)
+  p <- stats::pchisq(stat, df = length(sel), lower.tail = FALSE)
+  
+  make_row(label, k = length(sel), stat = stat, p = p, err = NA_character_)
+}
+# =================================================================================
+# 5) Model specification (SAP M5)
+# =================================================================================
+rhs_primary <- c(
+  "Year_index","Age3","LVEF_ESC","Sex_BIN_Male","DB",
+  "ICD_BIN_Yes","Time_index_MI_CHD_log1p",
+  "Diabetes_BIN_Yes","Hypertension_BIN_Yes","Smoking_BIN_Yes",
+  "AF_atrial_flutter_BIN_Yes","Stroke_TIA_BIN_Yes",
+  "eGFR_log1p","Haemoglobin_log1p",
+  "PCI_BIN_Yes","CABG_BIN_Yes","Revascularisation_acute_BIN_Yes"
+)
+int_primary <- c("Year_index:Age3","Year_index:LVEF_ESC","Year_index:DB")
+
+build_formula <- function(outcome, rhs, ints) {
+  stats::as.formula(paste0(outcome, " ~ ", paste(c(rhs, ints), collapse = " + ")))
+}
+# ====================================================================================
+# 6) FULL model + pooled OR + JOINT TESTS (filled) + DIAG
+# ====================================================================================
+run_M5_and_joint_tests <- function(completed, outcome, results_dir, label_prefix = "PRIMARY_MI_M5") {
+  
+  d0 <- completed[[1]]
+  rhs_keep <- rhs_primary[rhs_primary %in% names(d0)]
+  ints_keep <- int_primary[vapply(int_primary, function(tt) {
+    parts <- strsplit(tt, ":", fixed = TRUE)[[1]]
+    all(parts %in% rhs_keep)
+  }, logical(1))]
+  
+  f_full <- build_formula(outcome, rhs_keep, ints_keep)
+  
+  diag_rows <- list()
+  full_fits <- list()
+  
+  for (i in seq_along(completed)) {
+    d <- completed[[i]]
+    
+    if (!outcome %in% names(d)) {
+      diag_rows[[i]] <- tibble::tibble(imputation=i, status="FAIL", reason="Outcome missing", error=NA_character_)
+      next
+    }
+    
+    y <- d[[outcome]]
+    if (all(is.na(y)) || length(unique(y[!is.na(y)])) < 2) {
+      diag_rows[[i]] <- tibble::tibble(imputation=i, status="FAIL", reason="Outcome <2 classes", error=NA_character_)
+      next
+    }
+    
+    fit <- fit_glm_safe(d, f_full)
+    if (inherits(fit, "error")) {
+      diag_rows[[i]] <- tibble::tibble(imputation=i, status="FAIL", reason="FULL glm error", error=conditionMessage(fit))
+      next
+    }
+    
+    if (!ok_fit(fit)) {
+      diag_rows[[i]] <- tibble::tibble(imputation=i, status="FAIL", reason="FULL aliased/NA coefficients", error="Some coefficients are NA (singular fit).")
+      next
+    }
+    
+    full_fits[[length(full_fits)+1]] <- fit
+    diag_rows[[i]] <- tibble::tibble(imputation=i, status="OK_FULL", reason=NA_character_, error=NA_character_)
+  }
+  
+  diag_tbl <- dplyr::bind_rows(diag_rows)
+  write_csv_safe(diag_tbl, file.path(results_dir, paste0(label_prefix, "_DIAG_", outcome, ".csv")))
+  
+  # pooled OR
+  if (length(full_fits) >= 5) {
+    or_tbl <- pool_or(full_fits, paste0(label_prefix, "_FULL"))
+    write_csv_safe(or_tbl, file.path(results_dir, paste0(label_prefix, "_OR_", outcome, ".csv")))
+  } else {
+    write_csv_safe(
+      tibble::tibble(message="Too few successful FULL fits (<5).", n_full_fits=length(full_fits)),
+      file.path(results_dir, paste0(label_prefix, "_OR_SKIPPED_", outcome, ".csv"))
+    )
+  }
+  
+  # JOINT TESTS (always filled using pooled Wald)
+  jt <- dplyr::bind_rows(
+    tibble::tibble(
+      test = "INFO",
+      k_terms = NA_real_, chisq = NA_real_, df = NA_real_, p_value = NA_real_,
+      p_value_fmt = NA_character_, method = "INFO",
+      error = paste0("n_full_used_for_pooling=", length(full_fits))
+    ),
+    joint_wald_from_full(full_fits, "(^Year_index:Age3)|(^Age3.*:Year_index)", "Joint test: Year x Age3"),
+    joint_wald_from_full(full_fits, "(^Year_index:LVEF_ESC)|(^LVEF_ESC.*:Year_index)", "Joint test: Year x LVEF_ESC"),
+    joint_wald_from_full(full_fits, "(^Year_index:DB)|(^DB.*:Year_index)", "Joint test: Year x DB")
+  )
+  
+  write_csv_safe(jt, file.path(results_dir, paste0(label_prefix, "_joint_tests_", outcome, ".csv")))
+  
+  invisible(list(full_fits = full_fits, diag = diag_tbl, jt = jt)) 
+} 
+# =======================================================================================
+# 7) Stratified analyses: pooled OR for Year_index within each stratum level
+# ======================================================================================
+run_stratified_year <- function(completed, outcome, results_dir, strat_var) {
+  
+  d0 <- completed[[1]]
+  if (!strat_var %in% names(d0)) {
+    write_csv_safe(tibble::tibble(message = paste0("Strat var not found: ", strat_var)),
+                   file.path(results_dir, paste0("STRAT_SKIPPED_", strat_var, "_", outcome, ".csv")))
+    return(invisible(NULL))
+  }
+  
+  levs <- d0[[strat_var]]
+  levs <- if (is.factor(levs)) levels(levs) else sort(unique(levs))
+  levs <- levs[!is.na(levs)]
+  
+  out_rows <- list()
+  
+  for (lv in levs) {
+    fits <- list()
+    for (i in seq_along(completed)) {
+      d <- completed[[i]]
+      d <- d[d[[strat_var]] == lv, , drop = FALSE]
+      if (nrow(d) < 50) next
+      if (length(unique(d[[outcome]][!is.na(d[[outcome]])])) < 2) next
+      
+      rhs <- setdiff(rhs_primary, strat_var)
+      rhs <- rhs[rhs %in% names(d)]
+      fml <- build_formula(outcome, rhs, character(0))
+      
+      ff <- fit_glm_safe(d, fml)
+      if (ok_fit(ff)) fits[[length(fits)+1]] <- ff
+    }
+    
+    if (length(fits) < 5) {
+      out_rows[[length(out_rows)+1]] <- tibble::tibble(
+        strat_var = strat_var, level = as.character(lv),
+        n_fits = length(fits),
+        OR_year = NA_real_, conf_low = NA_real_, conf_high = NA_real_,
+        p_value = NA_real_, p_value_fmt = NA_character_,
+        note = "Too few fits (<5) for pooling"
+      )
+      next
+    }
+    
+    pooled <- pool_or(fits, paste0("STRAT_", strat_var, "_", lv))
+    yr <- pooled[pooled$term == "Year_index", , drop = FALSE]
+    
+    if (nrow(yr) == 0) {
+      out_rows[[length(out_rows)+1]] <- tibble::tibble(
+        strat_var = strat_var, level = as.character(lv),
+        n_fits = length(fits),
+        OR_year = NA_real_, conf_low = NA_real_, conf_high = NA_real_,
+        p_value = NA_real_, p_value_fmt = NA_character_,
+        note = "Year_index term not found"
+      )
+    } else {
+      out_rows[[length(out_rows)+1]] <- tibble::tibble(
+        strat_var = strat_var, level = as.character(lv),
+        n_fits = length(fits),
+        OR_year = yr$estimate[1],
+        conf_low = yr$conf_low[1],
+        conf_high = yr$conf_high[1],
+        p_value = yr$p.value[1],
+        p_value_fmt = format_p(yr$p.value[1]),
+        note = NA_character_
+      )
+    }
+  }
+  
+  out_tbl <- dplyr::bind_rows(out_rows)
+  write_csv_safe(out_tbl, file.path(results_dir, paste0("STRAT_pooled_OR_year_", strat_var, "_", outcome, ".csv")))
+  invisible(out_tbl)
+}
+# ====================================================================================
+# 8) Complete-case sensitivity 
+# ====================================================================================
+run_complete_case <- function(outcome, results_dir) {
+  
+  if (is.null(imp$data)) {
+    write_csv_safe(tibble::tibble(message = "imp$data unavailable -> complete-case skipped."),
+                   file.path(results_dir, paste0("SENS_CC_SKIPPED_", outcome, ".csv")))
+    return(invisible(NULL))
+  }
+  
+  d <- imp$data
+  d <- derive_gdmt_outcomes(d)
+  d <- prep_primary(d)
+  
+  if (!outcome %in% names(d)) {
+    write_csv_safe(tibble::tibble(message = "Outcome not found in imp$data -> complete-case skipped."),
+                   file.path(results_dir, paste0("SENS_CC_SKIPPED_", outcome, ".csv")))
+    return(invisible(NULL))
+  }
+  
+  d[[outcome]] <- as.integer(to_num01(d[[outcome]]))
+  
+  needed <- unique(c(outcome, rhs_primary))
+  needed <- needed[needed %in% names(d)]
+  d_cc <- d[stats::complete.cases(d[, needed, drop = FALSE]), , drop = FALSE]
+  
+  if (nrow(d_cc) < 200 || length(unique(d_cc[[outcome]])) < 2) {
+    write_csv_safe(tibble::tibble(message = "Too few complete-case rows or outcome <2 classes.", n_cc = nrow(d_cc)),
+                   file.path(results_dir, paste0("SENS_CC_SKIPPED_", outcome, ".csv")))
+    return(invisible(NULL))
+  }
+  
+  rhs <- rhs_primary[rhs_primary %in% names(d_cc)]
+  ints <- int_primary[vapply(int_primary, function(tt){
+    parts <- strsplit(tt, ":", fixed=TRUE)[[1]]
+    all(parts %in% rhs)
+  }, logical(1))]
+  
+  fml <- build_formula(outcome, rhs, ints)
+  fit <- fit_glm_safe(d_cc, fml)
+  
+  if (!inherits(fit, "glm")) {
+    write_csv_safe(tibble::tibble(message = "Complete-case glm failed.", error = conditionMessage(fit)),
+                   file.path(results_dir, paste0("SENS_CC_FAILED_", outcome, ".csv")))
+    return(invisible(NULL))
+  }
+  
+  est <- coef(fit); se <- sqrt(diag(vcov(fit)))
+  out <- tibble::tibble(
+    model = "SENS_CC_PRIMARY_M5",
+    term = names(est),
+    estimate = est,
+    std.error = se,
+    OR = exp(est),
+    conf_low = exp(est - 1.96*se),
+    conf_high = exp(est + 1.96*se)
+  )
+  write_csv_safe(out, file.path(results_dir, paste0("SENS_CC_PRIMARY_M5_OR_", outcome, ".csv")))
+  invisible(out)
+}
+# ==============================================================================
+# 9) Predicted trends (no tidyr)
+# ==============================================================================
+get_mode <- function(x) {
+  x <- x[!is.na(x)]
+  if (length(x) == 0) return(NA)
+  x <- as.character(x)
+  names(sort(table(x), decreasing = TRUE))[1]
+}
+
+safe_predict_response <- function(fit, newdata) {
+  nd <- newdata
+  if (!is.null(fit$xlevels)) {
+    for (v in names(fit$xlevels)) {
+      if (v %in% names(nd)) nd[[v]] <- factor(as.character(nd[[v]]), levels = fit$xlevels[[v]])
+    }
+  }
+  tryCatch(as.numeric(predict(fit, newdata = nd, type = "response")),
+           error = function(e) rep(NA_real_, nrow(nd)))
+}
+
+pred_trends_MI <- function(full_fits, completed, outcome, results_dir,
+                           vary = c("Age3","LVEF_ESC","DB"),
+                           n_year = 40, top_db = 6) {
+  
+  if (length(full_fits) < 3) {
+    write_csv_safe(tibble::tibble(message="Too few FULL fits to draw pred_trends.", n_full=length(full_fits)),
+                   file.path(results_dir, paste0("pred_trends_SKIPPED_", outcome, ".csv")))
+    return(invisible(NULL))
+  }
+  
+  d0 <- completed[[1]]
+  year_seq <- seq(min(d0$Year_index, na.rm=TRUE),
+                  max(d0$Year_index, na.rm=TRUE),
+                  length.out = n_year)
+  
+  ref <- list()
+  for (v in rhs_primary) {
+    if (!v %in% names(d0)) next
+    if (is.factor(d0[[v]]) || is.character(d0[[v]])) ref[[v]] <- get_mode(d0[[v]])
+    else ref[[v]] <- median(d0[[v]], na.rm=TRUE)
+  }
+  if ("Age3" %in% names(d0)) ref$Age3 <- "66-75"
+  if ("LVEF_ESC" %in% names(d0)) ref$LVEF_ESC <- "<40%"
+  if ("Sex_BIN_Male" %in% names(d0)) ref$Sex_BIN_Male <- "0"
+  if ("ICD_BIN_Yes" %in% names(d0)) ref$ICD_BIN_Yes <- "0"
+  
+  make_newdata <- function(vary_var) {
+    if (!vary_var %in% names(d0)) return(NULL)
+    
+    if (vary_var == "DB") {
+      tt <- sort(table(as.character(d0$DB)), decreasing = TRUE)
+      levs <- names(tt)[seq_len(min(top_db, length(tt)))]
+    } else {
+      levs <- levels(d0[[vary_var]])
+    }
+    levs <- levs[!is.na(levs)]
+    
+    nd <- tibble::as_tibble(expand.grid(
+      Year_index = year_seq,
+      group = levs,
+      KEEP.OUT.ATTRS = FALSE,
+      stringsAsFactors = FALSE
+    ))
+    
+    for (nm in names(ref)) {
+      if (nm %in% names(nd)) next
+      nd[[nm]] <- ref[[nm]]
+    }
+    nd[[vary_var]] <- nd$group
+    
+    # baseline factor coercion
+    for (nm in names(nd)) {
+      if (nm %in% names(d0) && is.factor(d0[[nm]])) {
+        nd[[nm]] <- factor(as.character(nd[[nm]]), levels = levels(d0[[nm]]))
+      }
+    }
+    nd
+  }
+  
+  for (vv in vary) {
+    nd <- make_newdata(vv)
+    if (is.null(nd)) next
+    
+    mat <- sapply(full_fits, function(fit) safe_predict_response(fit, nd))
+    if (is.null(dim(mat))) mat <- matrix(mat, ncol = 1)
+    
+    out <- nd %>%
+      dplyr::mutate(
+        pred = rowMeans(mat, na.rm = TRUE),
+        lo = apply(mat, 1, stats::quantile, probs = 0.025, na.rm = TRUE),
+        hi = apply(mat, 1, stats::quantile, probs = 0.975, na.rm = TRUE),
+        n_used = apply(mat, 1, function(x) sum(!is.na(x)))
+      )
+    
+    write_csv_safe(out, file.path(results_dir, paste0("pred_trends_", vv, "_", outcome, ".csv")))
+    
+    p <- ggplot2::ggplot(out, ggplot2::aes(x = Year_index, y = pred, color = group, fill = group)) +
+      ggplot2::geom_ribbon(ggplot2::aes(ymin = lo, ymax = hi), alpha = 0.15, color = NA) +
+      ggplot2::geom_line(linewidth = 1) +
+      ggplot2::labs(
+        title = paste0("Predicted trend: ", outcome, " by ", vv),
+        y = "Predicted probability",
+        x = "Year_index",
+        caption = "Ribbon = 2.5%–97.5% across imputations."
+      ) +
+      ggplot2::guides(fill = "none")
+    
+    ggplot2::ggsave(file.path(results_dir, paste0("pred_trends_", vv, "_", outcome, ".png")),
+                    plot = p, width = 10, height = 6, dpi = 300)
+  }
+  
+  invisible(TRUE)
+}
+# ====================================================================================
+# 10) Runner
+# ====================================================================================
+run_script5_for_outcome <- function(outcome, label) {
+  
+  results_dir <- ensure_dir(file.path(results_root, paste0("Script5_", label, "_", outcome)))
+  cat("\n============================================================\n")
+  cat("[RUN] ", label, " | outcome = ", outcome, "\n", sep = "")
+  cat("Results -> ", results_dir, "\n", sep = "")
+  cat("============================================================\n")
+  
+  completed <- mice::complete(imp, action = "all")
+  completed <- lapply(completed, derive_gdmt_outcomes)
+  completed <- lapply(completed, prep_primary)
+  
+  completed <- lapply(completed, function(d) {
+    if (outcome %in% names(d)) d[[outcome]] <- as.integer(to_num01(d[[outcome]]))
+    d
+  })
+  
+  # FULL model + JOINT tests
+  m5_res <- run_M5_and_joint_tests(completed, outcome, results_dir, label_prefix = "PRIMARY_MI_M5")
+  
+  # Stratified
+  strat_vars <- c("ICD_BIN_Yes", "DB", "LVEF_ESC", "Age3", "time_period")
+  for (sv in strat_vars) run_stratified_year(completed, outcome, results_dir, sv)
+  
+  # Complete-case sensitivity
+  run_complete_case(outcome, results_dir)
+  
+  # Predicted trends
+  pred_trends_MI(
+    full_fits = m5_res$full_fits,
+    completed = completed,
+    outcome = outcome,
+    results_dir = results_dir,
+    vary = c("Age3","LVEF_ESC","DB"),
+    n_year = 40,
+    top_db = 6
+  )
+  
+  cat("[OK] Finished: ", label, " ", outcome, "\n", sep = "")
+  invisible(TRUE)
+}
+# ====================================================================================
+# 11) RESULTS
+# ====================================================================================
+run_script5_for_outcome("GDMT_BIN_geq3", "PRIMARY")
+run_script5_for_outcome("GDMT_BIN_geq4", "SENSITIVITY")
+
+cat("\n[DONE] Script 5 complete.\n")
