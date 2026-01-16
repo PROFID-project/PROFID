@@ -31,7 +31,6 @@ Study 2- Exploring Seasonal Patterns in SCD Incidence Post-Myocardial Infarc (An
 Study 3- ICD Shock Rates Analysis (Analytical lead: Irini Verdun)
 
 Study 4- Age-Stratified SCD Incidence Analysis (Analytical Lead: Amina Boudamaana)
-[Script10_Forest plots_ Heterogeneity_ Diagnistics.txt](https://github.com/user-attachments/files/24460122/Script10_Forest.plots_.Heterogeneity_.Diagnistics.txt)
 
 [9_ Sensitivity analyses_CC.R.txt](https://github.com/user-attachments/files/23505889/9_.Sensitivity.analyses_CC.R.txt)
 [8_Validation COX model  1 performance.R.txt](https://github.com/user-attachments/files/23505887/8_Validation.COX.model.1.performance.R.txt)
