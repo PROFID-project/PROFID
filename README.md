@@ -1,5 +1,17 @@
 # PROFID
-Code for All PROFID substudies. If uploading code please use a subfolder named with your study number.
+
+Project title and description.
+
+Objective or research question.
+
+How to install/run the project (dependencies, Python version, etc.).
+
+Usage examples.
+
+Publications
+
+![Python Version](https://img.shields.io/badge/python-3.11-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
 
 Study 1- ICD Therapy and Mortality Analysis (Nishat)
 
