@@ -39,16 +39,6 @@ Study 4- Age-Stratified SCD Incidence Analysis (Analytical Lead: Amina Boudamaan
 [3__ Incidence Rate calculations.R.txt](https://github.com/user-attachments/files/23505877/3__.Incidence.Rate.calculations.R.txt)
 
 Study 5- Heart Failure Therapy Adherence Analysis (Analytical Lead: Amina Boudamaana)
-[Script10_ Forest plots_ Heterogeneity_ Diagnostics.txt](https://github.com/user-attachments/files/24459836/Script10_.Forest.plots_.Heterogeneity_.Diagnostics.txt)
-
-[Script7_ Model Development_ Steps 1__5.txt](https://github.com/user-attachments/files/24419435/Script7_.Model.Development_.Steps.1__5.txt)
-[Script6_ Study5_ Decision _Curves_ Analysis.R.txt](https://github.com/user-attachments/files/24419434/Script6_.Study5_.Decision._Curves_.Analysis.R.txt)
-[Script5_ Interactions_Stratified_Sensitivity Analyses.txt](https://github.com/user-attachments/files/24419433/Script5_.Interactions_Stratified_Sensitivity.Analyses.txt)
-[Script4_ GMDT models_performance and internal validation.R.txt](https://github.com/user-attachments/files/24419432/Script4_.GMDT.models_performance.and.internal.validation.R.txt)
-
-[Script3_  study5_ multivariable models_determinants.R.txt](https://github.com/user-attachments/files/23964366/Script3_.study5_.multivariable.models_determinants.R.txt)
-[Script2_study 5_ descriptives _ and _ trends_ Regression logistic model univariate.R.txt](https://github.com/user-attachments/files/23964365/Script2_study.5_.descriptives._.and._.trends_.Regression.logistic.model.univariate.R.txt)
-[Script1_ study 5_ build_cohort_and_end_points_ESC.R.txt](https://github.com/user-attachments/files/23964364/Script1_.study.5_.build_cohort_and_end_points_ESC.R.txt)
 
 Study 6- U-shaped Body Mass Index and Sudden Cardiac Death Analysis (Analytical Lead: Claire Coffey)
 
