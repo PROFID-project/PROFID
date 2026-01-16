@@ -12,6 +12,8 @@ Publications
 
 ![Python Version](https://img.shields.io/badge/python-3.11-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
+[![CRAN](https://www.r-pkg.org/badges/version/yourPackageName)](https://cran.r-project.org/package=yourPackageName)
+
 
 Study 1- ICD Therapy and Mortality Analysis (Nishat)
 
