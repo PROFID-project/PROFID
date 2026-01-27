@@ -1,0 +1,4 @@
+"Group","N","SCD_events","AF_cases","SCD_in_AF","Pct_SCD","Pct_AF","Pct_SCD_in_AF"
+"ICD",7256,1311,2261,401,18.1,31.2,17.7
+"NonICD_preserved",107603,1567,12104,337,1.5,11.2,2.8
+"NonICD_reduced",25058,1193,5648,280,4.8,22.5,5
