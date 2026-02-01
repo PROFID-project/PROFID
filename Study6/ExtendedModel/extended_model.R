@@ -144,7 +144,7 @@ fit_list_cs1 <- with(
       Age + Sex + Diabetes + Hypertension + Smoking + MI_history +
       LVEF  + eGFR + Haemoglobin +
       ACE_inhibitor_ARB + Beta_blockers + Lipid_lowering +
-      Revascularisation_acute + Cholesterol + HDL + LDL + Triglycerides +
+      Revascularisation_acute + Cholesterol + HDL + LDL + Triglycerides
        + Stroke_TIA + ICD_status,
     x = TRUE, y = TRUE
   )
@@ -211,24 +211,30 @@ UCL   <- exp(res[, "logHR"] + 1.96*res[, "se"])
 curve_cs1 <- data.frame(BMI = bmi_grid, HR = HR, LCL = LCL, UCL = UCL)
 write.csv(curve_cs1, "cox_RCS_BMI_curve_cs1_extended.csv", row.names = FALSE)
 
-# export plot
-pdf("cox_RCS_BMI_curve_cs1_extended.pdf", width = 7, height = 5)
-plot(bmi_grid, HR, type = "l", xlab = "BMI (kg/m²)", ylab = "Hazard ratio (reference BMI 25 kg/m²)",
-     ylim = range(c(LCL, UCL)), lwd = 2, col = "black")
-     
-     lines(bmi_grid, LCL,
-           lty = 2,
-           lwd = 1.5,
-           col = "grey60")
-     
-     lines(bmi_grid, UCL,
-           lty = 2,
-           lwd = 1.5,
-           col = "grey60")
+ref_bmi <- 25
 
-#lines(bmi_grid, LCL, lty = 2); lines(bmi_grid, UCL, lty = 2)
-abline(h = 1, lty = 3); abline(v = 25, lty = 3)
+pdf("cox_RCS_BMI_curve_cs1_extended.pdf", width = 7, height = 5)
+
+plot(bmi_grid, HR, type = "n",
+     xlab = "BMI (kg/m²)",
+     ylab = "Hazard ratio (reference BMI 25 kg/m²)",
+     ylim = range(c(LCL, UCL), na.rm = TRUE))
+
+# CI ribbon (draw first)
+polygon(c(bmi_grid, rev(bmi_grid)),
+        c(LCL, rev(UCL)),
+        col = adjustcolor("grey60", alpha.f = 0.25),
+        border = NA)
+
+# Mean curve on top
+lines(bmi_grid, HR, lwd = 2, col = "black")
+
+# Reference lines
+abline(h = 1, lty = 3)
+abline(v = ref_bmi, lty = 3)
+
 dev.off()
+
 
 # Harrell's C per imputation
 cindex_per_imp <- sapply(fit_list_cs1$analyses, function(fm){
@@ -294,7 +300,7 @@ fit_k3 <- with(imp2, {
       Age + Sex + Diabetes + Hypertension + Smoking + MI_history +
       LVEF  + eGFR + Haemoglobin +
       ACE_inhibitor_ARB + Beta_blockers + Lipid_lowering +
-      Revascularisation_acute + Cholesterol + HDL + LDL + Triglycerides +
+      Revascularisation_acute + Cholesterol + HDL + LDL + Triglycerides 
       + Stroke_TIA + ICD_status,
     x = TRUE, y = TRUE
   )
@@ -307,7 +313,7 @@ fit_k5 <- with(imp2, {
       Age + Sex + Diabetes + Hypertension + Smoking + MI_history +
       LVEF  + eGFR + Haemoglobin +
       ACE_inhibitor_ARB + Beta_blockers + Lipid_lowering +
-      Revascularisation_acute + Cholesterol + HDL + LDL + Triglycerides +
+      Revascularisation_acute + Cholesterol + HDL + LDL + Triglycerides 
       + Stroke_TIA + ICD_status,
     x = TRUE, y = TRUE
   )
