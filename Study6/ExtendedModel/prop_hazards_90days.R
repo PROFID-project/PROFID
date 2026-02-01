@@ -14,7 +14,7 @@ make_90day <- function(d,
                        status_var = "Status_cs1") {
   
   tt <- d[[time_var]]
-  ss <- d[[status_var]]s
+  ss <- d[[status_var]]
   s
   # Ensure ss is 0/1 integer (Status_cs1 should already be, but be safe)
   ss <- suppressWarnings(as.integer(as.character(ss)))
