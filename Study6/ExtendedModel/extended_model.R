@@ -539,3 +539,145 @@ legend("topleft",
        bty    = "n")
 
 dev.off()
+
+
+# Assumes we already have:
+# - fit_list_cs1 (mice::with object, with $analyses as per-imputation coxph fits)
+# - horizon <- 90
+# - bmi_grid already defined (if not, define it as in HR-curve section)
+## =========================================================
+## Absolute risk curve (90-month predicted SCD risk) vs BMI
+## (Cause-specific Cox; competing events treated as censoring)
+## Uses survfit() to avoid baseline hazard centering issues
+## =========================================================
+
+mods <- fit_list_cs1$analyses
+m    <- length(mods)
+
+dat1 <- complete(imp2, 1)
+
+mode_keep_levels <- function(x) {
+  if (is.factor(x)) {
+    tab <- table(x, useNA = "no")
+    lev <- names(tab)[which.max(tab)]
+    return(factor(lev, levels = levels(x)))
+  }
+  if (is.character(x)) {
+    tab <- table(x, useNA = "no")
+    return(names(tab)[which.max(tab)])
+  }
+  tab <- table(x, useNA = "no")
+  as.numeric(names(tab)[which.max(tab)])
+}
+
+rep_vals <- list(
+  Age                  = median(dat1$Age, na.rm = TRUE),
+  Sex                  = mode_keep_levels(dat1$Sex),
+  Diabetes             = mode_keep_levels(dat1$Diabetes),
+  Hypertension         = mode_keep_levels(dat1$Hypertension),
+  Smoking              = mode_keep_levels(dat1$Smoking),
+  MI_history           = mode_keep_levels(dat1$MI_history),
+  LVEF                 = median(dat1$LVEF, na.rm = TRUE),
+  eGFR                 = median(dat1$eGFR, na.rm = TRUE),
+  Haemoglobin          = median(dat1$Haemoglobin, na.rm = TRUE),
+  ACE_inhibitor_ARB    = mode_keep_levels(dat1$ACE_inhibitor_ARB),
+  Beta_blockers        = mode_keep_levels(dat1$Beta_blockers),
+  Lipid_lowering       = mode_keep_levels(dat1$Lipid_lowering),
+  Revascularisation_acute = mode_keep_levels(dat1$Revascularisation_acute),
+  Cholesterol          = median(dat1$Cholesterol, na.rm = TRUE),
+  HDL                  = median(dat1$HDL, na.rm = TRUE),
+  LDL                  = median(dat1$LDL, na.rm = TRUE),
+  Triglycerides        = median(dat1$Triglycerides, na.rm = TRUE),
+  Stroke_TIA           = mode_keep_levels(dat1$Stroke_TIA),
+  ICD_status           = mode_keep_levels(dat1$ICD_status)
+)
+
+newdata <- data.frame(
+  BMI = bmi_grid,
+  Age = rep(rep_vals$Age, length(bmi_grid)),
+  Sex = rep(rep_vals$Sex, length(bmi_grid)),
+  Diabetes = rep(rep_vals$Diabetes, length(bmi_grid)),
+  Hypertension = rep(rep_vals$Hypertension, length(bmi_grid)),
+  Smoking = rep(rep_vals$Smoking, length(bmi_grid)),
+  MI_history = rep(rep_vals$MI_history, length(bmi_grid)),
+  LVEF = rep(rep_vals$LVEF, length(bmi_grid)),
+  eGFR = rep(rep_vals$eGFR, length(bmi_grid)),
+  Haemoglobin = rep(rep_vals$Haemoglobin, length(bmi_grid)),
+  ACE_inhibitor_ARB = rep(rep_vals$ACE_inhibitor_ARB, length(bmi_grid)),
+  Beta_blockers = rep(rep_vals$Beta_blockers, length(bmi_grid)),
+  Lipid_lowering = rep(rep_vals$Lipid_lowering, length(bmi_grid)),
+  Revascularisation_acute = rep(rep_vals$Revascularisation_acute, length(bmi_grid)),
+  Cholesterol = rep(rep_vals$Cholesterol, length(bmi_grid)),
+  HDL = rep(rep_vals$HDL, length(bmi_grid)),
+  LDL = rep(rep_vals$LDL, length(bmi_grid)),
+  Triglycerides = rep(rep_vals$Triglycerides, length(bmi_grid)),
+  Stroke_TIA = rep(rep_vals$Stroke_TIA, length(bmi_grid)),
+  ICD_status = rep(rep_vals$ICD_status, length(bmi_grid))
+)
+
+# preserve factor levels
+for (nm in names(newdata)) {
+  if (nm %in% names(dat1) && is.factor(dat1[[nm]])) {
+    newdata[[nm]] <- factor(newdata[[nm]], levels = levels(dat1[[nm]]))
+  }
+}
+
+# predicted risk at t = 90 for each imputation
+risk_mat <- matrix(NA_real_, nrow = nrow(newdata), ncol = m)
+
+for (i in seq_len(m)) {
+  fm <- mods[[i]]
+  
+  sf <- survfit(fm, newdata = newdata, se.fit = FALSE)
+  
+  # sf$surv is usually a matrix: rows = times, cols = newdata rows
+  if (is.matrix(sf$surv)) {
+    # interpolate each column to get S(horizon | x)
+    S90 <- apply(sf$surv, 2, function(scol) {
+      approx(sf$time, scol, xout = horizon, rule = 2)$y
+    })
+  } else {
+    # if it's a vector, it's a single curve (shouldn't happen with multi-row newdata)
+    S90 <- approx(sf$time, sf$surv, xout = horizon, rule = 2)$y
+  }
+  
+  risk_mat[, i] <- 1 - S90
+  
+}
+
+risk_mean <- rowMeans(risk_mat, na.rm = TRUE)
+risk_lcl  <- apply(risk_mat, 1, quantile, probs = 0.025, na.rm = TRUE)
+risk_ucl  <- apply(risk_mat, 1, quantile, probs = 0.975, na.rm = TRUE)
+
+absrisk_curve <- data.frame(
+  BMI = bmi_grid,
+  risk_90mo = risk_mean,
+  LCL = risk_lcl,
+  UCL = risk_ucl
+)
+
+absrisk_curve$risk_90mo_pct <- 100 * absrisk_curve$risk_90mo
+absrisk_curve$LCL_pct <- 100 * absrisk_curve$LCL
+absrisk_curve$UCL_pct <- 100 * absrisk_curve$UCL
+
+
+write.csv(absrisk_curve, "cox_absrisk_90mo_BMI_curve_extended.csv", row.names = FALSE)
+
+pdf("cox_absrisk_90mo_BMI_curve_extended.pdf", width = 7, height = 5)
+plot(absrisk_curve$BMI, absrisk_curve$risk_90mo_pct, type = "n",
+     xlab = "BMI (kg/m²)",
+     ylab = "Predicted 90-month SCD risk (%)",
+     ylim = range(c(absrisk_curve$LCL_pct, absrisk_curve$UCL_pct), na.rm = TRUE))
+
+polygon(c(absrisk_curve$BMI, rev(absrisk_curve$BMI)),
+        c(absrisk_curve$LCL_pct, rev(absrisk_curve$UCL_pct)),
+        col = adjustcolor("grey60", alpha.f = 0.25),
+        border = NA)
+
+lines(absrisk_curve$BMI, absrisk_curve$risk_90mo_pct, lwd = 2, col = "black")
+abline(v = 25, lty = 3, col = "grey60")
+dev.off()
+
+cat("\nRepresentative covariate profile used for absolute risk curve:\n")
+print(rep_vals)
+
