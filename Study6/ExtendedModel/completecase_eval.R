@@ -151,3 +151,99 @@ aic_cc <- AIC(cox_cca)
 
 cat(sprintf("Complete-case C-index: %.3f (95%% CI %.3f–%.3f)\n", C, ci_low, ci_high))
 cat(sprintf("Complete-case AIC: %.1f\n", aic_cc))
+
+# --- assumes we already have cox_cca fitted on:
+# Surv(Survival_time_h, Status_cs1_h) ~ ns(BMI, knots=K4, Boundary.knots=BND) + ...same covariates...
+
+bmi_min  <- max(min(cca_data$BMI, na.rm = TRUE), BND[1])
+bmi_max  <- min(max(cca_data$BMI, na.rm = TRUE), BND[2])
+bmi_grid <- seq(bmi_min, bmi_max, length.out = 400)
+
+Xbmi <- ns(bmi_grid, knots = K4, Boundary.knots = BND)
+Xref <- ns(25,       knots = K4, Boundary.knots = BND)
+Lmat <- Xbmi - matrix(rep(Xref, each = nrow(Xbmi)), ncol = ncol(Xbmi))
+
+coef_names <- names(coef(cox_cca))
+sidx <- grep("^ns\\(BMI", coef_names)
+
+beta <- coef(cox_cca)[sidx]
+V    <- vcov(cox_cca)[sidx, sidx, drop = FALSE]
+
+logHR <- as.vector(Lmat %*% beta)
+se    <- sqrt(diag(Lmat %*% V %*% t(Lmat)))
+
+curve_cca <- data.frame(
+  BMI = bmi_grid,
+  HR  = exp(logHR),
+  LCL = exp(logHR - 1.96 * se),
+  UCL = exp(logHR + 1.96 * se)
+)
+
+write.csv(curve_cca, "cox_RCS_BMI_curve_cs1_extended_CCA.csv", row.names = FALSE)
+
+# ---------------------------
+# Plot MICE vs Complete-case curves and export PDF
+# ---------------------------
+
+# Read in the two curve files
+curve_mice <- read.csv("cox_RCS_BMI_curve_cs1_extended.csv")
+curve_cca  <- read.csv("cox_RCS_BMI_curve_cs1_extended_CCA.csv")
+
+# Basic sanity checks
+required_cols <- c("BMI", "HR", "LCL", "UCL")
+stopifnot(all(required_cols %in% names(curve_mice)))
+stopifnot(all(required_cols %in% names(curve_cca)))
+
+# Set common x/y limits so both curves are visible
+xlim <- range(c(curve_mice$BMI, curve_cca$BMI), na.rm = TRUE)
+ylim <- range(c(curve_mice$LCL, curve_mice$UCL, curve_cca$LCL, curve_cca$UCL), na.rm = TRUE)
+
+# Optional: cap the y-axis if you want a cleaner plot (edit/remove as needed)
+# ylim[2] <- min(ylim[2], 2.5)
+
+pdf("BMI_curve_MICE_vs_CCA_extended.pdf", width = 7.2, height = 5)
+
+par(mar = c(4.6, 5.0, 1.4, 1.2))
+
+# Empty plot canvas
+plot(NA,
+     xlim = xlim, ylim = ylim,
+     xlab = expression(BMI~(kg/m^2)),
+     ylab = "Hazard ratio (ref = 25)",
+     axes = FALSE)
+
+axis(1)
+axis(2, las = 1)
+box()
+
+# Reference lines: HR=1 and BMI=25
+abline(h = 1, lty = 3, col = "grey60")s
+abline(v = 25, lty = 3, col = "grey60")
+
+# --- MICE shaded CI and line (blue) ---
+polygon(
+  x = c(curve_mice$BMI, rev(curve_mice$BMI)),
+  y = c(curve_mice$LCL, rev(curve_mice$UCL)),
+  border = NA,
+  col = adjustcolor("blue", alpha.f = 0.18)
+)
+lines(curve_mice$BMI, curve_mice$HR, col = "blue", lwd = 2)
+
+# --- Complete-case shaded CI and line (red) ---
+polygon(
+  x = c(curve_cca$BMI, rev(curve_cca$BMI)),
+  y = c(curve_cca$LCL, rev(curve_cca$UCL)),
+  border = NA,
+  col = adjustcolor("red", alpha.f = 0.12)
+)
+lines(curve_cca$BMI, curve_cca$HR, col = "red", lwd = 2)
+
+# Legend
+legend("topleft",
+       legend = c("MICE (main analysis)", "Complete case"),
+       col = c("blue", "red"),
+       lwd = 2,
+       bty = "n")
+
+dev.off()
+
