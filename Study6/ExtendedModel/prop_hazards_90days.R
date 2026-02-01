@@ -36,14 +36,43 @@ form_ext_h <- Surv(Survival_time_h, Status_cs1_h) ~
   Stroke_TIA + ICD_status
 
 # Fit across imputations (use imputation 1 for residual plots, like you did before)
-fit_ext_h <- with(imp2, {
-  d <- make_horizon(data)
+library(mice)
+library(survival)
+library(splines)
+library(dplyr)
+
+# Make horizon function (as you already have)
+horizon <- 90
+make_horizon <- function(d) {
+  tt <- d$Survival_time
+  
+  # robust Status_cs1 creation if needed
+  if ("Status_cs1" %in% names(d)) {
+    ss <- d$Status_cs1
+  } else {
+    ss <- ifelse(d$Status == 1, 1L, 0L)
+  }
+  ss <- suppressWarnings(as.integer(as.character(ss)))
+  
+  d$Survival_time_h <- pmin(tt, horizon)
+  d$Status_cs1_h    <- ifelse(!is.na(ss) & ss == 1L & tt <= horizon, 1L, 0L)
+  d
+}
+
+# Fit models across imputations (creates a plain list of coxph objects)
+fit_list_ext_h <- lapply(1:imp2$m, function(i) {
+  d <- make_horizon(complete(imp2, i))
   coxph(form_ext_h, data = d, ties = "efron", x = TRUE)
 })
 
-fm1 <- fit_ext_h$analyses[[1]]
+# Use imputation 1 for residual plots
+fm1 <- fit_list_ext_h[[1]]
+czph <- cox.zph(fm1, transform = "km")
 
-ph_tbl_list <- lapply(fit_ext_h$analyses, function(fm) as.data.frame(cox.zph(fm, transform="km")$table))
+
+fm1 <- fit_list_ext_h[[1]]
+
+ph_tbl_list <- lapply(fit_list_ext_h, function(fm) as.data.frame(cox.zph(fm, transform="km")$table))
 
 ph_pvals <- Reduce(function(a,b) cbind(a["p"], b["p"]), ph_tbl_list)
 colnames(ph_pvals) <- paste0("imp", seq_len(ncol(ph_pvals)))
@@ -62,51 +91,58 @@ write.csv(viol_rate, "PH_violation_rate_extended_90mo.csv", row.names = FALSE)
 
 
 # Schoenfeld test
-czph <- cox.zph(fm1, transform = "log")  # keep "km" to match your previous scripts
+czph <- cox.zph(fm1, transform = "identity")  # keep "km" to match  previous scripts
 
-# Helper: plot all rows matching a pattern (CRUCIAL for spline terms)
-plot_terms <- function(zph_obj, pattern, xlim = c(0, 90)) {
+plot_terms <- function(zph_obj, pattern, xlim = NULL) {
   idx <- grep(pattern, rownames(zph_obj$table))
   if (length(idx) == 0) {
     message("No coefficient rows match: ", pattern)
-  } else {
-    for (i in idx) {
-      term_name <- rownames(zph_obj$table)[i]
-      plot(zph_obj[i], resid = TRUE, se = TRUE, xlim = xlim, main = term_name,
+    return(invisible(NULL))
+  }
+  
+  for (i in idx) {
+    term_name <- rownames(zph_obj$table)[i]
+    
+    if (is.null(xlim)) {
+      plot(zph_obj[i], resid = TRUE, se = TRUE,
+           main = term_name,
+           xlab = "Time (months)", ylab = "Scaled Schoenfeld residuals")
+    } else {
+      plot(zph_obj[i], resid = TRUE, se = TRUE, xlim = xlim,
+           main = term_name,
            xlab = "Time (months)", ylab = "Scaled Schoenfeld residuals")
     }
   }
 }
 
+
+
 # --- A) Selected plots (BMI spline + key covariates) ---
+fm1 <- fit_list_ext_h[[1]]
+
+zph_test <- cox.zph(fm1, transform = "km")        # tables
+zph_plot <- cox.zph(fm1, transform = "identity")  # plots
+
 pdf("PH_selected_covariates_imp1_extended_90mo.pdf", width = 8.5, height = 10)
-par(mfrow = c(3,2), mar = c(4,4,2.5,1))
 
-plot_terms(czph, "^ns\\(BMI", xlim = c(0, 90))  # plots all BMI spline basis rows
-plot_terms(czph, "^Age",      xlim = c(0, 90))
-plot_terms(czph, "^eGFR",     xlim = c(0, 90))
-plot_terms(czph, "^Haemoglobin", xlim = c(0, 90))
-plot_terms(czph, "^LVEF",     xlim = c(0, 90))  # optional
+par(mfrow = c(3,2), mar = c(4,4,2.5,1), oma = c(0,0,3,0))
+
+p_global <- zph_test$table["GLOBAL", "p"]
+
+# First plot (creates the plotting page)
+plot(zph_plot[ grep("^ns\\(BMI", rownames(zph_plot$table))[1] ],
+     resid = TRUE, se = TRUE, xlim = c(0, 90),
+     main = rownames(zph_plot$table)[ grep("^ns\\(BMI", rownames(zph_plot$table))[1] ],
+     xlab = "Time (months)", ylab = "Scaled Schoenfeld residuals")
+
+# Now add the global header (outer margin exists)
+mtext(sprintf("Global proportional hazards test: p = %.3f", p_global),
+      side = 3, outer = TRUE, line = 1, cex = 1.1, font = 2)
+
+# Then continue with the rest of your plots
+# plot_terms(zph_plot, "^ns\\(BMI", xlim = c(0, 90))  # you'll want to skip the first basis term to avoid duplicating it
+plot_terms(zph_plot, "^Age", xlim = c(0, 90))
+plot_terms(zph_plot, "^eGFR", xlim = c(0, 90))
+plot_terms(zph_plot, "^Haemoglobin", xlim = c(0, 90))
 
 dev.off()
-par(mfrow = c(1,1))
-
-# --- B) All terms panel (multi-page, 6 per page) ---
-terms_idx <- which(rownames(czph$table) != "GLOBAL")
-
-pdf("PH_all_terms_imp1_extended_90mo.pdf", width = 8.5, height = 10)
-par(mfrow = c(3,2), mar = c(4,4,2.5,1))
-
-for (k in seq_along(terms_idx)) {
-  i <- terms_idx[k]
-  plot(czph[i], resid = TRUE, se = TRUE, xlim = c(0, 90),
-       main = rownames(czph$table)[i],
-       xlab = "Time (months)", ylab = "Scaled Schoenfeld residuals")
-  
-  # start a new page every 6 plots
-  if (k %% 6 == 0) {
-    par(mfrow = c(3,2))
-  }
-}
-dev.off()
-par(mfrow = c(1,1))
