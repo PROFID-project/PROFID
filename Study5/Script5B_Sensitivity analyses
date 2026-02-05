@@ -1,6 +1,7 @@
 # ==============================================================================
 # UmBIZO — PROFID Study 5
 # Script 5B (SENSITIVITY): Determinants + Stratified + Predicted Trends
+# Author : Amina Boudamaana
 # Outcome: HF_BIN_geq2 (>=2 HF therapy classes)
 # - Restrict cohort to HFrEF only (LVEF <40%)
 # Inputs:
