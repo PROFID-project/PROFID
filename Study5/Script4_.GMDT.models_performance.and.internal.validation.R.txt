@@ -4,6 +4,7 @@
 ## Script 4: Determinants models: performance, bootstrap validation & calibration
 ## Primary outcome: HF_BIN_eq3 (triple HF therapy = 3 classes)
 ## Aligns with Script 1 (HFrEF 2000–2020 dataset) and Script 3 (determinants)
+# Author : Amina Boudamaana
 ## =============================================================================
 suppressPackageStartupMessages({
   library(dplyr)
@@ -1189,5 +1190,6 @@ log_line("[OK] Saved calibration plots:", png_M2, "|", png_M3, "|", png_M4)
 
 log_line("\n[DONE] Script 4 completed successfully.")
 # =======================================================================================
+
 
 
