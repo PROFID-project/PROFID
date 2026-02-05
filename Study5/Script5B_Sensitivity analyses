@@ -1,0 +1,553 @@
+# ==============================================================================
+# UmBIZO — PROFID Study 5
+# Script 5B (SENSITIVITY): Determinants + Stratified + Predicted Trends
+# Outcome: HF_BIN_geq2 (>=2 HF therapy classes)
+# - Restrict cohort to HFrEF only (LVEF <40%)
+# Inputs:
+# - MICE mids object from Script 4: imp_study5_mice_script4.rds
+#
+# Outputs:
+# - Pooled OR tables (mice::pool)
+# - Stratified pooled OR for Year_index (where feasible)
+# - Predicted trend CSVs + PNGs
+# ==============================================================================
+options(stringsAsFactors = FALSE)
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(tidyr)
+  library(tibble)
+  library(readr)
+  library(ggplot2)
+  library(mice)
+  library(stats)
+  library(grDevices)
+})
+
+# ==============================================================================
+# 0) PATHS
+# ==============================================================================
+RESULTS_ROOT <- "T:/Study_5/Results_Study5"
+OUT_ROOT_T <- file.path(RESULTS_ROOT, "Script5B_SENSITIVITY_HF_BIN_geq2")
+IMP_PATH <- file.path(RESULTS_ROOT, "Script4_Determinants_Performance",
+                      "imp_study5_mice_script4.rds")
+
+# ==============================================================================
+# 1) IO helpers
+# ==============================================================================
+log_line <- function(...) cat(format(Sys.time(), "%Y-%m-%d %H:%M:%S"), " | ", ..., "\n")
+
+ensure_dir <- function(path) {
+  dir.create(path, recursive = TRUE, showWarnings = FALSE)
+  path
+}
+
+is_writable_dir <- function(path) {
+  dir.create(path, recursive = TRUE, showWarnings = FALSE)
+  tf <- file.path(path, paste0(".__write_test__", Sys.getpid(), ".txt"))
+  ok <- tryCatch({ writeLines("test", tf); TRUE }, error = function(e) FALSE)
+  if (file.exists(tf)) unlink(tf)
+  ok
+}
+
+OUT_ROOT <- OUT_ROOT_T
+if (!is_writable_dir(OUT_ROOT_T)) {
+  OUT_ROOT <- file.path(tempdir(), "Script5B_SENSITIVITY_HF_BIN_geq2")
+  ensure_dir(OUT_ROOT)
+  log_line("[WARN] Output not writable on T:. Using tempdir(): ", OUT_ROOT)
+}
+
+write_csv_safe <- function(x, path) {
+  if (is.null(x)) x <- tibble(message = "NULL output (skipped/failed)")
+  tryCatch({
+    readr::write_csv(x, path, na = "")
+  }, error = function(e) {
+    msg <- conditionMessage(e)
+    warning("[WRITE FAIL] ", path, " | ", msg)
+    alt <- sub("\\.csv$", paste0("_WRITEFAIL_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".csv"), path)
+    tryCatch(utils::write.csv(x, alt, row.names = FALSE, fileEncoding = "UTF-8"),
+             error = function(e2) warning("[WRITE FAIL ALT] ", alt, " | ", conditionMessage(e2)))
+  })
+  invisible(path)
+}
+
+save_png_safe <- function(plot_obj, path, width = 10, height = 6, dpi = 300) {
+  ensure_dir(dirname(path))
+  
+  ok <- tryCatch({
+    ggplot2::ggsave(path, plot = plot_obj, width = width, height = height, dpi = dpi, device = "png")
+    TRUE
+  }, error = function(e) FALSE)
+  if (ok) return(invisible(TRUE))
+  
+  ok2 <- tryCatch({
+    grDevices::png(filename = path, width = width, height = height, units = "in", res = dpi)
+    print(plot_obj)
+    grDevices::dev.off()
+    TRUE
+  }, error = function(e) FALSE)
+  if (ok2) return(invisible(TRUE))
+  
+  alt <- file.path(tempdir(), basename(path))
+  grDevices::png(filename = alt, width = width, height = height, units = "in", res = dpi)
+  print(plot_obj)
+  grDevices::dev.off()
+  warning("PNG could not be written to: ", path, " | wrote to: ", alt)
+  invisible(FALSE)
+}
+
+format_p <- function(p) {
+  p <- suppressWarnings(as.numeric(p))
+  ifelse(is.na(p), NA_character_, ifelse(p < 0.001, "<0.001", sprintf("%.3f", p)))
+}
+
+# ==============================================================================
+# 2) Data helpers
+# ==============================================================================
+to_num01 <- function(x) {
+  if (is.factor(x)) x <- as.character(x)
+  if (is.logical(x)) return(as.integer(x))
+  if (is.numeric(x)) return(ifelse(is.na(x), NA_integer_, as.integer(x != 0)))
+  x2 <- tolower(trimws(as.character(x)))
+  ifelse(is.na(x2), NA_integer_,
+         ifelse(x2 %in% c("1","yes","y","true","t"), 1L,
+                ifelse(x2 %in% c("0","no","n","false","f"), 0L, NA_integer_)))
+}
+
+get_mode <- function(x) {
+  x <- x[!is.na(x)]
+  if (length(x) == 0) return(NA)
+  x <- as.character(x)
+  names(sort(table(x), decreasing = TRUE))[1]
+}
+
+as_year_numeric <- function(x) suppressWarnings(as.numeric(as.character(x)))
+as_year_int <- function(x) as.integer(round(as_year_numeric(x)))
+
+collapse_DB <- function(x, top_n = 8) {
+  xx <- as.character(x)
+  tab <- sort(table(xx), decreasing = TRUE)
+  keep <- names(tab)[seq_len(min(top_n, length(tab)))]
+  ifelse(is.na(xx), NA_character_, ifelse(xx %in% keep, xx, "OTHER"))
+}
+
+LV_AGE3 <- c("<=65","66-75",">75")
+LV_BIN <- c("0","1")
+
+prep_core <- function(d, top_db = 8) {
+  
+  if ("Year_index" %in% names(d)) d$Year_index <- as_year_numeric(d$Year_index)
+  
+  # Age
+  if (!"Age_num" %in% names(d) && "Age" %in% names(d)) d$Age_num <- d$Age
+  if ("Age_num" %in% names(d)) d$Age_num <- suppressWarnings(as.numeric(d$Age_num))
+  if (!"Age3" %in% names(d) && "Age_num" %in% names(d)) {
+    d$Age3 <- cut(d$Age_num, breaks = c(-Inf, 65, 75, Inf),
+                  labels = LV_AGE3, right = TRUE)
+  }
+  if ("Age3" %in% names(d)) d$Age3 <- factor(as.character(d$Age3), levels = LV_AGE3)
+  
+  # LVEF numeric (needed for HFrEF restriction)
+  if (!"LVEF_num" %in% names(d) && "LVEF" %in% names(d)) d$LVEF_num <- d$LVEF
+  if ("LVEF_num" %in% names(d)) d$LVEF_num <- suppressWarnings(as.numeric(d$LVEF_num))
+  
+  # Binary factors
+  if ("Sex_BIN_Male" %in% names(d)) d$Sex_BIN_Male <- factor(as.character(to_num01(d$Sex_BIN_Male)), levels = LV_BIN)
+  if ("ICD_BIN_Yes" %in% names(d)) d$ICD_BIN_Yes <- factor(as.character(to_num01(d$ICD_BIN_Yes)), levels = LV_BIN)
+  
+  # DB
+  if ("DB" %in% names(d)) {
+    d$DB <- collapse_DB(d$DB, top_n = top_db)
+    d$DB <- factor(as.character(d$DB))
+  }
+  
+  # time_period
+  if ("Year_index" %in% names(d) && !"time_period" %in% names(d)) {
+    cutv <- median(d$Year_index, na.rm = TRUE)
+    d$time_period <- ifelse(d$Year_index <= cutv, "Early (<= median)", "Recent (> median)")
+    d$time_period <- factor(d$time_period, levels = c("Early (<= median)", "Recent (> median)"))
+  }
+  
+  d
+}
+
+has_2plus_levels <- function(x) {
+  x <- x[!is.na(x)]
+  length(unique(as.character(x))) >= 2
+}
+
+# ==============================================================================
+# 3) Model specification (HFrEF-only => NO LVEF_ESC)
+# ==============================================================================
+OUTCOME <- "HF_BIN_geq2"
+
+RHS_MAIN <- c(
+  "Year_index",
+  "Age3",
+  "Sex_BIN_Male",
+  "DB",
+  "ICD_BIN_Yes",
+  "Time_index_MI_CHD_log1p",
+  "Diabetes_BIN_Yes",
+  "Hypertension_BIN_Yes",
+  "Smoking_BIN_Yes",
+  "AF_atrial_flutter_BIN_Yes",
+  "Stroke_TIA_BIN_Yes",
+  "eGFR_log1p",
+  "Haemoglobin_log1p",
+  "PCI_BIN_Yes",
+  "CABG_BIN_Yes",
+  "Revascularisation_acute_BIN_Yes"
+)
+
+INT_CAND <- c("Year_index:Age3", "Year_index:DB")
+
+build_formula <- function(outcome, rhs, ints) {
+  as.formula(paste0(outcome, " ~ ", paste(c(rhs, ints), collapse = " + ")))
+}
+
+fit_glm_safe <- function(d, fml) {
+  tryCatch(glm(fml, family = binomial(), data = d, control = glm.control(maxit = 50)),
+           error = function(e) e)
+}
+
+ok_fit <- function(fit) {
+  if (!inherits(fit, "glm")) return(FALSE)
+  b <- suppressWarnings(stats::coef(fit))
+  if (all(is.na(b))) return(FALSE)
+  TRUE
+}
+
+sanitize_formula_for_data <- function(fml, d) {
+  mf <- tryCatch(model.frame(fml, data = d, na.action = na.omit), error = function(e) NULL)
+  if (is.null(mf) || nrow(mf) == 0)
+    return(list(fml = fml, dropped = character(0), reason = "model.frame failed/empty"))
+  
+  bad <- names(which(sapply(mf, function(x) is.factor(x) && nlevels(droplevels(x)) < 2)))
+  if (length(bad) == 0) return(list(fml = fml, dropped = character(0), reason = NA_character_))
+  
+  tt <- attr(terms(fml), "term.labels")
+  keep <- tt[!vapply(tt, function(ti) {
+    any(vapply(bad, function(b) grepl(paste0("(^|:)", b, "($|:)"), ti), logical(1)))
+  }, logical(1))]
+  
+  new_fml <- as.formula(paste(all.vars(fml)[1], "~",
+                              if (length(keep) == 0) "1" else paste(keep, collapse = " + ")))
+  list(fml = new_fml, dropped = bad, reason = "dropped single-level factor(s) after NA omission")
+}
+
+pool_or <- function(fits, model_label) {
+  m <- mice::as.mira(fits)
+  s <- summary(mice::pool(m), conf.int = TRUE, exponentiate = TRUE)
+  out <- tibble::as_tibble(s)
+  if ("2.5 %" %in% names(out)) out <- dplyr::rename(out, conf_low = `2.5 %`)
+  if ("97.5 %" %in% names(out)) out <- dplyr::rename(out, conf_high = `97.5 %`)
+  dplyr::mutate(out, model = model_label, .before = 1)
+}
+
+# ==============================================================================
+# 4) Predicted trends
+# ==============================================================================
+safe_predict_response <- function(fit, newdata) {
+  nd <- newdata
+  if (!is.null(fit$xlevels)) {
+    for (v in names(fit$xlevels)) {
+      if (v %in% names(nd)) nd[[v]] <- factor(as.character(nd[[v]]), levels = fit$xlevels[[v]])
+    }
+  }
+  tryCatch(as.numeric(predict(fit, newdata = nd, type = "response")),
+           error = function(e) rep(NA_real_, nrow(nd)))
+}
+
+pred_trends_MI <- function(full_fits, d0, outcome, out_dir,
+                           vary = c("Age3","DB"),
+                           top_db = 6) {
+  
+  if (length(full_fits) < 5) {
+    write_csv_safe(tibble(message="Too few FULL fits to compute predicted trends.", n_full=length(full_fits)),
+                   file.path(out_dir, paste0("pred_trends_SKIPPED_", outcome, ".csv")))
+    return(invisible(NULL))
+  }
+  if (!"Year_index" %in% names(d0)) return(invisible(NULL))
+  
+  yr_int <- as_year_int(d0$Year_index)
+  yr_int <- yr_int[!is.na(yr_int)]
+  year_seq_int <- seq(min(yr_int), max(yr_int), by = 1)
+  
+  # reference profile
+  ref <- list()
+  rhs_present <- RHS_MAIN[RHS_MAIN %in% names(d0)]
+  for (v in rhs_present) {
+    if (is.factor(d0[[v]]) || is.character(d0[[v]])) ref[[v]] <- get_mode(d0[[v]])
+    else ref[[v]] <- median(d0[[v]], na.rm = TRUE)
+  }
+  if ("Age3" %in% names(d0)) ref$Age3 <- "66-75"
+  if ("Sex_BIN_Male" %in% names(d0)) ref$Sex_BIN_Male <- "0"
+  if ("ICD_BIN_Yes" %in% names(d0)) ref$ICD_BIN_Yes <- "0"
+  
+  for (vv in vary) {
+    if (!vv %in% names(d0)) next
+    
+    if ((is.factor(d0[[vv]]) || is.character(d0[[vv]])) && !has_2plus_levels(d0[[vv]])) {
+      write_csv_safe(tibble(message=paste0("Skipped pred trends for ", vv, ": <2 observed levels.")),
+                     file.path(out_dir, paste0("pred_trends_SKIPPED_", vv, "_", outcome, ".csv")))
+      next
+    }
+    
+    levs <- if (vv == "DB") {
+      tt <- sort(table(as.character(d0$DB)), decreasing = TRUE)
+      names(tt)[seq_len(min(top_db, length(tt)))]
+    } else {
+      sort(unique(na.omit(as.character(d0[[vv]]))))
+    }
+    if (length(levs) == 0) next
+    
+    nd <- tibble(Year = year_seq_int) %>%
+      tidyr::expand_grid(group = levs) %>%
+      mutate(Year_index = as.numeric(Year))
+    
+    for (nm in names(ref)) if (!nm %in% names(nd)) nd[[nm]] <- ref[[nm]]
+    nd[[vv]] <- nd$group
+    
+    for (nm in names(nd)) {
+      if (nm %in% names(d0) && is.factor(d0[[nm]])) {
+        nd[[nm]] <- factor(as.character(nd[[nm]]), levels = levels(d0[[nm]]))
+      }
+    }
+    
+    mat <- sapply(full_fits, function(fit) safe_predict_response(fit, nd))
+    if (is.null(dim(mat))) mat <- matrix(mat, ncol = 1)
+    
+    out <- nd %>%
+      mutate(
+        pred = rowMeans(mat, na.rm = TRUE),
+        lo = apply(mat, 1, quantile, probs = 0.025, na.rm = TRUE),
+        hi = apply(mat, 1, quantile, probs = 0.975, na.rm = TRUE),
+        n_used = apply(mat, 1, function(x) sum(!is.na(x)))
+      )
+    
+    write_csv_safe(out, file.path(out_dir, paste0("pred_trends_", vv, "_", outcome, ".csv")))
+    
+    p <- ggplot(out, aes(x = Year, y = pred, color = group, fill = group)) +
+      geom_ribbon(aes(ymin = lo, ymax = hi), alpha = 0.15, color = NA) +
+      geom_line(linewidth = 1) +
+      labs(
+        title = paste0("Predicted probability over time: ", outcome, " by ", vv),
+        y = "Predicted probability",
+        x = "Calendar year",
+        caption = "Ribbon: 2.5%–97.5% across successful imputations."
+      ) +
+      guides(fill = "none")
+    
+    save_png_safe(p, file.path(out_dir, paste0("pred_trends_", vv, "_", outcome, ".png")),
+                  width = 10, height = 6, dpi = 300)
+  }
+  
+  invisible(TRUE)
+}
+
+# ==============================================================================
+# 5) Full MI runner + stratified Year effect
+# ==============================================================================
+run_full_MI <- function(completed, outcome, out_dir, label_prefix, min_pool = 5) {
+  
+  d0 <- completed[[1]]
+  
+  rhs_keep <- RHS_MAIN[RHS_MAIN %in% names(d0)]
+  rhs_keep <- rhs_keep[!vapply(rhs_keep, function(v) {
+    (is.factor(d0[[v]]) || is.character(d0[[v]])) && !has_2plus_levels(d0[[v]])
+  }, logical(1))]
+  
+  ints_keep <- INT_CAND[vapply(INT_CAND, function(tt) {
+    parts <- strsplit(tt, ":", fixed = TRUE)[[1]]
+    all(parts %in% rhs_keep)
+  }, logical(1))]
+  
+  f_full_raw <- build_formula(outcome, rhs_keep, ints_keep)
+  
+  diag_rows <- list()
+  full_fits <- list()
+  
+  for (i in seq_along(completed)) {
+    d <- completed[[i]]
+    
+    if (!outcome %in% names(d)) {
+      diag_rows[[i]] <- tibble(imputation=i, status="FAIL", reason="Outcome missing", error=NA_character_)
+      next
+    }
+    
+    y <- d[[outcome]]
+    if (all(is.na(y)) || length(unique(y[!is.na(y)])) < 2) {
+      diag_rows[[i]] <- tibble(imputation=i, status="FAIL", reason="Outcome <2 classes or all NA", error=NA_character_)
+      next
+    }
+    
+    san <- sanitize_formula_for_data(f_full_raw, d)
+    ff <- fit_glm_safe(d, san$fml)
+    
+    if (inherits(ff, "error") || !ok_fit(ff)) {
+      diag_rows[[i]] <- tibble(imputation=i, status="FAIL", reason="FULL fit failed",
+                               error=if (inherits(ff,"error")) conditionMessage(ff) else "Invalid glm")
+      next
+    }
+    
+    full_fits[[length(full_fits)+1]] <- ff
+    diag_rows[[i]] <- tibble(
+      imputation=i, status="OK_FULL",
+      reason=if (length(san$dropped) > 0) paste0("Dropped: ", paste(san$dropped, collapse=", ")) else NA_character_,
+      error=NA_character_
+    )
+  }
+  
+  diag_tbl <- bind_rows(diag_rows)
+  write_csv_safe(diag_tbl, file.path(out_dir, paste0(label_prefix, "_DIAG_", outcome, ".csv")))
+  
+  if (length(full_fits) >= min_pool) {
+    or_tbl <- pool_or(full_fits, paste0(label_prefix, "_FULL"))
+    write_csv_safe(or_tbl, file.path(out_dir, paste0(label_prefix, "_OR_", outcome, ".csv")))
+  } else {
+    write_csv_safe(tibble(message="Too few successful FULL fits for pooling.", n_full_fits=length(full_fits)),
+                   file.path(out_dir, paste0(label_prefix, "_OR_SKIPPED_", outcome, ".csv")))
+  }
+  
+  list(full_fits = full_fits, diag = diag_tbl, formula_raw = f_full_raw)
+}
+
+run_stratified_year <- function(completed, outcome, out_dir, strat_var,
+                                min_n = 300, min_events = 30, min_fits = 5) {
+  
+  d0 <- completed[[1]]
+  if (!strat_var %in% names(d0)) return(invisible(NULL))
+  
+  if ((is.factor(d0[[strat_var]]) || is.character(d0[[strat_var]])) && !has_2plus_levels(d0[[strat_var]])) {
+    write_csv_safe(tibble(message=paste0("Stratification skipped for ", strat_var, ": <2 observed levels.")),
+                   file.path(out_dir, paste0("STRAT_SKIPPED_", strat_var, "_", outcome, ".csv")))
+    return(invisible(NULL))
+  }
+  
+  levs <- sort(unique(na.omit(as.character(d0[[strat_var]]))))
+  out_rows <- list()
+  
+  for (lv in levs) {
+    fits <- list()
+    
+    for (i in seq_along(completed)) {
+      d <- completed[[i]]
+      d <- d[as.character(d[[strat_var]]) == lv, , drop = FALSE]
+      
+      if (!outcome %in% names(d) || nrow(d) < min_n) next
+      if (sum(d[[outcome]] == 1, na.rm = TRUE) < min_events) next
+      if (length(unique(d[[outcome]][!is.na(d[[outcome]])])) < 2) next
+      
+      rhs <- setdiff(RHS_MAIN, strat_var)
+      rhs <- rhs[rhs %in% names(d)]
+      rhs <- rhs[!vapply(rhs, function(v) {
+        (is.factor(d[[v]]) || is.character(d[[v]])) && !has_2plus_levels(d[[v]])
+      }, logical(1))]
+      
+      if (!("Year_index" %in% rhs)) rhs <- c("Year_index", rhs)
+      
+      fml_raw <- as.formula(paste0(outcome, " ~ ", paste(rhs, collapse = " + ")))
+      san <- sanitize_formula_for_data(fml_raw, d)
+      ff <- fit_glm_safe(d, san$fml)
+      if (ok_fit(ff)) fits[[length(fits)+1]] <- ff
+    }
+    
+    if (length(fits) < min_fits) {
+      out_rows[[length(out_rows)+1]] <- tibble(
+        strat_var = strat_var, level = lv,
+        n_fits = length(fits),
+        OR_year = NA_real_, conf_low = NA_real_, conf_high = NA_real_,
+        p_value = NA_real_, p_value_fmt = NA_character_,
+        note = paste0("Too few fits (<", min_fits, ") for pooling")
+      )
+      next
+    }
+    
+    pooled <- pool_or(fits, paste0("STRAT_", strat_var, "_", lv))
+    yr <- pooled[pooled$term == "Year_index", , drop = FALSE]
+    
+    out_rows[[length(out_rows)+1]] <- tibble(
+      strat_var = strat_var, level = lv,
+      n_fits = length(fits),
+      OR_year = if (nrow(yr) == 0) NA_real_ else yr$estimate[1],
+      conf_low = if (nrow(yr) == 0) NA_real_ else yr$conf_low[1],
+      conf_high = if (nrow(yr) == 0) NA_real_ else yr$conf_high[1],
+      p_value = if (nrow(yr) == 0) NA_real_ else yr$p.value[1],
+      p_value_fmt = if (nrow(yr) == 0) NA_character_ else format_p(yr$p.value[1]),
+      note = if (nrow(yr) == 0) "Year_index term not found" else NA_character_
+    )
+  }
+  
+  out_tbl <- bind_rows(out_rows)
+  write_csv_safe(out_tbl, file.path(out_dir, paste0("STRAT_pooled_OR_year_", strat_var, "_", outcome, ".csv")))
+  invisible(out_tbl)
+}
+
+# ==============================================================================
+# 6) Load mids -> completed -> harmonise -> restrict HFrEF
+# ==============================================================================
+stopifnot(file.exists(IMP_PATH))
+imp <- readRDS(IMP_PATH)
+stopifnot(inherits(imp, "mids"))
+log_line("[OK] Loaded mids:", IMP_PATH, "| m =", imp$m)
+
+completed <- mice::complete(imp, action = "all")
+completed <- lapply(completed, prep_core, top_db = 8)
+
+# --- Restrict to HFrEF only (LVEF <40%) ---
+completed <- lapply(completed, function(d) {
+  if ("LVEF_num" %in% names(d)) {
+    d <- d[!is.na(d$LVEF_num) & d$LVEF_num < 40, , drop = FALSE]
+  } else {
+    stop("LVEF_num not found; cannot apply HFrEF restriction.")
+  }
+  d
+})
+
+# ==============================================================================
+# 7) Sanity checks + outputs
+# ==============================================================================
+OUT_DIR <- ensure_dir(file.path(OUT_ROOT, paste0("SENSITIVITY_", OUTCOME)))
+
+if (!(OUTCOME %in% names(completed[[1]]))) {
+  write_csv_safe(tibble(message=paste0("FATAL: outcome not found: ", OUTCOME),
+                        action="Re-run Script4 (must include HF_BIN_geq2 in mids)"),
+                 file.path(OUT_DIR, "FATAL_missing_outcome.csv"))
+  stop("Outcome not found: ", OUTCOME)
+}
+
+tab1 <- as.data.frame(table(completed[[1]][[OUTCOME]], useNA = "ifany"))
+names(tab1) <- c("outcome_value", "n")
+write_csv_safe(as_tibble(tab1), file.path(OUT_DIR, paste0("OUTCOME_DISTRIBUTION_imp1_", OUTCOME, ".csv")))
+
+miss_tbl <- bind_rows(lapply(seq_along(completed), function(i) {
+  d <- completed[[i]]
+  tibble(imputation=i, n=nrow(d),
+         n_missing=sum(is.na(d[[OUTCOME]])),
+         pct_missing=100*mean(is.na(d[[OUTCOME]])))
+}))
+write_csv_safe(miss_tbl, file.path(OUT_DIR, paste0("OUTCOME_MISSINGNESS_", OUTCOME, ".csv")))
+
+log_line("============================================================")
+log_line("[RUN] Sensitivity analysis | outcome = ", OUTCOME, " | HFrEF-only")
+log_line("Output: ", OUT_DIR)
+log_line("============================================================")
+
+# ==============================================================================
+# 8) Run: FULL MI + Stratified + Predicted trends
+# ==============================================================================
+res <- run_full_MI(completed, OUTCOME, OUT_DIR, label_prefix = "SENSI_MI_M5")
+
+# Stratified (NO LVEF_ESC)
+strat_vars <- c("ICD_BIN_Yes", "Age3", "time_period", "DB")
+strat_vars <- strat_vars[strat_vars %in% names(completed[[1]])]
+for (sv in strat_vars) run_stratified_year(completed, OUTCOME, OUT_DIR, sv)
+
+# Predicted trends (NO LVEF_ESC)
+pred_trends_MI(res$full_fits, completed[[1]], OUTCOME, OUT_DIR,
+               vary = c("Age3","DB"),
+               top_db = 6)
+
+log_line("[DONE] Script 5B completed. Outputs in: ", OUT_DIR,
+         " | n_full_fits=", length(res$full_fits))
+
