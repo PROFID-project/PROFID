@@ -4,6 +4,7 @@
 # Script 05A: PRIMARY only (HF_BIN_eq3)
 # - Tables + stratified + predicted trends
 # - UPDATED: restrict to HFrEF only (LVEF <40%) 
+# Author : Amina Boudamaana
 # ==============================================================================
 options(stringsAsFactors = FALSE)
 suppressPackageStartupMessages({
@@ -595,6 +596,7 @@ pred_trends_MI(res$full_fits, completed[[1]], outcome, out_dir,
                top_db = 6)
 
 log_line("[DONE] Script 05A PRIMARY completed. Outputs in: ", OUT_ROOT)
+
 
 
 
