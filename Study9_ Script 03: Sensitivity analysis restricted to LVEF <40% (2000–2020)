@@ -1,0 +1,393 @@
+###############################################################################
+# PROFID — UmBIZO Study 9
+# Script 03: Sensitivity analysis restricted to LVEF <40% (2000–2020)
+#
+# Update:
+# - In ICD patients, appropriate ICD therapy/shock/ATP is already encoded as
+# Status == 1. Therefore we use ICD_proxy_bin = (ICD_bin==1 & Status_num==1).
+#
+# Outputs (OUT_DIR):
+# - Non-ICD: year-wise and period-wise SCD counts + crude rates (per 1,000 PY)
+# - ICD: year-wise and period-wise ICD proxy counts + crude rates (per 1,000 PY)
+# - Coverage tables (denominators + person-years) by year and by period
+# - Figures: Non-ICD rate + denom; ICD proxy rate + denom
+# - QC: LVEF availability + restriction impact + Status distribution in ICD
+###############################################################################
+
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(readr)
+  library(stringr)
+  library(tibble)
+  library(tidyr)
+  library(ggplot2)
+  library(broom)
+})
+
+rm(list = ls()); gc()
+
+log_line <- function(...) {
+  cat(paste0(
+    format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
+    " | ",
+    paste0(..., collapse = ""),
+    "\n"
+  ))
+}
+
+# ==============================================================================
+# 0) Paths (edit these two only)
+# ==============================================================================
+IN_ROOT <- "S:/AG/f-dhzC-profid/Data Transfer to Charite"
+OUT_ROOT <- "T:/Study_9"
+
+IN_CSV <- file.path(IN_ROOT, "df_handled.csv")
+
+OUT_DIR <- file.path(OUT_ROOT, "Results_Study9", "Script03_Sensitivity_LVEFlt40_2000_2020")
+dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
+
+# ==============================================================================
+# 1) Load full dataset
+# ==============================================================================
+stopifnot(file.exists(IN_CSV))
+df0 <- readr::read_csv(IN_CSV, show_col_types = FALSE, progress = FALSE)
+stopifnot(is.data.frame(df0))
+
+log_line("[OK] Loaded: ", IN_CSV)
+log_line("[OK] Dimensions: ", nrow(df0), " x ", ncol(df0))
+
+nm <- names(df0)
+
+# Snapshot columns (helps debugging in case of extract changes)
+readr::write_csv(tibble(colname = nm), file.path(OUT_DIR, "columns_snapshot_script03.csv"))
+
+# ==============================================================================
+# 2) Core variable names
+# ==============================================================================
+col_icd <- "ICD_status"
+col_scd <- "SCD_event"
+col_y <- "Time_zero_Y"
+col_status <- "Status" # Status==1 codes appropriate ICD therapy in ICD patients
+
+req <- c(col_icd, col_scd, col_y, col_status)
+miss <- req[!req %in% nm]
+if (length(miss) > 0) stop("Missing required columns: ", paste(miss, collapse = ", "))
+
+# Person-time candidates
+col_py <- if ("py" %in% nm) "py" else NA_character_
+col_fmo <- if ("ftime_mo_int" %in% nm) "ftime_mo_int" else NA_character_
+
+log_line("[INFO] Person-time column (py): ", ifelse(is.na(col_py), "<not found>", col_py))
+log_line("[INFO] Follow-up months (ftime_mo_int): ", ifelse(is.na(col_fmo), "<not found>", col_fmo))
+
+# ==============================================================================
+# 3) Identify LVEF variable in the extract
+# ==============================================================================
+pick_first_existing <- function(cands, nm) {
+  hit <- cands[cands %in% nm]
+  if (length(hit) == 0) NA_character_ else hit[1]
+}
+
+lvef_candidates <- c(
+  "LVEF_ESC", "LVEF", "LVEF_percent", "LVEF_pct", "LVEF_baseline",
+  "EF", "EjectionFraction"
+)
+
+col_lvef <- pick_first_existing(lvef_candidates, nm)
+
+if (is.na(col_lvef)) {
+  pat <- "(^|_)(lvef|ef)(_|$)|ejection"
+  hits <- nm[str_detect(tolower(nm), pat)]
+  if (length(hits) > 0) col_lvef <- hits[1]
+}
+
+if (is.na(col_lvef)) {
+  stop("No LVEF variable detected in df_handled.csv. Confirm the LVEF column name in this extract.")
+}
+
+log_line("[INFO] LVEF column used: ", col_lvef)
+
+# ==============================================================================
+# 4) Helpers
+# ==============================================================================
+to_bin01 <- function(x) {
+  if (is.logical(x)) return(as.integer(x))
+  if (is.numeric(x)) return(as.integer(x > 0))
+  xx <- tolower(trimws(as.character(x)))
+  as.integer(xx %in% c("1","y","yes","true","t","present","event","icd"))
+}
+
+as_num_safely <- function(x) suppressWarnings(as.numeric(as.character(x)))
+
+# ==============================================================================
+# 5) Build working dataset + apply restrictions
+# ==============================================================================
+START_Y <- 2000L
+END_Y <- 2020L
+
+df1 <- df0 %>%
+  mutate(
+    Year_index = suppressWarnings(as.integer(.data[[col_y]])),
+    ICD_bin = to_bin01(.data[[col_icd]]),
+    SCD_bin = to_bin01(.data[[col_scd]]),
+    LVEF_num = as_num_safely(.data[[col_lvef]]),
+    
+    #  Status==1 defines ICD therapy proxy within ICD patients
+    Status_num = suppressWarnings(as.integer(.data[[col_status]])),
+    ICD_proxy_bin = ifelse(ICD_bin == 1L & Status_num == 1L, 1L, 0L),
+    
+    person_years = if (!is.na(col_py)) {
+      as_num_safely(.data[[col_py]])
+    } else if (!is.na(col_fmo)) {
+      as_num_safely(.data[[col_fmo]]) / 12
+    } else {
+      NA_real_
+    }
+  )
+
+# LVEF QC (overall, before filtering)
+lvef_qc <- tibble(
+  lvef_col = col_lvef,
+  n_total = nrow(df1),
+  lvef_missing= sum(is.na(df1$LVEF_num)),
+  lvef_min = suppressWarnings(min(df1$LVEF_num, na.rm = TRUE)),
+  lvef_max = suppressWarnings(max(df1$LVEF_num, na.rm = TRUE))
+)
+write_csv(lvef_qc, file.path(OUT_DIR, "lvef_qc_overall.csv"))
+
+# Apply analysis window + sensitivity filter (LVEF <40)
+dat <- df1 %>%
+  filter(!is.na(Year_index), Year_index >= START_Y, Year_index <= END_Y) %>%
+  filter(!is.na(LVEF_num) & LVEF_num < 40)
+
+log_line("[OK] Restricted to 2000–2020 AND LVEF <40%: n=", nrow(dat))
+
+# Restriction impact table
+impact_tbl <- dat %>%
+  summarise(
+    n_total = n(),
+    n_nonICD = sum(ICD_bin == 0L, na.rm = TRUE),
+    n_ICD = sum(ICD_bin == 1L, na.rm = TRUE),
+    scd_events_total= sum(SCD_bin == 1L, na.rm = TRUE),
+    icd_proxy_events_total = sum(ICD_proxy_bin == 1L, na.rm = TRUE),
+    py_missing = sum(is.na(person_years)),
+    py_nonpositive = sum(!is.na(person_years) & person_years <= 0)
+  )
+write_csv(impact_tbl, file.path(OUT_DIR, "restriction_impact_2000_2020_lvef_lt40.csv"))
+
+# ICD Status distribution (within ICD only) for transparency
+status_icd_tab <- dat %>%
+  filter(ICD_bin == 1L) %>%
+  count(Status_num, name = "n") %>%
+  arrange(desc(n))
+write_csv(status_icd_tab, file.path(OUT_DIR, "Status_distribution_in_ICD_cohort_LVEFlt40_2000_2020.csv"))
+
+# ==============================================================================
+# 6) Summaries helpers (year grid keeps empty years explicit)
+# ==============================================================================
+years_grid <- tibble(Year_index = START_Y:END_Y)
+
+summarise_by_year <- function(df, cohort_value, event_col) {
+  out <- df %>%
+    filter(cohort == cohort_value) %>%
+    group_by(Year_index) %>%
+    summarise(
+      n = n(),
+      events = sum(.data[[event_col]] == 1L, na.rm = TRUE),
+      person_years = if (!all(is.na(person_years))) sum(person_years, na.rm = TRUE) else NA_real_,
+      .groups = "drop"
+    ) %>%
+    right_join(years_grid, by = "Year_index") %>%
+    arrange(Year_index) %>%
+    mutate(
+      n = replace_na(n, 0L),
+      events = replace_na(events, 0L),
+      rate_per_1000py = ifelse(!is.na(person_years) & person_years > 0,
+                               1000 * events / person_years,
+                               NA_real_)
+    )
+  out
+}
+
+# Add cohort label
+dat <- dat %>% mutate(cohort = ifelse(ICD_bin == 1L, "ICD", "Non-ICD"))
+
+# ==============================================================================
+# 7) Year-wise outputs
+# ==============================================================================
+# Non-ICD: SCD
+nonicd_scd_year <- summarise_by_year(dat, cohort_value = "Non-ICD", event_col = "SCD_bin") %>%
+  rename(scd_events = events, scd_rate_per_1000py = rate_per_1000py)
+
+write_csv(nonicd_scd_year, file.path(OUT_DIR, "SCD_by_year_nonICD_LVEFlt40_2000_2020.csv"))
+
+# ICD: proxy (Status==1)
+icd_proxy_year <- summarise_by_year(dat, cohort_value = "ICD", event_col = "ICD_proxy_bin") %>%
+  rename(icd_proxy_events = events, icd_proxy_rate_per_1000py = rate_per_1000py)
+
+write_csv(icd_proxy_year, file.path(OUT_DIR, "ICD_proxy_by_year_ICD_LVEFlt40_2000_2020.csv"))
+
+# Availability by year (explicit denominators)
+availability_by_year <- dat %>%
+  group_by(Year_index) %>%
+  summarise(
+    n_total = n(),
+    n_nonICD = sum(cohort == "Non-ICD"),
+    n_ICD = sum(cohort == "ICD"),
+    .groups = "drop"
+  ) %>%
+  arrange(Year_index)
+
+write_csv(availability_by_year, file.path(OUT_DIR, "availability_by_year_LVEFlt40_2000_2020.csv"))
+
+# Coverage by year (both event types, both cohorts)
+coverage_by_year <- dat %>%
+  group_by(Year_index, cohort) %>%
+  summarise(
+    n = n(),
+    scd_events = sum(SCD_bin == 1L, na.rm = TRUE),
+    icd_proxy_events = sum(ICD_proxy_bin == 1L, na.rm = TRUE),
+    person_years = if (!all(is.na(person_years))) sum(person_years, na.rm = TRUE) else NA_real_,
+    .groups = "drop"
+  ) %>%
+  arrange(Year_index, cohort)
+
+write_csv(coverage_by_year, file.path(OUT_DIR, "coverage_by_year_LVEFlt40_2000_2020.csv"))
+
+# ==============================================================================
+# 8) Period-wise outputs
+# ==============================================================================
+make_period <- function(y) {
+  cut(
+    y,
+    breaks = c(1999, 2004, 2009, 2014, 2020),
+    labels = c("2000-2004", "2005-2009", "2010-2014", "2015-2020"),
+    right = TRUE
+  )
+}
+
+dat <- dat %>% mutate(period = make_period(Year_index))
+
+coverage_by_period <- dat %>%
+  filter(!is.na(period)) %>%
+  group_by(period, cohort) %>%
+  summarise(
+    n = n(),
+    scd_events = sum(SCD_bin == 1L, na.rm = TRUE),
+    icd_proxy_events = sum(ICD_proxy_bin == 1L, na.rm = TRUE),
+    person_years = if (!all(is.na(person_years))) sum(person_years, na.rm = TRUE) else NA_real_,
+    .groups = "drop"
+  ) %>%
+  arrange(period, cohort)
+
+write_csv(coverage_by_period, file.path(OUT_DIR, "coverage_by_period_LVEFlt40_2000_2020.csv"))
+
+# Non-ICD SCD by period
+nonicd_scd_period <- dat %>%
+  filter(cohort == "Non-ICD", !is.na(period)) %>%
+  group_by(period) %>%
+  summarise(
+    n = n(),
+    scd_events = sum(SCD_bin == 1L, na.rm = TRUE),
+    person_years = if (!all(is.na(person_years))) sum(person_years, na.rm = TRUE) else NA_real_,
+    scd_rate_per_1000py = ifelse(!is.na(person_years) & person_years > 0,
+                                 1000 * scd_events / person_years,
+                                 NA_real_),
+    .groups = "drop"
+  ) %>%
+  arrange(period)
+
+write_csv(nonicd_scd_period, file.path(OUT_DIR, "SCD_by_period_nonICD_LVEFlt40_2000_2020.csv"))
+
+# ICD proxy by period
+icd_proxy_period <- dat %>%
+  filter(cohort == "ICD", !is.na(period)) %>%
+  group_by(period) %>%
+  summarise(
+    n = n(),
+    icd_proxy_events = sum(ICD_proxy_bin == 1L, na.rm = TRUE),
+    person_years = if (!all(is.na(person_years))) sum(person_years, na.rm = TRUE) else NA_real_,
+    icd_proxy_rate_per_1000py = ifelse(!is.na(person_years) & person_years > 0,
+                                       1000 * icd_proxy_events / person_years,
+                                       NA_real_),
+    .groups = "drop"
+  ) %>%
+  arrange(period)
+
+write_csv(icd_proxy_period, file.path(OUT_DIR, "ICD_proxy_by_period_ICD_LVEFlt40_2000_2020.csv"))
+
+# Optional exploratory Poisson IRR by period (Non-ICD SCD)
+if (sum(!is.na(dat$person_years) & dat$person_years > 0 & dat$cohort == "Non-ICD", na.rm = TRUE) > 0) {
+  mdat <- dat %>% filter(cohort == "Non-ICD", !is.na(period), !is.na(person_years), person_years > 0)
+  fit <- glm(SCD_bin ~ period, family = poisson(), offset = log(person_years), data = mdat)
+  irr <- broom::tidy(fit, exponentiate = TRUE, conf.int = TRUE) %>%
+    filter(term != "(Intercept)") %>%
+    transmute(comparison = term, IRR = estimate, CI_low = conf.low, CI_high = conf.high, p_value = p.value)
+  write_csv(irr, file.path(OUT_DIR, "SCD_IRR_by_period_poisson_nonICD_LVEFlt40.csv"))
+}
+
+# ==============================================================================
+# 9) Figures
+# ==============================================================================
+# Fig 1 — Non-ICD SCD crude rate by year
+p1 <- ggplot(nonicd_scd_year, aes(x = Year_index, y = scd_rate_per_1000py)) +
+  geom_line(na.rm = TRUE) +
+  geom_point(na.rm = TRUE) +
+  labs(
+    title = "Non-ICD sudden cardiac death (SCD) crude rate (LVEF <40%), 2000–2020",
+    x = "Calendar year",
+    y = "SCD rate (events per 1,000 person-years)"
+  ) +
+  theme_bw()
+
+ggsave(file.path(OUT_DIR, "Fig1_SCD_rate_nonICD_LVEFlt40_2000_2020.png"),
+       plot = p1, width = 9, height = 5, dpi = 300)
+
+# Fig 2 — Non-ICD denominator by year
+p2 <- ggplot(nonicd_scd_year, aes(x = Year_index, y = n)) +
+  geom_col() +
+  labs(
+    title = "Non-ICD denominator by calendar year (LVEF <40%), 2000–2020",
+    x = "Calendar year",
+    y = "Number of patients"
+  ) +
+  theme_bw()
+
+ggsave(file.path(OUT_DIR, "Fig2_Denom_nonICD_LVEFlt40_2000_2020.png"),
+       plot = p2, width = 9, height = 5, dpi = 300)
+
+# Fig 3 — ICD proxy crude rate by year
+p3 <- ggplot(icd_proxy_year, aes(x = Year_index, y = icd_proxy_rate_per_1000py)) +
+  geom_line(na.rm = TRUE) +
+  geom_point(na.rm = TRUE) +
+  labs(
+    title = "ICD proxy outcome crude rate (Status=1) in ICD cohort (LVEF <40%), 2000–2020",
+    x = "Calendar year",
+    y = "ICD proxy rate (events per 1,000 person-years)"
+  ) +
+  theme_bw()
+
+ggsave(file.path(OUT_DIR, "Fig3_ICD_proxy_rate_ICD_LVEFlt40_2000_2020.png"),
+       plot = p3, width = 9, height = 5, dpi = 300)
+
+# Fig 4 — ICD denominator by year
+p4 <- ggplot(icd_proxy_year, aes(x = Year_index, y = n)) +
+  geom_col() +
+  labs(
+    title = "ICD denominator by calendar year (LVEF <40%), 2000–2020",
+    x = "Calendar year",
+    y = "Number of patients"
+  ) +
+  theme_bw()
+
+ggsave(file.path(OUT_DIR, "Fig4_Denom_ICD_LVEFlt40_2000_2020.png"),
+       plot = p4, width = 9, height = 5, dpi = 300)
+
+log_line("[DONE] Script 03 completed successfully.")
+log_line("[DONE] Outputs written to: ", OUT_DIR)
+
+# Convenience: open output folder (Windows)
+if (.Platform$OS.type == "windows") {
+  try(shell.exec(normalizePath(OUT_DIR)), silent = TRUE)
+}
+###############################################################################
