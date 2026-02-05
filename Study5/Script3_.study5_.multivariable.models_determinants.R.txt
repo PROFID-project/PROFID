@@ -1,7 +1,7 @@
 ##############################################################################
 # PROFID — Study 5
 # Script 03: Determinants of HF therapy utilisation in HFrEF
-#
+## Author : Amina Boudamaana
 # Input: df_study5_hfref.rds (from Script 1)
 # Cohort: HFrEF only (LVEF <40%)
 # Window: 2000–2020
@@ -347,3 +347,4 @@ saveRDS(all_results, file.path(OUT_DIR, "determinants_ALL_models_CC_plus_MI.rds"
 log_line("\n[DONE] Script 03 finished successfully.")
 log_line("[DONE] Outputs in: ", OUT_DIR)
 # ================================================================================
+
