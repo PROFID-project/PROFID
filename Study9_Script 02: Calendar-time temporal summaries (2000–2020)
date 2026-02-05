@@ -1,0 +1,328 @@
+###############################################################################
+# PROFID — UmBIZO Study 9
+# Script 02: Calendar-time temporal summaries (2000–2020)
+#
+# Uses df_study9_minimal.rds from Script 01.
+# Endpoints:
+# - Non-ICD: SCD_bin
+# - ICD: proxy endpoint = Status==1 among ICD patient-> ICD_proxy_bin
+###############################################################################
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(readr)
+  library(tibble)
+  library(tidyr)
+  library(ggplot2)
+  library(stringr)
+})
+
+rm(list = ls()); gc()
+
+log_line <- function(...) {
+  cat(
+    paste0(
+      format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
+      " | ",
+      paste0(..., collapse = ""),
+      "\n"
+    )
+  )
+}
+
+# ==============================================================================
+# 0) Paths (EDIT ROOT_DIR ONLY)
+# ==============================================================================
+ROOT_DIR <- "T:/Study_9"
+
+IN_DIR <- file.path(ROOT_DIR, "Results_Study9", "Script01_CalendarTime_QC")
+OUT_DIR <- file.path(ROOT_DIR, "Results_Study9", "Script02_TemporalTables_2000_2020")
+dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
+
+IN_RDS <- file.path(IN_DIR, "df_study9_minimal.rds")
+
+# ==============================================================================
+# 1) Load minimal dataset
+# ==============================================================================
+if (!file.exists(IN_RDS)) {
+  stop("df_study9_minimal.rds not found at:\n", IN_RDS, "\nFix: check ROOT_DIR or rerun Script 01.")
+}
+
+dat0 <- readRDS(IN_RDS)
+stopifnot(is.data.frame(dat0))
+
+log_line("[OK] Loaded minimal dataset: ", IN_RDS)
+log_line("[OK] Dimensions: ", nrow(dat0), " x ", ncol(dat0))
+
+# Required minimum
+req_min <- c("Year_index", "ICD_bin", "SCD_bin")
+miss_min <- req_min[!req_min %in% names(dat0)]
+if (length(miss_min) > 0) {
+  stop("Missing required columns in df_study9_minimal.rds: ",
+       paste(miss_min, collapse = ", "))
+}
+
+# Person-time: prefer person_years; else py; else fu_years; else counts-only
+py_col <- dplyr::case_when(
+  "person_years" %in% names(dat0) ~ "person_years",
+  "py" %in% names(dat0) ~ "py",
+  "fu_years" %in% names(dat0) ~ "fu_years",
+  TRUE ~ NA_character_
+)
+log_line("[INFO] Person-time column: ", ifelse(is.na(py_col), "<none (counts only)>", py_col))
+
+# ------------------------------------------------------------------------------
+# ICD proxy endpoint: ICD_proxy_bin
+# Priority:
+# 1) ICD_proxy_bin exists
+# 2) derive from Status_num
+# 3) derive from Status
+# 4) legacy ICD_therapy_bin (only if exists)
+# else: stop with fix message
+# ------------------------------------------------------------------------------
+if ("ICD_proxy_bin" %in% names(dat0)) {
+  dat0 <- dat0 %>% mutate(ICD_proxy_bin = suppressWarnings(as.integer(ICD_proxy_bin)))
+  log_line("[OK] ICD_proxy_bin found in minimal dataset.")
+} else if ("Status_num" %in% names(dat0)) {
+  dat0 <- dat0 %>%
+    mutate(
+      Status_num = suppressWarnings(as.integer(Status_num)),
+      ICD_proxy_bin = ifelse(suppressWarnings(as.integer(ICD_bin)) == 1L & Status_num == 1L, 1L, 0L)
+    )
+  log_line("[OK] ICD_proxy_bin derived from Status_num (Status_num==1 in ICD).")
+} else if ("Status" %in% names(dat0)) {
+  dat0 <- dat0 %>%
+    mutate(
+      Status_num = suppressWarnings(as.integer(Status)),
+      ICD_proxy_bin = ifelse(suppressWarnings(as.integer(ICD_bin)) == 1L & Status_num == 1L, 1L, 0L)
+    )
+  log_line("[OK] ICD_proxy_bin derived from Status (Status==1 in ICD).")
+} else if ("ICD_therapy_bin" %in% names(dat0)) {
+  dat0 <- dat0 %>% mutate(ICD_proxy_bin = suppressWarnings(as.integer(ICD_therapy_bin)))
+  log_line("[WARN] Using ICD_therapy_bin as ICD_proxy_bin (legacy). Prefer Status-based proxy.")
+} else {
+  # Write columns to help debugging, then stop
+  write_csv(tibble(colname = names(dat0)), file.path(OUT_DIR, "columns_in_minimal_rds.csv"))
+  stop(
+    "ICD proxy not available in df_study9_minimal.rds.\n",
+    "Expected one of: ICD_proxy_bin, Status_num, Status (or legacy ICD_therapy_bin).\n",
+    "I wrote the column list to: ", file.path(OUT_DIR, "columns_in_minimal_rds.csv"), "\n",
+    "Fix: rerun Script 01 and ensure keep_vars includes Status (or Status_num) and/or ICD_proxy_bin."
+  )
+}
+
+# Coerce core vars safely
+dat0 <- dat0 %>%
+  mutate(
+    Year_index = suppressWarnings(as.integer(Year_index)),
+    ICD_bin = suppressWarnings(as.integer(ICD_bin)),
+    SCD_bin = suppressWarnings(as.integer(SCD_bin)),
+    ICD_proxy_bin = suppressWarnings(as.integer(ICD_proxy_bin)),
+    person_years = if (!is.na(py_col)) suppressWarnings(as.numeric(.data[[py_col]])) else NA_real_,
+    cohort = ifelse(ICD_bin == 1L, "ICD", "Non-ICD"),
+    SCD_bin = ifelse(SCD_bin %in% c(0L,1L), SCD_bin, NA_integer_),
+    ICD_proxy_bin = ifelse(ICD_proxy_bin %in% c(0L,1L), ICD_proxy_bin, NA_integer_)
+  )
+
+# ==============================================================================
+# 2) Restrict to main analysis window (2000–2020)
+# ==============================================================================
+START_Y <- 2000L
+END_Y <- 2020L
+
+dat <- dat0 %>%
+  filter(!is.na(Year_index), Year_index >= START_Y, Year_index <= END_Y)
+
+log_line("[OK] Restricted window: ", START_Y, "–", END_Y, " | n=", nrow(dat))
+
+# ==============================================================================
+# 3) Helpers
+# ==============================================================================
+years_grid <- tibble(Year_index = START_Y:END_Y)
+
+summarise_by_year <- function(df, cohort_name, event_col) {
+  out <- df %>%
+    filter(cohort == cohort_name) %>%
+    group_by(Year_index) %>%
+    summarise(
+      n = dplyr::n(),
+      events = sum(.data[[event_col]] == 1L, na.rm = TRUE),
+      person_years = if (!all(is.na(person_years))) sum(person_years, na.rm = TRUE) else NA_real_,
+      .groups = "drop"
+    ) %>%
+    right_join(years_grid, by = "Year_index") %>%
+    arrange(Year_index) %>%
+    mutate(
+      n = tidyr::replace_na(n, 0L),
+      events = tidyr::replace_na(events, 0L),
+      rate_per_1000py = ifelse(!is.na(person_years) & person_years > 0,
+                               1000 * events / person_years,
+                               NA_real_)
+    )
+  out
+}
+
+make_period <- function(y) {
+  cut(
+    y,
+    breaks = c(1999, 2004, 2009, 2014, 2020),
+    labels = c("2000–2004", "2005–2009", "2010–2014", "2015–2020"),
+    right = TRUE
+  )
+}
+
+# ==============================================================================
+# 4) Year-wise outputs
+# ==============================================================================
+nonicd_scd_year <- summarise_by_year(dat, "Non-ICD", "SCD_bin") %>%
+  rename(scd_events = events, scd_rate_per_1000py = rate_per_1000py)
+
+write_csv(nonicd_scd_year, file.path(OUT_DIR, "SCD_by_year_nonICD_2000_2020.csv"))
+log_line("[OK] Wrote: SCD_by_year_nonICD_2000_2020.csv")
+
+icd_proxy_year <- summarise_by_year(dat, "ICD", "ICD_proxy_bin") %>%
+  rename(icd_proxy_events = events, icd_proxy_rate_per_1000py = rate_per_1000py)
+
+write_csv(icd_proxy_year, file.path(OUT_DIR, "ICD_proxy_by_year_ICD_2000_2020.csv"))
+log_line("[OK] Wrote: ICD_proxy_by_year_ICD_2000_2020.csv")
+
+availability_by_year <- dat %>%
+  group_by(Year_index) %>%
+  summarise(
+    n_total = n(),
+    n_nonICD = sum(cohort == "Non-ICD"),
+    n_ICD = sum(cohort == "ICD"),
+    .groups = "drop"
+  ) %>%
+  arrange(Year_index)
+
+write_csv(availability_by_year, file.path(OUT_DIR, "availability_by_year_2000_2020.csv"))
+log_line("[OK] Wrote: availability_by_year_2000_2020.csv")
+
+# ==============================================================================
+# 5) Period-wise outputs
+# ==============================================================================
+dat <- dat %>% mutate(period = make_period(Year_index))
+
+coverage_by_period <- dat %>%
+  filter(!is.na(period)) %>%
+  group_by(period, cohort) %>%
+  summarise(
+    n = n(),
+    scd_events = sum(SCD_bin == 1L, na.rm = TRUE),
+    icd_proxy_events = sum(ICD_proxy_bin == 1L, na.rm = TRUE),
+    person_years = if (!all(is.na(person_years))) sum(person_years, na.rm = TRUE) else NA_real_,
+    .groups = "drop"
+  ) %>%
+  arrange(period, cohort)
+
+write_csv(coverage_by_period, file.path(OUT_DIR, "coverage_by_period_2000_2020.csv"))
+log_line("[OK] Wrote: coverage_by_period_2000_2020.csv")
+
+nonicd_scd_period <- dat %>%
+  filter(cohort == "Non-ICD", !is.na(period)) %>%
+  group_by(period) %>%
+  summarise(
+    n = n(),
+    scd_events = sum(SCD_bin == 1L, na.rm = TRUE),
+    person_years = if (!all(is.na(person_years))) sum(person_years, na.rm = TRUE) else NA_real_,
+    scd_rate_per_1000py = ifelse(!is.na(person_years) & person_years > 0,
+                                 1000 * scd_events / person_years,
+                                 NA_real_),
+    .groups = "drop"
+  ) %>%
+  arrange(period)
+
+write_csv(nonicd_scd_period, file.path(OUT_DIR, "SCD_by_period_nonICD_2000_2020.csv"))
+log_line("[OK] Wrote: SCD_by_period_nonICD_2000_2020.csv")
+
+icd_proxy_period <- dat %>%
+  filter(cohort == "ICD", !is.na(period)) %>%
+  group_by(period) %>%
+  summarise(
+    n = n(),
+    icd_proxy_events = sum(ICD_proxy_bin == 1L, na.rm = TRUE),
+    person_years = if (!all(is.na(person_years))) sum(person_years, na.rm = TRUE) else NA_real_,
+    icd_proxy_rate_per_1000py = ifelse(!is.na(person_years) & person_years > 0,
+                                       1000 * icd_proxy_events / person_years,
+                                       NA_real_),
+    .groups = "drop"
+  ) %>%
+  arrange(period)
+
+write_csv(icd_proxy_period, file.path(OUT_DIR, "ICD_proxy_by_period_ICD_2000_2020.csv"))
+log_line("[OK] Wrote: ICD_proxy_by_period_ICD_2000_2020.csv")
+
+# ==============================================================================
+# 6) Figures
+# ==============================================================================
+p1 <- ggplot(nonicd_scd_year, aes(x = Year_index, y = scd_rate_per_1000py)) +
+  geom_line(na.rm = TRUE) +
+  geom_point(na.rm = TRUE) +
+  labs(
+    title = "Non-ICD sudden cardiac death (SCD) crude rate, 2000–2020",
+    x = "Calendar year",
+    y = "SCD rate (events per 1,000 person-years)"
+  ) +
+  theme_bw()
+
+ggsave(file.path(OUT_DIR, "Fig1_SCD_rate_nonICD_2000_2020.png"),
+       plot = p1, width = 9, height = 5, dpi = 300)
+
+p2 <- ggplot(nonicd_scd_year, aes(x = Year_index, y = n)) +
+  geom_col() +
+  labs(
+    title = "Non-ICD denominator by calendar year, 2000–2020",
+    x = "Calendar year",
+    y = "Number of patients"
+  ) +
+  theme_bw()
+
+ggsave(file.path(OUT_DIR, "Fig2_Denom_nonICD_2000_2020.png"),
+       plot = p2, width = 9, height = 5, dpi = 300)
+
+p3 <- ggplot(icd_proxy_year, aes(x = Year_index, y = icd_proxy_rate_per_1000py)) +
+  geom_line(na.rm = TRUE) +
+  geom_point(na.rm = TRUE) +
+  labs(
+    title = "ICD proxy outcome crude rate (Status=1), 2000–2020",
+    x = "Calendar year",
+    y = "ICD proxy rate (events per 1,000 person-years)"
+  ) +
+  theme_bw()
+
+ggsave(file.path(OUT_DIR, "Fig3_ICD_proxy_rate_ICD_2000_2020.png"),
+       plot = p3, width = 9, height = 5, dpi = 300)
+
+p4 <- ggplot(icd_proxy_year, aes(x = Year_index, y = n)) +
+  geom_col() +
+  labs(
+    title = "ICD denominator by calendar year, 2000–2020",
+    x = "Calendar year",
+    y = "Number of patients"
+  ) +
+  theme_bw()
+
+ggsave(file.path(OUT_DIR, "Fig4_Denom_ICD_2000_2020.png"),
+       plot = p4, width = 9, height = 5, dpi = 300)
+
+log_line("[OK] Figures saved in: ", OUT_DIR)
+
+# ==============================================================================
+# 7) QC
+# ==============================================================================
+qc_icd_proxy <- dat %>%
+  filter(cohort == "ICD") %>%
+  summarise(
+    n_icd = n(),
+    proxy_events = sum(ICD_proxy_bin == 1L, na.rm = TRUE),
+    proxy_missing = sum(is.na(ICD_proxy_bin)),
+    status_num_present = as.integer("Status_num" %in% names(dat0)),
+    status_present = as.integer("Status" %in% names(dat0)),
+    .groups = "drop"
+  )
+
+write_csv(qc_icd_proxy, file.path(OUT_DIR, "QC_icd_proxy_counts.csv"))
+
+log_line("[DONE] Script 02 completed successfully.")
+log_line("[DONE] Outputs written to: ", OUT_DIR)
+###############################################################################
