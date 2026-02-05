@@ -1,6 +1,6 @@
 ################################################################################
-# Project : PROFID – Study 5
-# Script : 01_study5_build_cohort_and_endpoints_ESC.R
+# PROFID — Study 5 (Update)
+# Script 1: Build analysis dataset (HFrEF only) + Calendar time + HF therapy counts
 # Author : Amina Boudamaana
 #
 # Purpose :
@@ -10,510 +10,333 @@
 # "Temporal Trends and Determinants of Evidence-Based HF Therapy
 # in Post-MI Patients" (SAP v2.0, updated with ESC HF guidelines).
 #
-# Study 5 cohort:
-# - post-MI patients with heart failure (HF = "Yes")
-# - documented LVEF
-# - at least one baseline HF / cardiovascular therapy recorded
-# - Study 4 pre-processing has already excluded:
-# * index event within 40 days post-MI
-# * death during index hospitalisation
-#
-# This script:
-# 1) Applies Study 5 inclusion criteria
-# 2) Derives predictor variables:
-# * Temporal : Year_index (Time_zero_Y), Year_epoch
-# * Demographics : Age_num, Age_cat, Sex_BIN_Male, DB
-# * Clinical : LVEF_num, LVEF_ESC_group (HFrEF/HFmrEF/HFpEF),
-# LVEF_cat30 (<30 / 30–40 / >40),
-# NYHA binaries, ICD_BIN_Yes,
-# Time_index_MI_CHD_log1p, Baseline_within40d
-# * Risk factors : Diabetes_BIN_Yes, Hypertension_BIN_Yes,
-# AF_atrial_flutter_BIN_Yes, Smoking_BIN_Yes,
-# Stroke_TIA_BIN_Yes (if available)
-# * Labs : eGFR_log1p, eGFR_cat3, NTProBNP_log1p,
-# Haemoglobin_log1p, Sodium_log1p, Potassium_log1p
-# * Procedures : PCI_BIN_Yes, CABG_BIN_Yes,
-# Revascularisation_acute_BIN_Yes
-#
-# 3) Derives therapy utilisation variables:
-# * Post-MI / SAP composite:
-# - ACE_inhibitor_ARB_BIN_Yes
-# - Beta_blockers_BIN_Yes
-# - MRA_BIN_Yes
-# - Anti_platelet_BIN_Yes
-# - Anti_coagulant_BIN_Yes
-# - Lipid_lowering_BIN_Yes
-# - gdmt_count_5 (0–5) and GDMT_BIN_geq3 (>=3/5)
-#
-# * ESC HF-specific structure (Ali, ESC 2021 + 2023):
-# - RAAS_ARNI_BIN_Yes (ACEi OR ARB OR ARNI)
-# - SGLT2_BIN_Yes (dapagliflozin / empagliflozin), if available
-# - Diuretic_any_BIN_Yes (loop / thiazide), if available
-# - Digoxin_BIN_Yes, if available
-# - HF_GDMT_count4 (0–4): RAAS/ARNI, beta-blocker, MRA, SGLT2
-# - HF_GDMT_quadruple (1 if 4/4, else 0, NA if incomplete)
-# - HF_GDMT_standard_ESC:
-# HFrEF (LVEF ≤40%): 4/4 foundational classes
-# HFmrEF/HFpEF: SGLT2 present
-# - HF_SGLT2_AND_Diuretic_BIN_Yes 
-#
-# 4) Runs basic sanity checks and saves df_study5.rds
-################################################################################
+# ====================================================================================
+# Core decisions implemented:
+# - Restrict to HFrEF only: LVEF < 40%
+# - HF therapy classes counted (disease-modifying): RAAS (ACEi/ARB; OR ARNI if available), beta-blocker, MRA
+# - SGLT2i: audited only (expected absent)
+# - HF therapy count reported as 0/1/2/3 (since max observed = 3 in the extract)
+# - Loop diuretics: reported descriptively (proxy variable "Diuretics" in harmonised extract)
+# Outputs (CSV + RDS):
+# - cohort_flow.csv
+# - year_audit.csv
+# - hf_endpoint_audit.csv
+# - hf_endpoint_distribution.csv (3-level grouped: 0, 1–2, 3+) 
+# - hf_endpoint_distribution_count4.csv (4-level count: 0, 1, 2, 3) 
+# - df_study5_hfref.rds
+# ====================================================================================
 suppressPackageStartupMessages({
   library(dplyr)
+  library(readr)
+  library(stringr)
+  library(tibble)
 })
-##==============================================================================
-## 0. Settings & helper functions
-##==============================================================================
+# ====================================================================================
+# 0) Paths
+# ====================================================================================
+ROOT_DIR <- "T:/Study_5"
 
-set.seed(20251224)
-
-# Set working directory 
-setwd("S:/AG/f-dhzc-profid/Data Transfer to Charite")
-
-stopifnot(file.exists("df_handled.rds"))
-df <- readRDS("df_handled.rds")
-
-cat("[INFO] df_handled loaded: n =", nrow(df), "| p =", ncol(df), "\n")
-   # [INFO] df_handled loaded: n = 140204 | p = 102 
-# Fail early if core variables are missing
-stopifnot("LVEF" %in% names(df))
-stopifnot("HF" %in% names(df))
-
-# Helper: convert various encodings to 0/1 for "Yes" vs "No"
-yesno_to_bin <- function(x) {
-  # factors with levels No/Yes
-  if (is.factor(x)) {
-    lev <- levels(x)
-    if (all(lev %in% c("No", "Yes"))) {
-      return(ifelse(x == "Yes", 1L,
-                    ifelse(x == "No", 0L, NA_integer_)))
-    }
-  }
-  z <- trimws(tolower(as.character(x)))
-  out <- ifelse(z %in% c("yes","1","true","oui"), 1L,
-                ifelse(z %in% c("no","0","false","non"), 0L, NA_integer_))
-  return(as.integer(out))
-}
-
-# Helper: we add <var>_log1p if not already present
-add_log1p_single <- function(df, var) {
-  if (!var %in% names(df)) return(df)
-  x <- suppressWarnings(as.numeric(df[[var]]))
-  x[x < 0] <- NA
-  df[[paste0(var, "_log1p")]] <- log1p(x)
-  df
-}
-
-# Helper:  we combine one or more Yes/No columns into a single 0/1/NA
-# 1 if any component is 1
-# 0 if all components are explicitly 0
-# NA if all are NA or only mixture of 0/NA with at least one NA
-combine_yesno_to_bin <- function(df, vars, newname) {
-  vars <- intersect(vars, names(df))
-  if (length(vars) == 0) {
-    df[[newname]] <- NA_integer_
-    return(df)
-  }
-  mat <- sapply(vars, function(v) yesno_to_bin(df[[v]]))
-  mat <- as.matrix(mat)
-  out <- apply(mat, 1, function(row) {
-    if (all(is.na(row))) return(NA_integer_)
-    if (any(row == 1L, na.rm = TRUE)) return(1L)
-    if (all(row == 0L | is.na(row))) return(0L)
-    NA_integer_
-  })
-  df[[newname]] <- as.integer(out)
-  df
-}
-##==============================================================================
-## 1. Study 5 inclusion criteria
-## HF diagnosis + non-missing LVEF + at least one med available
-## (in the Study 4 we have already applied early MI/death exclusions)
-##==============================================================================
-# HF / LVEF
-df$HF_chr <- trimws(as.character(df$HF))
-df$LVEF_num <- suppressWarnings(as.numeric(df$LVEF))
-
-# Medication variables used to define "at least one baseline HF / CV med"
-med_vars_raw <- intersect(
-  c("ACE_inhibitor", "ARB", "ACE_inhibitor_ARB",
-    "Beta_blockers", "Aldosterone_antagonist",
-    "Anti_platelet", "Anti_coagulant", "Lipid_lowering"),
-  names(df)
+INPUT_CANDIDATES <- c(
+  file.path(ROOT_DIR, "df_handled.rds"),
+  file.path(ROOT_DIR, "df_study5.rds")
 )
 
-if (length(med_vars_raw) == 0) {
-  stop("[ERROR] No baseline HF / CV medication columns found in df. ",
-       "Check that medication variables are present.")
+OUT_DIR <- file.path(ROOT_DIR, "Results_Study5", "Script1_HFrEF_UPDATED")
+dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
+
+log_line <- function(...) cat(paste0(..., "\n"))
+
+# ====================================================================================
+# 1) Helpers
+# ====================================================================================
+pick_first_by_regex <- function(nm, patterns) {
+  nm_l <- tolower(nm)
+  for (pat in patterns) {
+    hit <- which(str_detect(nm_l, pat))
+    if (length(hit) > 0) return(nm[hit[1]])
+  }
+  NA_character_
 }
 
-df <- df %>%
+safe_get <- function(df, col) {
+  if (is.na(col) || !(col %in% names(df))) return(rep(NA, nrow(df)))
+  df[[col]]
+}
+
+to_bin01 <- function(x) {
+  # Robust binarisation for common encodings: 0/1, TRUE/FALSE, yes/no, present/absent
+  if (is.logical(x)) return(as.integer(x))
+  if (is.numeric(x)) return(as.integer(x > 0))
+  xx <- tolower(as.character(x))
+  as.integer(xx %in% c("1", "y", "yes", "true", "t", "present"))
+}
+
+as_num_safely <- function(x) suppressWarnings(as.numeric(as.character(x)))
+
+read_best_input <- function(candidates) {
+  existing <- candidates[file.exists(candidates)]
+  if (length(existing) == 0) stop("No input RDS found. Checked:\n", paste(candidates, collapse = "\n"))
+  # Prefer df_handled if present
+  existing[1]
+}
+
+derive_year_index <- function(df) {
+  nm <- names(df)
+  
+  # Prefer explicit year_index; then Time_zero_Y; then Time_zero_Ym (YYYYMM)
+  col_year <- pick_first_by_regex(nm, c(
+    "^year_index$", "^time_zero_y$", "calendar_year", "\\byear\\b"
+  ))
+  col_ym <- pick_first_by_regex(nm, c(
+    "^time_zero_ym$", "^time_zero_ym\\b", "yearmonth", "\\bym\\b"
+  ))
+  
+  yr <- rep(NA_integer_, nrow(df))
+  src <- NA_character_
+  
+  if (!is.na(col_year)) {
+    raw <- safe_get(df, col_year)
+    yr_try <- suppressWarnings(as.integer(raw))
+    
+    # If stored as YYYYMM or character, take first 4 chars
+    if (all(is.na(yr_try))) {
+      rawc <- as.character(raw)
+      yr_try <- suppressWarnings(as.integer(substr(rawc, 1, 4)))
+    }
+    
+    yr <- yr_try
+    src <- col_year
+    
+  } else if (!is.na(col_ym)) {
+    raw <- as.character(safe_get(df, col_ym))
+    yr <- suppressWarnings(as.integer(substr(raw, 1, 4)))
+    src <- col_ym
+  }
+  
+  list(year_index = yr, source = src, col_year = col_year, col_ym = col_ym)
+}
+
+make_period_bins <- function(y) {
+  # Narrative centred on ~2000–2020
+  cut(
+    y,
+    breaks = c( 1999, 2004, 2009, 2014, 2020),
+    labels = c("2000–2004", "2005–2009", "2010–2014", "2015–2020"),
+    right = TRUE
+  )
+}
+
+# ====================================================================================
+# 2) Load input
+# ====================================================================================
+IN_PATH <- read_best_input(INPUT_CANDIDATES)
+df0 <- readRDS(IN_PATH)
+stopifnot(is.data.frame(df0))
+
+log_line("[INFO] Loaded: ", IN_PATH)
+log_line("[INFO] Input dimensions: ", nrow(df0), " x ", ncol(df0))
+   # dimensions: 139915 x 107
+nm <- names(df0)
+
+# ====================================================================================
+# 3) Variable mapping (flexible)
+# ====================================================================================
+# LVEF
+col_lvef <- pick_first_by_regex(nm, c("^lvef$", "\\blvef\\b", "lvef_num", "lvef_pct", "lvef_percent"))
+
+# Database/site
+col_db <- pick_first_by_regex(nm, c("^db$", "\\bdb\\b", "database", "site", "centre", "center"))
+
+# Disease-modifying HF therapy classes
+col_acei_arb <- pick_first_by_regex(nm, c(
+  "ace_inhibitor_arb", "acei_arb", "ace.*arb", "ace[_ -]*inhib", "\\barb\\b", "\\bacei\\b"
+))
+col_bb <- pick_first_by_regex(nm, c("beta_blockers", "beta[_ -]*block", "\\bbb\\b", "bb[_ -]*bin"))
+col_mra <- pick_first_by_regex(nm, c("aldosterone_antagonist", "\\bmra\\b", "mineralocorticoid", "spiron", "epleren"))
+
+# Optional / audit only
+col_arni <- pick_first_by_regex(nm, c("\\barni\\b", "sacubitril", "valsartan"))
+col_sglt2 <- pick_first_by_regex(nm, c("\\bsglt2\\b", "dapag", "empag", "canag", "ertug"))
+
+# Diuretics (descriptive only; proxy in harmonised extract)
+# The stacked extract usually contains a single "Diuretics" yes/no rather than drug-specific columns.
+col_diur <- pick_first_by_regex(nm, c("^diuretics$", "\\bdiuretic\\b", "^diur"))
+
+# (Optional) attempt drug-specific loop diuretics if ever present (most likely absent in stacked extract)
+col_furo <- pick_first_by_regex(nm, c("furosemide", "frusemide"))
+col_tora <- pick_first_by_regex(nm, c("torasemide"))
+col_bume <- pick_first_by_regex(nm, c("bumetanide"))
+col_etha <- pick_first_by_regex(nm, c("ethacryn"))
+
+log_line("[INFO] Variable mapping:")
+log_line(" LVEF: ", col_lvef)
+log_line(" DB/Site: ", ifelse(is.na(col_db), "<not found>", col_db))
+log_line(" ACEi/ARB: ", col_acei_arb)
+log_line(" Beta-blocker: ", col_bb)
+log_line(" MRA: ", col_mra)
+log_line(" ARNI (optional): ", ifelse(is.na(col_arni), "<not found>", col_arni))
+log_line(" SGLT2 (audit): ", ifelse(is.na(col_sglt2), "<not found>", col_sglt2))
+log_line(" Diuretics (descriptive): ", ifelse(is.na(col_diur), "<not found>", col_diur))
+log_line(" Loop diuretics (drug-specific check): furo=", ifelse(is.na(col_furo), "<none>", col_furo),
+         " | tora=", ifelse(is.na(col_tora), "<none>", col_tora),
+         " | bume=", ifelse(is.na(col_bume), "<none>", col_bume),
+         " | etha=", ifelse(is.na(col_etha), "<none>", col_etha))
+
+stopifnot(!is.na(col_lvef), !is.na(col_acei_arb), !is.na(col_bb), !is.na(col_mra))
+
+# ====================================================================================
+# 4) Calendar year
+# ====================================================================================
+# --- Derive year + HARD restriction to analysis window: 2000–2020
+yr <- derive_year_index(df0)
+
+df0 <- df0 %>%
   mutate(
-    any_med_available = rowSums(!is.na(across(all_of(med_vars_raw)))) > 0
+    Year_index = suppressWarnings(as.integer(yr$year_index)),
+    Year_source = yr$source
+  ) %>%
+  filter(!is.na(Year_index), Year_index >= 2000L, Year_index <= 2020L)
+
+# Period bins within 2000–2020
+make_period_bins <- function(y) {
+  cut(
+    y,
+    breaks = c(1999, 2004, 2009, 2014, 2020),
+    labels = c("2000–2004", "2005–2009", "2010–2014", "2015–2020"),
+    right = TRUE,
+    include.lowest = TRUE
+  )
+}
+
+df0$Period_2000_2020 <- make_period_bins(df0$Year_index)
+
+year_audit <- tibble(
+  n = nrow(df0),
+  year_source = as.character(yr$source),
+  year_min = min(df0$Year_index, na.rm = TRUE),
+  year_max = max(df0$Year_index, na.rm = TRUE),
+  year_missing = sum(is.na(df0$Year_index))
+)
+write_csv(year_audit, file.path(OUT_DIR, "year_audit.csv"))
+# ====================================================================================
+# 5) Build base dataset + HFrEF restriction
+# ====================================================================================
+df <- df0 %>%
+  mutate(
+    LVEF_num = as_num_safely(.data[[col_lvef]]),
+    DB = if (!is.na(col_db)) as.factor(.data[[col_db]]) else factor(rep("ALL", n())),
+    ACEI_ARB = to_bin01(.data[[col_acei_arb]]),
+    BB = to_bin01(.data[[col_bb]]),
+    MRA = to_bin01(.data[[col_mra]]),
+    ARNI = if (!is.na(col_arni)) to_bin01(.data[[col_arni]]) else NA_integer_,
+    SGLT2 = if (!is.na(col_sglt2)) to_bin01(.data[[col_sglt2]]) else NA_integer_,
+    Diuretics = if (!is.na(col_diur)) to_bin01(.data[[col_diur]]) else NA_integer_,
+    # drug-specific loop diuretics (if present) — descriptive only
+    LoopDiuretic_drug_specific = {
+      have_any <- !is.na(col_furo) || !is.na(col_tora) || !is.na(col_bume) || !is.na(col_etha)
+      if (!have_any) {
+        NA_integer_
+      } else {
+        as.integer(
+          (to_bin01(safe_get(df0, col_furo)) == 1) |
+            (to_bin01(safe_get(df0, col_tora)) == 1) |
+            (to_bin01(safe_get(df0, col_bume)) == 1) |
+            (to_bin01(safe_get(df0, col_etha)) == 1)
+        )
+      }
+    }
   )
 
-df_st5 <- df %>%
-  filter(
-    HF_chr == "Yes",
-    !is.na(LVEF_num),
-    any_med_available
-  )
+n0 <- nrow(df)
+n_lvef <- sum(!is.na(df$LVEF_num))
 
-cat("[INFO] Study 5 HF cohort size after inclusion filters: n =",
-    nrow(df_st5), "\n")
-    # [INFO] Study 5 HF cohort size after inclusion filters: n = 8887 
-##==============================================================================
-## 2. Demographics: Age, Age_cat, Sex, DB
-## (Age categories adjusted per Mai: <50 / 50–64 / 65–74 / >=75)
-##==============================================================================
-df_st5 <- df_st5 %>%
+df_hfref <- df %>% filter(!is.na(LVEF_num) & LVEF_num < 40)
+n_hfref <- nrow(df_hfref)
+
+flow_tbl <- tibble(
+  step = c("Input dataset", "Non-missing LVEF", "HFrEF restriction (LVEF <40%)"),
+  n = c(n0, n_lvef, n_hfref)
+)
+write_csv(flow_tbl, file.path(OUT_DIR, "cohort_flow.csv"))
+log_line("[OK] Wrote cohort_flow.csv")
+
+# ====================================================================================
+# 6) Define HF therapy endpoint (count-based)
+# ====================================================================================
+# NOTE:
+# - RAAS counted as ACEi/ARB; OR ARNI if ARNI exists and is non-missing.
+# - SGLT2 is audited only (expected absent).
+# - Diuretics reported descriptively only (proxy; not part of disease-modifying count).
+
+df_hfref <- df_hfref %>%
   mutate(
-    Age_num = suppressWarnings(as.numeric(Age)),
-    Age_cat = cut(
-      Age_num,
-      breaks = c(-Inf, 50, 65, 75, Inf),
-      labels = c("<50", "50-64", "65-74", ">=75"),
-      right = FALSE # [50,65) etc.
-    )
-  )
-
-if ("Sex" %in% names(df_st5)) {
-  df_st5 <- df_st5 %>%
-    mutate(
-      Sex_chr = tolower(trimws(as.character(Sex))),
-      Sex_BIN_Male = case_when(
-        Sex_chr %in% c("m","male","man","homme") ~ 1L,
-        Sex_chr %in% c("f","female","woman","femme") ~ 0L,
-        TRUE ~ NA_integer_
-      )
-    )
-} else {
-  df_st5$Sex_BIN_Male <- NA_integer_
-}
-
-if ("DB" %in% names(df_st5)) {
-  df_st5$DB <- factor(df_st5$DB)
-}
-##==============================================================================
-## 3. Temporal variables: Year_index & Year_epoch
-## - Time_zero_Y in CDM = calendar year of baseline/follow-up start
-## - Epochs per Heather:
-## <2005, 2005–2009, 2010–2014, >=2015
-## - NOTE: If data extend into COVID era, consider split >=2020 separately.
-##==============================================================================
-if ("Time_zero_Y" %in% names(df_st5)) {
-  cat("[INFO] Using Time_zero_Y as calendar Year_index.\n")
-  df_st5 <- df_st5 %>%
-    mutate(
-      Year_index = suppressWarnings(as.integer(Time_zero_Y)),
-      Year_epoch = case_when(
-        is.na(Year_index) ~ NA_character_,
-        Year_index < 2005 ~ "<2005",
-        Year_index >= 2005 & Year_index < 2010 ~ "2005-2009",
-        Year_index >= 2010 & Year_index < 2015 ~ "2010-2014",
-        Year_index >= 2015 ~ ">=2015"
-      )
-    )
-} else {
-  cat("[WARN] Time_zero_Y not found. Year_index and Year_epoch set to NA.\n")
-  df_st5$Year_index <- NA_integer_
-  df_st5$Year_epoch <- NA_character_
-}
-##==============================================================================
-## 4. Clinical: LVEF, NYHA, ICD, baseline type, time since MI
-##==============================================================================
-# LVEF numeric and two sets of categories:
-# - ESC HF groups (Ali): HFrEF ≤40, HFmrEF 41–49, HFpEF ≥50
-# - Original SAP: <30 / 30–40 / >40
-df_st5 <- df_st5 %>%
+    RAAS = case_when(
+      !is.na(ARNI) ~ as.integer((ACEI_ARB == 1) | (ARNI == 1)),
+      TRUE ~ as.integer(ACEI_ARB == 1)
+    ),
+    HF_n_classes = RAAS + BB + MRA, # expected range 0–3
+    HF_n_classes = pmin(pmax(HF_n_classes, 0L), 3L) # clamp for safety
+    
+  ) %>%
   mutate(
-    LVEF_num = suppressWarnings(as.numeric(LVEF)),
-    LVEF_ESC_group = case_when(
-      is.na(LVEF_num) ~ NA_character_,
-      LVEF_num <= 40 ~ "HFrEF",
-      LVEF_num >= 41 & LVEF_num <= 49 ~ "HFmrEF",
-      LVEF_num >= 50 ~ "HFpEF",
+    # 4-level count (report-friendly)
+    HF_GDMT_count4 = factor(as.character(HF_n_classes), levels = c("0", "1", "2", "3")),
+    
+    # 3-level grouped category (pipeline-friendly; avoids Excel date conversion using en-dash)
+    HF_GDMT_cat_display = case_when(
+      HF_n_classes == 0 ~ "0",
+      HF_n_classes %in% c(1, 2) ~ "1–2",
+      HF_n_classes == 3 ~ "3+",
       TRUE ~ NA_character_
     ),
-    LVEF_ESC_group = factor(LVEF_ESC_group,
-                            levels = c("HFrEF","HFmrEF","HFpEF")),
-    LVEF_cat30 = cut(
-      LVEF_num,
-      breaks = c(-Inf, 30, 40, Inf),
-      labels = c("<=30%", "31-40%", ">40%"),
-      right = TRUE
-    )
+    HF_GDMT_cat = factor(HF_GDMT_cat_display, levels = c("0", "1–2", "3+"))
   )
 
-# NYHA binaries (if NYHA available)
-if ("NYHA" %in% names(df_st5)) {
-  df_st5 <- df_st5 %>%
-    mutate(
-      NYHA_chr = as.character(NYHA),
-      NYHA_BIN_geq_II = ifelse(
-        NYHA_chr %in% c("II","III","IV"), 1L,
-        ifelse(NYHA_chr %in% "I", 0L, NA_integer_)
-      ),
-      NYHA_BIN_geq_III = ifelse(
-        NYHA_chr %in% c("III","IV"), 1L,
-        ifelse(NYHA_chr %in% c("I","II"), 0L, NA_integer_)
-      ),
-      NYHA_BIN_eq_IV = ifelse(
-        NYHA_chr %in% "IV", 1L,
-        ifelse(NYHA_chr %in% c("I","II","III"), 0L, NA_integer_)
-      )
-    )
-} else {
-  df_st5$NYHA_BIN_geq_II <- NA_integer_
-  df_st5$NYHA_BIN_geq_III <- NA_integer_
-  df_st5$NYHA_BIN_eq_IV <- NA_integer_
-}
-
-# ICD implantation status (from ICD_status numeric 0/1)
-if ("ICD_status" %in% names(df_st5)) {
-  df_st5 <- df_st5 %>%
-    mutate(
-      ICD_status_num = suppressWarnings(as.numeric(ICD_status)),
-      ICD_BIN_Yes = ifelse(ICD_status_num == 1, 1L,
-                           ifelse(ICD_status_num == 0, 0L, NA_integer_))
-    )
-} else {
-  df_st5$ICD_BIN_Yes <- NA_integer_
-}
-
-# Time since MI + baseline within 40 days (for information)
-if ("Time_index_MI_CHD" %in% names(df_st5)) {
-  df_st5 <- df_st5 %>%
-    mutate(
-      Time_index_MI_CHD_num = suppressWarnings(as.numeric(Time_index_MI_CHD)),
-      Time_index_MI_CHD_num = ifelse(Time_index_MI_CHD_num < 0,
-                                     NA, Time_index_MI_CHD_num),
-      Time_index_MI_CHD_log1p = log1p(Time_index_MI_CHD_num),
-      Baseline_within40d = case_when(
-        is.na(Time_index_MI_CHD_num) ~ NA_integer_,
-        Time_index_MI_CHD_num <= 40 ~ 1L,
-        Time_index_MI_CHD_num > 40 ~ 0L
-      )
-    )
-} else {
-  df_st5$Time_index_MI_CHD_log1p <- NA_real_
-  df_st5$Baseline_within40d <- NA_integer_
-}
-##==============================================================================
-## 5. Laboratory variables: *_log1p and eGFR_cat3
-##==============================================================================
-
-for (v in c("eGFR", "NTProBNP", "Haemoglobin", "Sodium", "Potassium")) {
-  if (!paste0(v, "_log1p") %in% names(df_st5)) {
-    df_st5 <- add_log1p_single(df_st5, v)
-  }
-}
-
-if ("eGFR" %in% names(df_st5)) {
-  df_st5 <- df_st5 %>%
-    mutate(
-      eGFR_num = suppressWarnings(as.numeric(eGFR)),
-      eGFR_num = ifelse(eGFR_num < 0, NA, eGFR_num),
-      eGFR_cat3 = cut(
-        eGFR_num,
-        breaks = c(-Inf, 30, 60, Inf),
-        labels = c("<30", "30-59", ">=60"),
-        right = FALSE
-      )
-    )
-} else {
-  df_st5$eGFR_cat3 <- NA
-}
-
-##==============================================================================
-## 6. Cardiovascular risk factors (binary *_BIN_Yes)
-##==============================================================================
-
-risk_vars <- intersect(
-  c("Diabetes", "Hypertension", "Smoking",
-    "AF_atrial_flutter", "Stroke_TIA"),
-  names(df_st5)
+# Endpoint audit
+audit <- tibble(
+  n = nrow(df_hfref),
+  
+  pct_RAAS_1 = mean(df_hfref$RAAS == 1, na.rm = TRUE),
+  pct_BB_1 = mean(df_hfref$BB == 1, na.rm = TRUE),
+  pct_MRA_1 = mean(df_hfref$MRA == 1, na.rm = TRUE),
+  
+  arni_nonmissing_rate = mean(!is.na(df_hfref$ARNI)),
+  sglt2_nonmissing_rate = mean(!is.na(df_hfref$SGLT2)),
+  any_SGLT2_1 = any(df_hfref$SGLT2 == 1, na.rm = TRUE),
+  
+  # Descriptive only
+  diuretics_nonmissing_rate = mean(!is.na(df_hfref$Diuretics)),
+  pct_Diuretics_1 = mean(df_hfref$Diuretics == 1, na.rm = TRUE),
+  loop_drugspecific_nonmissing_rate = mean(!is.na(df_hfref$LoopDiuretic_drug_specific)),
+  pct_LoopDiuretic_drug_specific_1 = mean(df_hfref$LoopDiuretic_drug_specific == 1, na.rm = TRUE),
+  
+  max_HF_n_classes = suppressWarnings(max(df_hfref$HF_n_classes, na.rm = TRUE))
 )
+write_csv(audit, file.path(OUT_DIR, "hf_endpoint_audit.csv"))
+log_line("[OK] Wrote hf_endpoint_audit.csv")
 
-for (v in risk_vars) {
-  df_st5[[paste0(v, "_BIN_Yes")]] <- yesno_to_bin(df_st5[[v]])
-}
+# Distribution (3-level grouped) — keep legacy filename for downstream scripts
+dist_cat3 <- df_hfref %>%
+  count(HF_GDMT_cat, name = "n") %>%
+  mutate(pct = n / sum(n))
 
-# Ensure AF_atrial_flutter_BIN_Yes exists with the correct name
-if (!("AF_atrial_flutter_BIN_Yes" %in% names(df_st5)) &&
-    "AF_atrial_flutter" %in% names(df_st5)) {
-  df_st5$AF_atrial_flutter_BIN_Yes <- yesno_to_bin(df_st5$AF_atrial_flutter)
-}
+write_csv(dist_cat3, file.path(OUT_DIR, "hf_endpoint_distribution.csv"))
+log_line("[OK] Wrote hf_endpoint_distribution.csv")
 
-##==============================================================================
-## 7. Procedural variables: PCI, CABG, acute revascularisation
-##==============================================================================
+# Distribution (4-level count 0/1/2/3)
+dist_count4 <- df_hfref %>%
+  count(HF_GDMT_count4, name = "n") %>%
+  mutate(pct = n / sum(n))
 
-if ("PCI" %in% names(df_st5)) {
-  df_st5$PCI_BIN_Yes <- yesno_to_bin(df_st5$PCI)
-} else {
-  df_st5$PCI_BIN_Yes <- NA_integer_
-}
+write_csv(dist_count4, file.path(OUT_DIR, "hf_endpoint_distribution_count4.csv"))
+log_line("[OK] Wrote hf_endpoint_distribution_count4.csv")
 
-if ("CABG" %in% names(df_st5)) {
-  df_st5$CABG_BIN_Yes <- yesno_to_bin(df_st5$CABG)
-} else {
-  df_st5$CABG_BIN_Yes <- NA_integer_
-}
+# ====================================================================================
+# 7) Save analysis dataset
+# ====================================================================================
+out_rds <- file.path(OUT_DIR, "df_study5_hfref.rds")
+saveRDS(df_hfref, out_rds)
 
-if ("Revascularisation_acute" %in% names(df_st5)) {
-  df_st5$Revascularisation_acute_BIN_Yes <-
-    yesno_to_bin(df_st5$Revascularisation_acute)
-} else {
-  df_st5$Revascularisation_acute_BIN_Yes <- NA_integer_
-}
-
-##==============================================================================
-## 8. Therapy utilisation (original SAP GDMT and ESC HF-GDMT)
-##==============================================================================
-## 8a. Post-MI / SAP composite therapy variables (0–5 score)
-
-# Individual therapy binaries (No/Yes → 0/1)
-df_st5 <- combine_yesno_to_bin(df_st5,
-                               vars = c("ACE_inhibitor","ARB","ACE_inhibitor_ARB"),
-                               newname = "ACE_inhibitor_ARB_BIN_Yes")
-
-df_st5 <- combine_yesno_to_bin(df_st5,
-                               vars = "Beta_blockers",
-                               newname = "Beta_blockers_BIN_Yes")
-
-df_st5 <- combine_yesno_to_bin(df_st5,
-                               vars = c("Aldosterone_antagonist","MRA"),
-                               newname = "MRA_BIN_Yes")
-
-df_st5 <- combine_yesno_to_bin(df_st5,
-                               vars = "Anti_platelet",
-                               newname = "Anti_platelet_BIN_Yes")
-
-df_st5 <- combine_yesno_to_bin(df_st5,
-                               vars = "Anti_coagulant",
-                               newname = "Anti_coagulant_BIN_Yes")
-
-df_st5 <- combine_yesno_to_bin(df_st5,
-                               vars = "Lipid_lowering",
-                               newname = "Lipid_lowering_BIN_Yes")
-
-# Polypharmacy score 0–5 (ACE/ARB, BB, MRA, antiplatelet, anticoagulant)
-gdmt_mat5 <- cbind(
-  df_st5$ACE_inhibitor_ARB_BIN_Yes,
-  df_st5$Beta_blockers_BIN_Yes,
-  df_st5$MRA_BIN_Yes,
-  df_st5$Anti_platelet_BIN_Yes,
-  df_st5$Anti_coagulant_BIN_Yes
-)
-gdmt_count_5 <- rowSums(gdmt_mat5, na.rm = FALSE)
-
-df_st5$gdmt_count_5 <- as.integer(gdmt_count_5)
-df_st5$GDMT_BIN_geq3 <- ifelse(
-  df_st5$gdmt_count_5 >= 3, 1L,
-  ifelse(df_st5$gdmt_count_5 < 3, 0L, NA_integer_)
-)
-
-## 8b. ESC HF-specific HF-GDMT (Ali’s recommendation)
-
-# RAAS / ARNI (ACEi OR ARB OR ACE_inhibitor_ARB OR ARNI)
-df_st5 <- combine_yesno_to_bin(df_st5,
-                               vars = c("ACE_inhibitor","ARB",
-                                        "ACE_inhibitor_ARB","ARNI"),
-                               newname = "RAAS_ARNI_BIN_Yes")
-
-# SGLT2 inhibitors (dapagliflozin / empagliflozin / SGLT2_inhibitor*)
-df_st5 <- combine_yesno_to_bin(df_st5,
-                               vars = c("SGLT2_inhibitor","SGLT2_inhibitors",
-                                        "Dapagliflozin","Empagliflozin"),
-                               newname = "SGLT2_BIN_Yes")
-
-# Diuretics (loop and/or thiazide)
-df_st5 <- combine_yesno_to_bin(df_st5,
-                               vars = c("Loop_diuretic","Loop_diuretics",
-                                        "Thiazide_diuretic","Diuretics"),
-                               newname = "Diuretic_any_BIN_Yes")
-
-# Digoxin / digitoxin
-df_st5 <- combine_yesno_to_bin(df_st5,
-                               vars = c("Digoxin","Digitoxin","Digoxin_digitoxin"),
-                               newname = "Digoxin_BIN_Yes")
-
-# We ensure beta-blocker and MRA binaries are present for HF-GDMT
-# (we already created Beta_blockers_BIN_Yes and MRA_BIN_Yes above)
-
-# HF GDMT count (0–4): RAAS/ARNI, beta-blocker, MRA, SGLT2
-hf_gdmt_mat4 <- cbind(
-  df_st5$RAAS_ARNI_BIN_Yes,
-  df_st5$Beta_blockers_BIN_Yes,
-  df_st5$MRA_BIN_Yes,
-  df_st5$SGLT2_BIN_Yes
-)
-hf_gdmt_count4 <- rowSums(hf_gdmt_mat4, na.rm = FALSE)
-
-df_st5$HF_GDMT_count4 <- as.integer(hf_gdmt_count4)
-
-# Full quadruple therapy (only defined where all 4 components known)
-df_st5$HF_GDMT_quadruple <- ifelse(
-  df_st5$HF_GDMT_count4 == 4L, 1L,
-  ifelse(df_st5$HF_GDMT_count4 < 4L, 0L, NA_integer_)
-)
-
-# LVEF-specific ESC "standard HF therapy"
-# - HFrEF (≤40%): full quadruple foundational therapy (4/4)
-# - HFmrEF / HFpEF: SGLT2 inhibitor present
-df_st5 <- df_st5 %>%
-  mutate(
-    HF_GDMT_standard_ESC = case_when(
-      LVEF_ESC_group == "HFrEF" &
-        !is.na(HF_GDMT_quadruple) ~ HF_GDMT_quadruple,
-      LVEF_ESC_group %in% c("HFmrEF","HFpEF") &
-        !is.na(SGLT2_BIN_Yes) ~ SGLT2_BIN_Yes,
-      TRUE ~ NA_integer_
-    )
-  )
-
-# Optional composite: SGLT2 + diuretic (for HFmrEF/HFpEF description)
-df_st5 <- df_st5 %>%
-  mutate(
-    HF_SGLT2_AND_Diuretic_BIN_Yes = case_when(
-      is.na(SGLT2_BIN_Yes) | is.na(Diuretic_any_BIN_Yes) ~ NA_integer_,
-      SGLT2_BIN_Yes == 1L & Diuretic_any_BIN_Yes == 1L ~ 1L,
-      TRUE ~ 0L
-    )
-  )
-
-##==============================================================================
-## 9. Sanity checks for therapy utilisation
-##==============================================================================
-
-cat("\n[CHECK] Post-MI GDMT (0–5) summary:\n")
-for (v in c("ACE_inhibitor_ARB_BIN_Yes","Beta_blockers_BIN_Yes",
-            "MRA_BIN_Yes","Anti_platelet_BIN_Yes",
-            "Anti_coagulant_BIN_Yes","Lipid_lowering_BIN_Yes",
-            "gdmt_count_5","GDMT_BIN_geq3")) {
-  if (v %in% names(df_st5)) {
-    cat("\n--", v, "--\n")
-    print(table(df_st5[[v]], useNA = "ifany"))
-  }
-}
-
-cat("\n[CHECK] ESC HF GDMT (0–4) summary:\n")
-for (v in c("RAAS_ARNI_BIN_Yes","SGLT2_BIN_Yes","Diuretic_any_BIN_Yes",
-            "Digoxin_BIN_Yes","HF_GDMT_count4","HF_GDMT_quadruple",
-            "HF_GDMT_standard_ESC","HF_SGLT2_AND_Diuretic_BIN_Yes")) {
-  if (v %in% names(df_st5)) {
-    cat("\n--", v, "--\n")
-    print(table(df_st5[[v]], useNA = "ifany"))
-  }
-}
-##==============================================================================
-## 10. Save Study 5 analysis dataset
-##==============================================================================
-saveRDS(df_st5, "df_study5.rds")
-cat("\n[OK] df_study5.rds saved. n =", nrow(df_st5),
-    "| p =", ncol(df_st5), "\n")
-
-    # [OK] df_study5.rds saved. n = 8887 | p = 151 
-################################################################################
+log_line("[DONE] Saved: ", out_rds)
+log_line("[DONE] Script 1 finished successfully.")
+#=================================#
