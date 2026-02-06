@@ -1,6 +1,4 @@
-
 ![Project Logo](image1.png)
-
 # PREPROCESSING OF COMBINED DATASETS
 This subfolder contains cleaning and preprocessing scripts used to construct the cleaned dataset
 Preprocessing followed the conventions established in the following paper:
