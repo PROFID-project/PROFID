@@ -4,115 +4,239 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PROFID Project</title>
-  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* General */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Open Sans', sans-serif;
+      line-height: 1.6;
+      color: #333;
+      background-color: #fff;
+    }
+    a {
+      color: #0066cc;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    h1, h2, h3 {
+      font-weight: 700;
+      margin-bottom: 15px;
+    }
+    p {
+      margin-bottom: 15px;
+    }
+    .container {
+      width: 90%;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    header {
+      background-color: #f5f7fa;
+      padding: 20px 0;
+      text-align: center;
+    }
+    header img {
+      max-width: 200px;
+    }
+
+    /* Main content */
+    main {
+      padding: 50px 0;
+    }
+    .about {
+      text-align: center;
+      margin-bottom: 60px;
+    }
+    .about h1 {
+      font-size: 2.2rem;
+      color: #004080;
+    }
+    .about p {
+      font-size: 1.1rem;
+      max-width: 700px;
+      margin: 0 auto;
+      color: #555;
+    }
+
+    /* Newsletter */
+    .newsletter {
+      background-color: #f0f4f8;
+      padding: 40px 20px;
+      text-align: center;
+      margin-bottom: 60px;
+      border-radius: 10px;
+    }
+    .newsletter h2 {
+      color: #004080;
+      margin-bottom: 25px;
+    }
+    .newsletter form {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+    }
+    .newsletter input[type="text"],
+    .newsletter input[type="email"] {
+      padding: 12px;
+      flex: 1 1 200px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 1rem;
+    }
+    .newsletter input[type="submit"] {
+      padding: 12px 25px;
+      background-color: #0066cc;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background 0.3s;
+      font-size: 1rem;
+    }
+    .newsletter input[type="submit"]:hover {
+      background-color: #004080;
+    }
+
+    /* Team Members */
+    .team-members {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 40px;
+      margin-bottom: 60px;
+    }
+    .team-member {
+      text-align: center;
+      max-width: 220px;
+      transition: transform 0.3s;
+    }
+    .team-member:hover {
+      transform: translateY(-5px);
+    }
+    .team-member img {
+      width: 100%;
+      border-radius: 50%;
+      border: 4px solid #f0f4f8;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      margin-bottom: 10px;
+    }
+    .team-member p {
+      font-weight: 600;
+      color: #004080;
+    }
+
+    /* Contact */
+    .contact {
+      text-align: center;
+      margin-bottom: 60px;
+    }
+    .contact h2 {
+      color: #004080;
+      margin-bottom: 20px;
+    }
+    .contact p {
+      color: #555;
+      font-size: 1rem;
+    }
+
+    /* Footer */
+    footer {
+      background-color: #004080;
+      color: #fff;
+      padding: 50px 20px;
+      text-align: center;
+    }
+    footer section img {
+      max-width: 120px;
+      margin-bottom: 15px;
+    }
+    footer p {
+      margin-bottom: 10px;
+      font-size: 0.9rem;
+      color: #f0f4f8;
+    }
+    footer a {
+      color: #fff;
+    }
+    footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
 </head>
 <body>
-  <!-- Header / Banner -->
+
+  <!-- Header -->
   <header>
-    <div class="container">
-      <h1>PROFID: Prevention of Sudden Cardiac Death</h1>
-      <p>Assessing prophylactic ICD implantation after myocardial infarction</p>
-    </div>
+    <a href="https://www.charite.de/" target="_blank" rel="noopener noreferrer">
+      <!-- Replace with actual SVG -->
+      <svg width="150" height="60" viewBox="0 217.605 1500 563.971">
+        <!-- SVG content here -->
+      </svg>
+    </a>
   </header>
 
-  <!-- Navigation -->
-  <nav>
-    <ul>
-      <li><a href="#overview">Overview</a></li>
-      <li><a href="#data-analysis">Data Analysis</a></li>
-      <li><a href="#clinical-trial">Clinical Trial</a></li>
-      <li><a href="#pipelines">Pipelines</a></li>
-      <li><a href="#studies">Studies</a></li>
-      <li><a href="#team">Team</a></li>
-      <li><a href="#contact">Contact</a></li>
-    </ul>
-  </nav>
-
   <!-- Main Content -->
-  <main>
-    <!-- Overview Section -->
-    <section id="overview">
-      <h2>Overview</h2>
-      <p>
-        The ambition of PROFID is to reassess the role of routine prophylactic ICD implantation in patients with reduced LVEF ≤ 35% after myocardial infarction under contemporary OMT and fundamentally improve clinical practice, potentially reducing the enormous burden of sudden cardiac death on society and patients.
-      </p>
-      <p>
-        PROFID is expected to change SCD prevention in clinical practice. To achieve this, the project is structured into two main phases: Data Analysis and a Clinical Trial.
-      </p>
+  <main class="container">
+    <section class="about">
+      <h1>Welcome to the PROFID Project</h1>
+      <p>The PROFID Project is focused on advancing medical research in [your topic here]. Explore our team, newsletter, and project details below.</p>
     </section>
 
-    <!-- Data Analysis Section -->
-    <section id="data-analysis">
-      <h2>Data Analysis</h2>
-      <p>
-        In the first phase, a variety of data from different sources will be analysed. This includes highly phenotyped data from ~200,000 post-myocardial infarction patients of both sexes, drawn from national registries, research databases, electronic health records, and claims databases.  
-        The repository contains code for cohort studies within the PROFID data lake, to be submitted for publication in 2026.
-      </p>
+    <section class="newsletter">
+      <h2>Sign up for the PROFID Newsletter</h2>
+      <form action="#" method="post">
+        <input type="text" name="FNAME" placeholder="First Name" />
+        <input type="text" name="LNAME" placeholder="Last Name" />
+        <input type="email" name="EMAIL" placeholder="Email Address" required />
+        <input type="submit" value="Subscribe" />
+      </form>
     </section>
 
-    <!-- Clinical Trial Section -->
-    <section id="clinical-trial">
-      <h2>Clinical Trial</h2>
-      <p>
-        In the second phase, a non-inferiority randomised clinical trial will compare OMT versus ICD implantation plus OMT in post-MI patients with LVEF ≤ 35% who would currently receive an ICD according to guidelines.  
-        The ultimate goal is to prevent the majority of catastrophic sudden cardiac death events after myocardial infarction.
-      </p>
+    <section class="team-members">
+      <div class="team-member">
+        <img src="images/gerhard-hindricks.png" alt="Prof. Dr. Gerhard Hindricks">
+        <p>Prof. Dr. Gerhard Hindricks</p>
+      </div>
+      <div class="team-member">
+        <img src="images/nikolaos-dagres.png" alt="Prof. Dr. Nikolaos Dagres">
+        <p>Prof. Dr. Nikolaos Dagres</p>
+      </div>
+      <div class="team-member">
+        <img src="images/frank-j-m-groen.png" alt="Frank J. M. Groen">
+        <p>Frank J. M. Groen</p>
+      </div>
     </section>
 
-    <!-- Pipelines / Installation Section -->
-    <section id="pipelines">
-      <h2>Installation & Pipelines</h2>
-      <p>
-        <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
-      </p>
-      <p>
-        Instructions for installing and running the preprocessing pipelines are included in the preprocessing folder. These detail imputation and sample size calculation processes from the initial PROFID study analysis.
-      </p>
-      <p>Usage examples are provided with the scripts.</p>
-    </section>
-
-    <!-- Studies Section -->
-    <section id="studies">
-      <h2>Study Descriptions</h2>
-      <ul>
-        <li>Study 1: Inappropriate ICD Therapy and Mortality (Lead: Nishat Girkar)</li>
-        <li>Study 2: Seasonal Patterns in SCD Incidence Post-MI (Lead: Alexia Sampri)</li>
-        <li>Study 3: ICD Shock Rates Analysis (Lead: Irini Verdun)</li>
-        <li>Study 4: Age-Stratified SCD Incidence (Lead: Amina Boudamaana)</li>
-        <li>Study 5: Heart Failure Therapy Adherence (Lead: Amina Boudamaana)</li>
-        <li>Study 6: BMI and SCD Risk Analysis (Lead: Claire Coffey)</li>
-        <li>Study 7: Geographic Disparities in SCD (Lead: Manali Jain)</li>
-        <li>Study 8: Risk Stratification in Post-MI AF Patients (Lead: Hassan Raza)</li>
-        <li>Study 9: Temporal Trends in SCD (Lead: Amina Boudamaana)</li>
-      </ul>
-      <p>
-        Please raise tickets in the repository for technical support and contact study authors for academic responses.
-      </p>
-    </section>
-
-    <!-- Logos Section -->
-    <section id="logos">
-      <h2>Project Logos</h2>
-      <img src="assets/image2.png" alt="Project Logo 2">
-      <img src="assets/image3.jpg" alt="Project Logo 3">
-    </section>
-
-    <!-- Team Section -->
-    <section id="team">
-      <h2>Team</h2>
-      <p><!-- Keep your original team content here --></p>
-    </section>
-
-    <!-- Contact Section -->
-    <section id="contact">
+    <section class="contact">
       <h2>Contact</h2>
-      <p><!-- Keep your original contact content here --></p>
+      <p>Charité – Universitätsmedizin Berlin<br>Charitéplatz 1, 10117 Berlin, Germany</p>
+      <p>Email: <a href="mailto:info@profid-project.eu">info@profid-project.eu</a></p>
+      <p>Project Management: Maria Gur Arie, Daniela Fischer</p>
     </section>
   </main>
 
   <!-- Footer -->
   <footer>
-    <p>&copy; 2026 PROFID Project. All rights reserved.</p>
+    <section class="eu-funding">
+      <img src="images/flag-of-europe.png" alt="Flag of Europe">
+      <p>This project has received funding from the European Union’s Horizon 2020 research and innovation programme under grant agreement No 847999.</p>
+    </section>
+
+    <section class="bottom-footer">
+      <p>© 2026 PROFID Project • <a href="https://www.charite.de/" target="_blank" rel="noopener noreferrer">Charité – Universitätsmedizin Berlin</a></p>
+      <p><a href="https://profid-project.eu/imprint/">Imprint</a></p>
+    </section>
   </footer>
+
 </body>
 </html>
