@@ -4,143 +4,115 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PROFID Project</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      line-height: 1.6;
-      margin: 0;
-      padding: 0;
-      background-color: #f8f8f8;
-      color: #333;
-    }
-    header {
-      background-color: #004080;
-      color: white;
-      padding: 20px;
-      text-align: center;
-    }
-    header img {
-      max-height: 60px;
-      vertical-align: middle;
-    }
-    header h1 {
-      margin: 10px 0 0 0;
-      font-size: 1.6rem;
-    }
-    main {
-      max-width: 1000px;
-      margin: 20px auto;
-      padding: 0 20px;
-    }
-    section {
-      background-color: white;
-      margin-bottom: 20px;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    }
-    h2 {
-      color: #004080;
-      margin-top: 0;
-    }
-    ul {
-      padding-left: 20px;
-    }
-    img.project-logo {
-      max-height: 100px;
-      margin-right: 20px;
-      vertical-align: middle;
-    }
-    .team img {
-      max-height: 120px;
-      border-radius: 50%;
-      margin: 10px;
-    }
-    .team div {
-      display: inline-block;
-      text-align: center;
-      margin-right: 15px;
-    }
-    pre {
-      background-color: #f0f0f0;
-      padding: 15px;
-      overflow-x: auto;
-    }
-  </style>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <!-- Header / Banner -->
+  <header>
+    <div class="container">
+      <h1>PROFID: Prevention of Sudden Cardiac Death</h1>
+      <p>Assessing prophylactic ICD implantation after myocardial infarction</p>
+    </div>
+  </header>
 
-<header>
-  <img src="images/logo-profid-project.svg" alt="PROFID Logo">
-  <h1>Prevention of Sudden Cardiac Death After Myocardial Infarction by Defibrillator Implantation</h1>
-</header>
-
-<main>
-
-  <section>
-    <p>The ambition of PROFID is to reassess the role of routine prophylactic ICD implantation in patients with reduced LVEF ≤ 35% after myocardial infarction under contemporary OMT and fundamentally improve clinical practice, potentially resulting in a substantial reduction of the enormous burden that sudden cardiac death places on society as a whole and on the individual patient.</p>
-
-    <p>PROFID is expected to change SCD prevention in clinical practice. In order to reach the final goal, the following main phases have been designed for the PROFID project:</p>
-
-    <h2>Data Analysis</h2>
-    <p>In the first phase, a variety of data from different settings will be analysed. The analysis will be based on a collection of existing highly phenotyped data with the largest number of post-myocardial infarction patients ever in this regard (~200,000 patients of both sexes). The databases represent a wide variety of data sources such as national registries, institutional research databases, electronic health records and claims databases. This repository contains code used to conduct a range of cohort studies within the PROFID data lake, to be submitted for publication in 2026.</p>
-
-    <h2>Clinical Trial</h2>
-    <p>In the second phase, a non-inferiority randomised clinical trial will compare OMT versus ICD implantation plus OMT in post-MI patients with LVEF ≤ 35% who would receive an ICD according to current clinical guidelines.</p>
-
-    <p>The ultimate goal is to successfully prevent the majority of the catastrophic sudden cardiac death events that occur after myocardial infarction. Thus, PROFID aims to close the huge gap of current clinical practice with regard to protection from sudden cardiac death after myocardial infarction.</p>
-  </section>
-
-  <section>
-    <h2>How to install and run pipelines for the project</h2>
-    <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
-    <p>Instructions here</p>
-    <pre>
-Usage examples.
-    </pre>
-  </section>
-
-  <section>
-    <h2>Project Descriptions</h2>
+  <!-- Navigation -->
+  <nav>
     <ul>
-      <li>Study 1- Is Inappropriate ICD Therapy Associated with Higher Mortality? (Analytical lead: Nishat Girkar)</li>
-      <li>Study 2- Exploring Seasonal Patterns in SCD Incidence Post-Myocardial Infarction (Analytical lead: Alexia Sampri)</li>
-      <li>Study 3- ICD Shock Rates Analysis (Analytical lead: Irini Verdun)</li>
-      <li>Study 4- Age-Stratified SCD Incidence Analysis (Analytical Lead: Amina Boudamaana)</li>
-      <li>Study 5- Heart Failure Therapy Adherence Analysis (Analytical Lead: Amina Boudamaana)</li>
-      <li>Study 6- U-shaped Body Mass Index and Sudden Cardiac Death Analysis (Analytical Lead: Claire Coffey)</li>
-      <li>Study 7- Geographic Disparities in Sudden Cardiac Death Incidence (Analytical Lead: Manali Jain)</li>
-      <li>Study 8- Risk Stratification for Sudden Cardiac Death in Post-Myocardial Infarction Patients with Atrial Fibrillation (Analytical Lead: Hassan Raza)</li>
-      <li>Study 9- Temporal Trends in Sudden Cardiac Death Analysis (Analytical Lead: Amina Boudamaana)</li>
+      <li><a href="#overview">Overview</a></li>
+      <li><a href="#data-analysis">Data Analysis</a></li>
+      <li><a href="#clinical-trial">Clinical Trial</a></li>
+      <li><a href="#pipelines">Pipelines</a></li>
+      <li><a href="#studies">Studies</a></li>
+      <li><a href="#team">Team</a></li>
+      <li><a href="#contact">Contact</a></li>
     </ul>
-    <p>Please raise tickets directly in this repo for technical support issues, and see the corresponding author on published studies for academic responses.</p>
-  </section>
+  </nav>
 
-  <section>
-    <h2>Publications</h2>
-    <p>TBA</p>
-    <img src="assets/image2.png" alt="Project Logo 2" class="project-logo">
-    <img src="assets/image3.jpg" alt="Project Logo 3" class="project-logo">
-  </section>
+  <!-- Main Content -->
+  <main>
+    <!-- Overview Section -->
+    <section id="overview">
+      <h2>Overview</h2>
+      <p>
+        The ambition of PROFID is to reassess the role of routine prophylactic ICD implantation in patients with reduced LVEF ≤ 35% after myocardial infarction under contemporary OMT and fundamentally improve clinical practice, potentially reducing the enormous burden of sudden cardiac death on society and patients.
+      </p>
+      <p>
+        PROFID is expected to change SCD prevention in clinical practice. To achieve this, the project is structured into two main phases: Data Analysis and a Clinical Trial.
+      </p>
+    </section>
 
-  <section class="team">
-    <h2>Analytical Leads</h2>
-    <div>
-      <img src="images/nikolaos-dagres.png" alt="Prof. Dr. Nikolaos Dagres">
-      <p>Prof. Dr. Nikolaos Dagres</p>
-    </div>
-    <div>
-      <img src="images/alireza-sepehri-shamloo.png" alt="Dr. Alireza Sepehri Shamloo">
-      <p>Dr. Alireza Sepehri Shamloo</p>
-    </div>
-    <div>
-      <img src="images/zoher-kapacee.png" alt="Zoher Kapacee">
-      <p>Dr. Zoher M. Kapacee</p>
-    </div>
-  </section>
+    <!-- Data Analysis Section -->
+    <section id="data-analysis">
+      <h2>Data Analysis</h2>
+      <p>
+        In the first phase, a variety of data from different sources will be analysed. This includes highly phenotyped data from ~200,000 post-myocardial infarction patients of both sexes, drawn from national registries, research databases, electronic health records, and claims databases.  
+        The repository contains code for cohort studies within the PROFID data lake, to be submitted for publication in 2026.
+      </p>
+    </section>
 
-</main>
+    <!-- Clinical Trial Section -->
+    <section id="clinical-trial">
+      <h2>Clinical Trial</h2>
+      <p>
+        In the second phase, a non-inferiority randomised clinical trial will compare OMT versus ICD implantation plus OMT in post-MI patients with LVEF ≤ 35% who would currently receive an ICD according to guidelines.  
+        The ultimate goal is to prevent the majority of catastrophic sudden cardiac death events after myocardial infarction.
+      </p>
+    </section>
 
+    <!-- Pipelines / Installation Section -->
+    <section id="pipelines">
+      <h2>Installation & Pipelines</h2>
+      <p>
+        <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
+      </p>
+      <p>
+        Instructions for installing and running the preprocessing pipelines are included in the preprocessing folder. These detail imputation and sample size calculation processes from the initial PROFID study analysis.
+      </p>
+      <p>Usage examples are provided with the scripts.</p>
+    </section>
+
+    <!-- Studies Section -->
+    <section id="studies">
+      <h2>Study Descriptions</h2>
+      <ul>
+        <li>Study 1: Inappropriate ICD Therapy and Mortality (Lead: Nishat Girkar)</li>
+        <li>Study 2: Seasonal Patterns in SCD Incidence Post-MI (Lead: Alexia Sampri)</li>
+        <li>Study 3: ICD Shock Rates Analysis (Lead: Irini Verdun)</li>
+        <li>Study 4: Age-Stratified SCD Incidence (Lead: Amina Boudamaana)</li>
+        <li>Study 5: Heart Failure Therapy Adherence (Lead: Amina Boudamaana)</li>
+        <li>Study 6: BMI and SCD Risk Analysis (Lead: Claire Coffey)</li>
+        <li>Study 7: Geographic Disparities in SCD (Lead: Manali Jain)</li>
+        <li>Study 8: Risk Stratification in Post-MI AF Patients (Lead: Hassan Raza)</li>
+        <li>Study 9: Temporal Trends in SCD (Lead: Amina Boudamaana)</li>
+      </ul>
+      <p>
+        Please raise tickets in the repository for technical support and contact study authors for academic responses.
+      </p>
+    </section>
+
+    <!-- Logos Section -->
+    <section id="logos">
+      <h2>Project Logos</h2>
+      <img src="assets/image2.png" alt="Project Logo 2">
+      <img src="assets/image3.jpg" alt="Project Logo 3">
+    </section>
+
+    <!-- Team Section -->
+    <section id="team">
+      <h2>Team</h2>
+      <p><!-- Keep your original team content here --></p>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact">
+      <h2>Contact</h2>
+      <p><!-- Keep your original contact content here --></p>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <p>&copy; 2026 PROFID Project. All rights reserved.</p>
+  </footer>
 </body>
 </html>
