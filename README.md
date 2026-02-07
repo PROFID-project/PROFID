@@ -42,6 +42,8 @@ Study 8- Risk Stratification for Sudden Cardiac Death in Post-Myocardial Infarct
 
 Study 9- Temporal Trends in Sudden Cardiac Death Analysis (Analytical Lead: Amina Boudamaana)
 
+Scripts are included in the preprocessing folder that may be of use to analysts, that detail imputation and sample size calculation processes, from the initial PROFID study analysis.
+
 Please raise tickets directly in this repo for technical support issues, and see the corresponding author on published studies below for academic responses.
 
 # Publications
@@ -49,4 +51,4 @@ TBA
 
  ![Project Logo2](assets/image2.png) ![Project Logo3](assets/image3.jpg)  
 ```
-Scripts are included in the preprocessing folder that may be of use to analysts, that detail imputation and sample size calculation processes, from the initial PROFID study analysis.
+
