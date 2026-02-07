@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PROFID Project</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --primary: #0b4fa2;
+      --secondary: #e6eef8;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --max-width: 1100px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Inter", sans-serif;
+      color: var(--text);
+      line-height: 1.6;
+      background: #ffffff;
+    }
+
+    header {
+      background: linear-gradient(135deg, #0b4fa2, #083b78);
+      color: white;
+      padding: 4rem 1.5rem;
+    }
+
+    .container {
+      max-width: var(--max-width);
+      margin: auto;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 3rem;
+      align-items: center;
+    }
+
+    .hero img {
+      max-width: 100%;
+      border-radius: 12px;
+      background: white;
+      padding: 1rem;
+    }
+
+    h1 {
+      font-size: 2.4rem;
+      margin-bottom: 1rem;
+    }
+
+    h2 {
+      font-size: 1.8rem;
+      margin-bottom: 1rem;
+      color: var(--primary);
+    }
+
+    h3 {
+      margin-top: 0;
+      color: var(--primary);
+    }
+
+    .subtitle {
+      font-size: 1.1rem;
+      color: #e5edfa;
+    }
+
+    section {
+      padding: 4rem 1.5rem;
+    }
+
+    .intro {
+      background: var(--secondary);
+    }
+
+    .phases {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 2rem;
+      margin-top: 2rem;
+    }
+
+    .card {
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.06);
+    }
+
+    ul {
+      padding-left: 1.2rem;
+    }
+
+    .studies li {
+      margin-bottom: 0.6rem;
+    }
+
+    .logos {
+      display: flex;
+      gap: 2rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      margin-top: 2rem;
+    }
+
+    .logos img {
+      max-height: 70px;
+      opacity: 0.85;
+    }
+
+    footer {
+      background: #0f172a;
+      color: #cbd5e1;
+      padding: 3rem 1.5rem;
+      font-size: 0.9rem;
+    }
+
+    footer a {
+      color: #93c5fd;
+      text-decoration: none;
+    }
+
+    @media (max-width: 900px) {
+      .hero {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <div class="container hero">
+    <div>
+      <h1>Prevention of Sudden Cardiac Death after Myocardial Infarction</h1>
+      <p class="subtitle">
+        Reassessing prophylactic ICD implantation under contemporary optimal medical therapy
+      </p>
+    </div>
+    <img src="assets/image1.jpg" alt="PROFID Project Logo">
+  </div>
+</header>
+
+<section class="intro">
+  <div class="container">
+    <h2>About PROFID</h2>
+    <p>
+      The ambition of PROFID is to reassess the role of routine prophylactic ICD implantation
+      in patients with reduced LVEF ≤ 35% after myocardial infarction under contemporary
+      optimal medical therapy (OMT).
+    </p>
+    <p>
+      By fundamentally improving clinical practice, PROFID aims to substantially reduce
+      the enormous burden that sudden cardiac death places on both society and individual patients.
+    </p>
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>Project Phases</h2>
+
+    <div class="phases">
+      <div class="card">
+        <h3>Data Analysis</h3>
+        <p>
+          PROFID analyses highly phenotyped data from approximately 200,000 post-myocardial
+          infarction patients across national registries, institutional databases, EHRs and claims data.
+        </p>
+        <p>
+          This repository contains analytical pipelines used to conduct cohort studies within
+          the PROFID data lake, planned for publication in 2026.
+        </p>
+      </div>
+
+      <div class="card">
+        <h3>Clinical Trial</h3>
+        <p>
+          A non-inferiority randomised clinical trial comparing optimal medical therapy alone
+          versus ICD implantation plus OMT in post-MI patients with LVEF ≤ 35%.
+        </p>
+        <p>
+          The goal is to optimise patient selection for ICD therapy while maintaining safety.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="intro">
+  <div class="container">
+    <h2>Research Studies</h2>
+    <ul class="studies">
+      <li>Inappropriate ICD Therapy and Mortality (N. Girkar)</li>
+      <li>Seasonal Patterns in SCD Incidence (A. Sampri)</li>
+      <li>ICD Shock Rates Analysis (I. Verdun)</li>
+      <li>Age-Stratified SCD Incidence (A. Boudamaana)</li>
+      <li>Heart Failure Therapy Adherence (A. Boudamaana)</li>
+      <li>BMI and Sudden Cardiac Death (C. Coffey)</li>
+      <li>Geographic Disparities in SCD (M. Jain)</li>
+      <li>SCD Risk Stratification in AF Patients (H. Raza)</li>
+      <li>Temporal Trends in SCD (A. Boudamaana)</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>Publications</h2>
+    <p>TBA</p>
+
+    <div class="logos">
+      <img src="assets/image2.png" alt="Partner logo">
+      <img src="assets/image3.jpg" alt="Partner logo">
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <p>
+      Technical support: please raise issues directly in this repository.
+      <br>
+      Academic inquiries: contact the corresponding authors of published studies.
+    </p>
+    <p>
+      © PROFID Project • MIT License
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>
