@@ -3,184 +3,144 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PROFID Project — Code & Studies</title>
-
-  <!-- PROFID‑like Font -->
-  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
-
+  <title>PROFID Project</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    /* GLOBAL */
-    * {
-      box-sizing: border-box;
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
       margin: 0;
       padding: 0;
-    }
-    body {
-      font-family: 'Open Sans', sans-serif;
+      background-color: #f8f8f8;
       color: #333;
-      background: #fff;
-      line-height: 1.6;
     }
-    a {
-      color: #0066cc;
-      text-decoration: none;
-    }
-    a:hover {
-      text-decoration: underline;
-    }
-    .container {
-      width: 90%;
-      max-width: 1200px;
-      margin: auto;
-    }
-
-    /* HEADER */
     header {
-      background: #f5f7fa;
-      padding: 30px 20px;
+      background-color: #004080;
+      color: white;
+      padding: 20px;
       text-align: center;
     }
     header img {
-      height: 90px;
-      object-fit: contain;
+      max-height: 60px;
+      vertical-align: middle;
     }
-
-    /* HERO */
-    .hero {
-      text-align: center;
-      padding: 50px 20px;
+    header h1 {
+      margin: 10px 0 0 0;
+      font-size: 1.6rem;
     }
-    .hero h1 {
-      font-size: 2.4rem;
-      color: #004080;
-      margin-bottom: 15px;
+    main {
+      max-width: 1000px;
+      margin: 20px auto;
+      padding: 0 20px;
     }
-    .hero p {
-      color: #555;
-      font-size: 1.1rem;
-      max-width: 850px;
-      margin: auto;
-    }
-
-    /* SECTION TITLES */
-    .section-title {
-      font-size: 1.9rem;
-      color: #004080;
+    section {
+      background-color: white;
       margin-bottom: 20px;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    h2 {
+      color: #004080;
+      margin-top: 0;
+    }
+    ul {
+      padding-left: 20px;
+    }
+    img.project-logo {
+      max-height: 100px;
+      margin-right: 20px;
+      vertical-align: middle;
+    }
+    .team img {
+      max-height: 120px;
+      border-radius: 50%;
+      margin: 10px;
+    }
+    .team div {
+      display: inline-block;
       text-align: center;
+      margin-right: 15px;
     }
-
-    /* NEWSLETTER */
-    .newsletter {
-      background: #f0f4f8;
-      padding: 40px 20px;
-      border-radius: 8px;
-      margin: 50px 0;
-    }
-    .newsletter form {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 12px;
-    }
-    .newsletter input[type="text"],
-    .newsletter input[type="email"] {
-      padding: 12px;
-      border: 1px solid #aaa;
-      border-radius: 5px;
-      flex: 1 1 200px;
-    }
-    .newsletter input[type="submit"] {
-      background: #0066cc;
-      color: #fff;
-      border: none;
-      padding: 12px 25px;
-      border-radius: 5px;
-      cursor: pointer;
-      font-weight: 700;
-      transition: background 0.3s;
-    }
-    .newsletter input[type="submit"]:hover {
-      background: #004080;
-    }
-
-
-    /* CONTACT */
-    .contact p {
-      text-align: center;
-      margin-bottom: 8px;
-      color: #555;
-    }
-
-    /* FOOTER */
-    footer {
-      background: #004080;
-      color: #fff;
-      padding: 50px 20px;
-      text-align: center;
-    }
-    footer img {
-      margin-bottom: 12px;
-      max-width: 140px;
-    }
-    footer p {
-      font-size: 0.9rem;
-      color: #e0e8f8;
-      margin-bottom: 8px;
-    }
-    footer a {
-      color: #fff;
+    pre {
+      background-color: #f0f0f0;
+      padding: 15px;
+      overflow-x: auto;
     }
   </style>
-
 </head>
 <body>
 
-  <!-- HEADER -->
-  <header>
-    <img src="images/logo-profid-project.svg" alt="PROFID Project Logo">
-  </header>
+<header>
+  <img src="images/logo-profid-project.svg" alt="PROFID Logo">
+  <h1>Prevention of Sudden Cardiac Death After Myocardial Infarction by Defibrillator Implantation</h1>
+</header>
 
-  <!-- HERO -->
-  <section class="hero container">
-    <h1>PROFID Project — Code & Studies</h1>
-    <p>
-      This site hosts the **code repositories and study analysis pipelines** supporting research within the PROFID project on sudden cardiac death after myocardial infarction. Learn about each study and explore reproducible analysis code. :contentReference[oaicite:2]{index=2}
-    </p>
+<main>
+
+  <section>
+    <p>The ambition of PROFID is to reassess the role of routine prophylactic ICD implantation in patients with reduced LVEF ≤ 35% after myocardial infarction under contemporary OMT and fundamentally improve clinical practice, potentially resulting in a substantial reduction of the enormous burden that sudden cardiac death places on society as a whole and on the individual patient.</p>
+
+    <p>PROFID is expected to change SCD prevention in clinical practice. In order to reach the final goal, the following main phases have been designed for the PROFID project:</p>
+
+    <h2>Data Analysis</h2>
+    <p>In the first phase, a variety of data from different settings will be analysed. The analysis will be based on a collection of existing highly phenotyped data with the largest number of post-myocardial infarction patients ever in this regard (~200,000 patients of both sexes). The databases represent a wide variety of data sources such as national registries, institutional research databases, electronic health records and claims databases. This repository contains code used to conduct a range of cohort studies within the PROFID data lake, to be submitted for publication in 2026.</p>
+
+    <h2>Clinical Trial</h2>
+    <p>In the second phase, a non-inferiority randomised clinical trial will compare OMT versus ICD implantation plus OMT in post-MI patients with LVEF ≤ 35% who would receive an ICD according to current clinical guidelines.</p>
+
+    <p>The ultimate goal is to successfully prevent the majority of the catastrophic sudden cardiac death events that occur after myocardial infarction. Thus, PROFID aims to close the huge gap of current clinical practice with regard to protection from sudden cardiac death after myocardial infarction.</p>
   </section>
 
-  <div class="container">
+  <section>
+    <h2>How to install and run pipelines for the project</h2>
+    <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
+    <p>Instructions here</p>
+    <pre>
+Usage examples.
+    </pre>
+  </section>
 
-    <!-- NEWSLETTER -->
-    <section class="newsletter">
-      <h2 class="section-title">Sign up for the PROFID Newsletter</h2>
-      <form action="#" method="post">
-        <input type="text" name="FNAME" placeholder="First Name">
-        <input type="text" name="LNAME" placeholder="Last Name">
-        <input type="email" name="EMAIL" placeholder="Email Address" required>
-        <input type="submit" value="Subscribe">
-      </form>
-    </section>
+  <section>
+    <h2>Project Descriptions</h2>
+    <ul>
+      <li>Study 1- Is Inappropriate ICD Therapy Associated with Higher Mortality? (Analytical lead: Nishat Girkar)</li>
+      <li>Study 2- Exploring Seasonal Patterns in SCD Incidence Post-Myocardial Infarction (Analytical lead: Alexia Sampri)</li>
+      <li>Study 3- ICD Shock Rates Analysis (Analytical lead: Irini Verdun)</li>
+      <li>Study 4- Age-Stratified SCD Incidence Analysis (Analytical Lead: Amina Boudamaana)</li>
+      <li>Study 5- Heart Failure Therapy Adherence Analysis (Analytical Lead: Amina Boudamaana)</li>
+      <li>Study 6- U-shaped Body Mass Index and Sudden Cardiac Death Analysis (Analytical Lead: Claire Coffey)</li>
+      <li>Study 7- Geographic Disparities in Sudden Cardiac Death Incidence (Analytical Lead: Manali Jain)</li>
+      <li>Study 8- Risk Stratification for Sudden Cardiac Death in Post-Myocardial Infarction Patients with Atrial Fibrillation (Analytical Lead: Hassan Raza)</li>
+      <li>Study 9- Temporal Trends in Sudden Cardiac Death Analysis (Analytical Lead: Amina Boudamaana)</li>
+    </ul>
+    <p>Please raise tickets directly in this repo for technical support issues, and see the corresponding author on published studies for academic responses.</p>
+  </section>
 
-    <!-- CONTACT -->
-    <section class="contact">
-      <h2 class="section-title">Contact</h2>
-      <p>Charité – Universitätsmedizin Berlin</p>
-      <p>Charitéplatz 1, 10117 Berlin, Germany</p>
-      <p>Email: <a href="mailto:info@profid-project.eu">info@profid-project.eu</a></p>
-      <p>Technical Support Enquiries: <a href="mailto:heatherrobinson@umbizo.co.uk">heatherrobinson@umbizo.co.uk</a></p>
-      <p>Project Management: Maria Gur Arie, Daniela Fischer</p>
-    </section>
+  <section>
+    <h2>Publications</h2>
+    <p>TBA</p>
+    <img src="assets/image2.png" alt="Project Logo 2" class="project-logo">
+    <img src="assets/image3.jpg" alt="Project Logo 3" class="project-logo">
+  </section>
 
-  </div>
+  <section class="team">
+    <h2>Analytical Leads</h2>
+    <div>
+      <img src="images/nikolaos-dagres.png" alt="Prof. Dr. Nikolaos Dagres">
+      <p>Prof. Dr. Nikolaos Dagres</p>
+    </div>
+    <div>
+      <img src="images/alireza-sepehri-shamloo.png" alt="Dr. Alireza Sepehri Shamloo">
+      <p>Dr. Alireza Sepehri Shamloo</p>
+    </div>
+    <div>
+      <img src="images/zoher-kapacee.png" alt="Zoher Kapacee">
+      <p>Dr. Zoher M. Kapacee</p>
+    </div>
+  </section>
 
-  <!-- FOOTER -->
-  <footer>
-    <img src="images/flag-of-europe.png" alt="Flag of Europe">
-    <p>This project has received funding from the European Union’s Horizon 2020 research and innovation programme under grant agreement No 847999.</p>
-    <p>© 2026 PROFID Project • Charité – Universitätsmedizin Berlin</p>
-    <p><a href="https://profid-project.eu/imprint/" target="_blank">Imprint</a></p>
-  </footer>
+</main>
 
 </body>
 </html>
