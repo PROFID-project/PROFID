@@ -1,664 +1,354 @@
-
 # ==============================================================================
-#  UmBIZOPROFID_ Study 5 
-# Script 07: Model development
-# IMPORTANT:
-# This is an exploratory pipeline (not the primary MI interaction model).
+# UmBIZO — PROFID Study 5 
+# Script 07: Model development (SAP steps 1–5)
+#
+# Cohort: HFrEF only (LVEF <40%) from Script 1 output df_study5_hfref.rds
+# Window: 2000–2020
+# Primary outcome (binary): HF_BIN_eq3 = 1 if HF_n_classes == 3 (RAAS + BB + MRA)
+#
+# Steps:
+# 1) Univariate screening (p<0.10)
+# 2) Correlation filtering (|r| > 0.70 among numeric predictors)
+# 3) Candidate set = screened + clinically forced vars
+# 4) Backward elimination (retain p<0.05; forced vars always kept)
+# 5) Multicollinearity check (VIF < 5)
+#
+# Outputs (CSV + RDS):
+# - 01_univariate_OR.csv
+# - 02_corr_matrix_numeric.csv + 02_corr_pairs_over_0p70.csv
+# - 03_candidates_after_screening.csv
+# - 04_selection_path.csv
+# - 05_final_model_OR.csv + 05_final_model_VIF.csv
+# - final_model.rds
 # ==============================================================================
 options(stringsAsFactors = FALSE)
 suppressPackageStartupMessages({
   library(dplyr)
-  library(tidyr)
-  library(stringr)
-  library(purrr)
   library(tibble)
   library(readr)
-  library(forcats)
+  library(broom)
+  library(purrr)
 })
 
-has_car <- requireNamespace("car", quietly = TRUE)
-has_brglm2 <- requireNamespace("brglm2", quietly = TRUE)
-
-# ==============================================================================
-# 1) CONFIG
-# ==============================================================================
+log_line <- function(...) cat(paste0(..., "\n"))
+# =============================================================================
+# 0) PATHS
+# =============================================================================
 ROOT_DIR <- "T:/Study_5"
-SCRIPT1_DIR <- file.path(ROOT_DIR, "Results_Study5", "Script1_HFrEF_UPDATED")
-IN_FILE <- file.path(SCRIPT1_DIR, "df_study5_hfref.rds")
+RESULTS_ROOT <- file.path(ROOT_DIR, "Results_Study5")
 
-OUT_DIR <- file.path(ROOT_DIR, "Results_Study5", "Script7_ModelDev_HFrEF_")
+IN_FILE <- file.path(RESULTS_ROOT, "Script1_HFrEF_UPDATED", "df_study5_hfref.rds")
+
+OUT_DIR <- file.path(RESULTS_ROOT, "Script7_ModelDevelopment_HFrEF")
 dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
 
-HFrEF_CUT <- 40
+stopifnot(file.exists(IN_FILE))
+df <- readRDS(IN_FILE)
+# =============================================================================
+# 1) Harmonise cohort window + outcome
+# =============================================================================
+#  restriction 2000–2020
+if (!("Year_index" %in% names(df))) stop("Year_index not found in df.")
+df <- df %>%
+  filter(!is.na(Year_index), Year_index >= 2000L, Year_index <= 2020L)
 
-# Outcome preference
-OUTCOME_PREFERRED <- "HF_BIN_eq3"
-OUTCOME_FALLBACKS <- c("GDMT_BIN_geq3", "HF_BIN_geq3")
-
-# Screening thresholds
-P_SCREEN <- 0.10
-P_RETAIN <- 0.05
-CORR_THRES <- 0.70
-MIN_N_UNI <- 200
-
-# NA handling
-DO_SIMPLE_IMPUTE <- TRUE
-DROP_VARS_MISS_GT <- 0.95
-
-# Factor sparsity collapse
-COLLAPSE_SPARSE_LEVELS <- TRUE
-MIN_LEVEL_TOTAL <- 20
-MIN_LEVEL_EVENTS <- 5
-# ==============================================================================
-# 2) IO + helpers
-# ==============================================================================
-log_line <- function(...) cat(format(Sys.time(), "%Y-%m-%d %H:%M:%S"), " | ", paste0(...), "\n", sep = "")
-
-write_tbl <- function(x, stem) {
-  path <- file.path(OUT_DIR, paste0(stem, ".csv"))
-  ok <- tryCatch({ readr::write_csv(x, path); TRUE }, error = function(e) FALSE)
-  if (!ok) {
-    alt <- file.path(tempdir(), paste0(stem, "_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".csv"))
-    readr::write_csv(x, alt)
-    log_line("[WARN] Could not write to OUT_DIR. Wrote instead: ", alt)
-    return(invisible(alt))
-  }
-  log_line("[OK] Saved: ", path)
-  invisible(path)
-}
-
-save_rds_safe <- function(x, stem) {
-  path <- file.path(OUT_DIR, paste0(stem, ".rds"))
-  ok <- tryCatch({ saveRDS(x, path); TRUE }, error = function(e) FALSE)
-  if (!ok) {
-    alt <- file.path(tempdir(), paste0(stem, "_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".rds"))
-    saveRDS(x, alt)
-    log_line("[WARN] Could not write to OUT_DIR. Saved instead: ", alt)
-    return(invisible(alt))
-  }
-  log_line("[OK] Saved: ", path)
-  invisible(path)
-}
-
-AUDIT_FAIL <- function(msg, extra = tibble()) {
-  log_line("[ERROR] ", msg)
-  out <- bind_cols(tibble(error = msg), extra)
-  write_tbl(out, "AUDIT_fail")
-  stop(msg)
-}
-
-pick_name <- function(nms, candidates) {
-  hit <- candidates[candidates %in% nms]
-  if (length(hit) == 0) return(NA_character_)
-  hit[[1]]
-}
-
-safe_num <- function(x) suppressWarnings(as.numeric(as.character(x)))
-
-to01_generic <- function(x) {
+# outcome
+to_num01 <- function(x) {
+  if (is.factor(x)) x <- as.character(x)
   if (is.logical(x)) return(as.integer(x))
-  if (is.numeric(x) || is.integer(x)) return(as.integer(x))
-  if (is.factor(x)) x <- as.character(x)
-  if (is.character(x)) {
-    x2 <- str_trim(str_to_lower(x))
-    out <- rep(NA_integer_, length(x2))
-    out[x2 %in% c("1","yes","y","true","t")] <- 1L
-    out[x2 %in% c("0","no","n","false","f")] <- 0L
-    suppressWarnings(out <- ifelse(is.na(out), as.integer(x2), out))
-    return(as.integer(out))
-  }
-  NULL
+  if (is.numeric(x)) return(ifelse(is.na(x), NA_integer_, as.integer(x != 0)))
+  x2 <- tolower(trimws(as.character(x)))
+  ifelse(is.na(x2), NA_integer_,
+         ifelse(x2 %in% c("1","yes","y","true","t"), 1L,
+                ifelse(x2 %in% c("0","no","n","false","f"), 0L, NA_integer_)))
 }
 
-to01_sex <- function(x) {
-  if (is.numeric(x) || is.integer(x)) return(as.integer(x))
-  if (is.factor(x)) x <- as.character(x)
-  x2 <- str_trim(str_to_lower(as.character(x)))
-  out <- rep(NA_integer_, length(x2))
-  out[x2 %in% c("m","male","homme","man","1")] <- 1L
-  out[x2 %in% c("f","female","femme","woman","0")] <- 0L
-  suppressWarnings(out <- ifelse(is.na(out), as.integer(x2), out))
-  out
-}
-
-n_unique_nonmiss <- function(x) length(unique(x[!is.na(x)]))
-
-is_single_level <- function(x) {
-  if (is.factor(x) || is.character(x)) return(nlevels(droplevels(as.factor(x))) < 2)
-  n_unique_nonmiss(x) < 2
-}
-
-collapse_sparse <- function(d, outcome, var) {
-  if (!is.factor(d[[var]])) return(d)
-  tab <- d %>%
-    filter(!is.na(.data[[outcome]])) %>%
-    group_by(.data[[var]]) %>%
-    summarise(
-      n_total = n(),
-      n_events = sum(.data[[outcome]] == 1, na.rm = TRUE),
-      n_nonev = sum(.data[[outcome]] == 0, na.rm = TRUE),
-      .groups = "drop"
-    )
-  rare <- tab %>%
-    filter(n_total < MIN_LEVEL_TOTAL | n_events < MIN_LEVEL_EVENTS | n_nonev < MIN_LEVEL_EVENTS) %>%
-    pull(.data[[var]])
-  if (length(rare) > 0) {
-    d[[var]] <- forcats::fct_collapse(d[[var]], Other = as.character(rare))
-    d[[var]] <- droplevels(d[[var]])
-  }
-  d
-}
-
-tidy_or_wald <- function(fit) {
-  sm <- tryCatch(summary(fit)$coefficients, error = function(e) NULL)
-  if (is.null(sm) || nrow(sm) == 0) return(tibble())
-  est <- sm[, "Estimate"]
-  se <- sm[, "Std. Error"]
-  p <- if ("Pr(>|z|)" %in% colnames(sm)) sm[, "Pr(>|z|)"] else rep(NA_real_, length(est))
-  tibble(
-    term = rownames(sm),
-    OR = exp(est),
-    CI_low = exp(est - 1.96 * se),
-    CI_high = exp(est + 1.96 * se),
-    p_value = as.numeric(p)
-  ) %>% filter(term != "(Intercept)")
-}
-
-glm_separation_flag <- function(fit) {
-  if (is.null(fit)) return(NA)
-  pp <- tryCatch(fitted(fit), error = function(e) NULL)
-  if (is.null(pp)) return(NA)
-  any(pp < 1e-8 | pp > 1 - 1e-8, na.rm = TRUE)
-}
-
-fit_binomial_model <- function(formula, data) {
-  warn_msg <- NA_character_
-  fit <- tryCatch(
-    withCallingHandlers(
-      suppressWarnings(glm(formula, data = data, family = binomial(), control = glm.control(maxit = 50))),
-      warning = function(w) { if (is.na(warn_msg)) warn_msg <<- conditionMessage(w); invokeRestart("muffleWarning") }
-    ),
-    error = function(e) NULL
-  )
-  if (is.null(fit)) return(list(fit = NULL, warning = warn_msg, model_type = NA_character_, separation_flag = NA))
-  
-  sep <- glm_separation_flag(fit)
-  if (isTRUE(sep) && has_brglm2) {
-    fit2 <- tryCatch(
-      withCallingHandlers(
-        suppressWarnings(brglm2::brglm(formula, data = data, family = binomial(), type = "AS_mean")),
-        warning = function(w) { warn_msg <<- paste0("glm sep -> brglm2: ", conditionMessage(w)); invokeRestart("muffleWarning") }
-      ),
-      error = function(e) NULL
-    )
-    if (!is.null(fit2)) return(list(fit = fit2, warning = warn_msg, model_type = "brglm2", separation_flag = FALSE))
-  }
-  
-  list(fit = fit, warning = warn_msg, model_type = "glm", separation_flag = sep)
-}
-
-get_term_pvalues_fast <- function(fit) {
-  mm <- tryCatch(model.matrix(fit), error = function(e) NULL)
-  sm <- tryCatch(summary(fit)$coefficients, error = function(e) NULL)
-  if (is.null(mm) || is.null(sm) || nrow(sm) == 0) return(tibble(term = character(), p = numeric()))
-  
-  p <- sm[, "Pr(>|z|)"]
-  names(p) <- rownames(sm)
-  
-  assign <- attr(mm, "assign")
-  tl <- attr(terms(fit), "term.labels")
-  cols <- colnames(mm)
-  
-  keep <- cols != "(Intercept)"
-  cols <- cols[keep]
-  assign <- assign[keep]
-  
-  term_for_col <- tl[assign]
-  p_for_col <- p[match(cols, names(p))]
-  
-  tibble(term = term_for_col, p = p_for_col) %>%
-    filter(!is.na(term)) %>%
-    group_by(term) %>%
-    summarise(p = max(p, na.rm = TRUE), .groups = "drop") %>% # conservative
-    filter(is.finite(p))
-}
-
-# ==============================================================================
-# 3) Load data
-# ==============================================================================
-if (!file.exists(IN_FILE)) AUDIT_FAIL(paste0("Input file not found: ", IN_FILE))
-df_st5 <- readRDS(IN_FILE)
-if (!is.data.frame(df_st5)) AUDIT_FAIL("Input is not a data.frame.")
-
-log_line("[INFO] Loaded: N=", nrow(df_st5), " | p=", ncol(df_st5))
-write_tbl(tibble(n = nrow(df_st5), p = ncol(df_st5)), "AUDIT_loaded")
-
-# ==============================================================================
-# 4) HFrEF restriction (LVEF < 40)
-# ==============================================================================
-lvef_var <- pick_name(names(df_st5), c("LVEF_num", "LVEF", "lvef", "lvef_num"))
-if (!is.na(lvef_var)) {
-  df_st5$LVEF_num <- safe_num(df_st5[[lvef_var]])
-  df_st5 <- df_st5 %>% filter(!is.na(LVEF_num) & LVEF_num < HFrEF_CUT)
-  log_line("[INFO] HFrEF: ", lvef_var, "<", HFrEF_CUT, " | N=", nrow(df_st5))
-} else {
-  AUDIT_FAIL("No LVEF variable found (expected LVEF_num/LVEF).")
-}
-if (nrow(df_st5) < 500) AUDIT_FAIL("HFrEF restriction leaves too few rows.", tibble(N_after = nrow(df_st5)))
-
-# ==============================================================================
-# 5) Outcome + forced covariates (robust naming)
-# ==============================================================================
-outcome_name <- NA_character_
-
-if (OUTCOME_PREFERRED %in% names(df_st5)) {
-  outcome_name <- OUTCOME_PREFERRED
-} else {
-  fb <- OUTCOME_FALLBACKS[OUTCOME_FALLBACKS %in% names(df_st5)]
-  if (length(fb) > 0) {
-    df_st5[[OUTCOME_PREFERRED]] <- to01_generic(df_st5[[fb[1]]])
-    outcome_name <- OUTCOME_PREFERRED
+if (!("HF_BIN_eq3" %in% names(df))) {
+  if ("HF_n_classes" %in% names(df)) {
+    df$HF_BIN_eq3 <- as.integer(df$HF_n_classes == 3)
   } else {
-    cnt <- pick_name(names(df_st5), c("HF_n_classes","HF_GDMT_count4","HF_count","HF_therapies_n","HF_classes_n"))
-    if (is.na(cnt)) AUDIT_FAIL("No outcome found and no HF count variable to derive HF_BIN_eq3.")
-    df_st5[[cnt]] <- safe_num(df_st5[[cnt]])
-    df_st5[[OUTCOME_PREFERRED]] <- ifelse(is.na(df_st5[[cnt]]), NA_integer_, as.integer(df_st5[[cnt]] >= 3))
-    outcome_name <- OUTCOME_PREFERRED
+    stop("Neither HF_BIN_eq3 nor HF_n_classes found. Re-run Script 1/2.")
   }
+} else {
+  df$HF_BIN_eq3 <- to_num01(df$HF_BIN_eq3)
 }
 
-df_st5[[outcome_name]] <- to01_generic(df_st5[[outcome_name]])
-log_line("[INFO] Outcome: ", outcome_name)
-
-uv <- unique(na.omit(df_st5[[outcome_name]]))
-if (!all(uv %in% c(0,1))) AUDIT_FAIL("Outcome not 0/1 after coercion.")
-if (length(uv) < 2) AUDIT_FAIL("Outcome has <2 classes after HFrEF restriction.")
-
-# Forced covariates
-year_var <- pick_name(names(df_st5), c("Year_index","year_index","Year","year","calendar_year","Calendar_year"))
-age_var <- pick_name(names(df_st5), c("Age_num","Age","age","age_num"))
-sex_var <- pick_name(names(df_st5), c("Sex_BIN_Male","sex_bin_male","Sex","sex","Gender","gender","sexe"))
-db_var <- pick_name(names(df_st5), c("DB","db","database","Database"))
-icd_var <- pick_name(names(df_st5), c("ICD_status","ICD_BIN_Yes","ICD","icd_status","ICD_bin"))
-
-if (is.na(year_var)) AUDIT_FAIL("Missing Year variable (Year_index/Year).")
-if (is.na(age_var)) AUDIT_FAIL("Missing Age variable (Age_num/Age).")
-
-df_st5$Year_index <- safe_num(df_st5[[year_var]])
-df_st5$Age_num <- safe_num(df_st5[[age_var]])
-
-# QC year range (audit only)
-yr_rng <- range(df_st5$Year_index, na.rm = TRUE)
-write_tbl(tibble(year_var = year_var, yr_min = yr_rng[1], yr_max = yr_rng[2]), "AUDIT_year_range")
-
-# OR per 5-year increase (SAP)
-# If Year_index is already "years since 2000" (0..20), the OR is still per 5 years => OK.
-# If Year_index is calendar year (2000..2020), also OK.
-yr_ref <- min(df_st5$Year_index, na.rm = TRUE)
-df_st5$Year_5y <- (df_st5$Year_index - yr_ref) / 5
-
-if (!is.na(db_var)) df_st5$DB <- droplevels(as.factor(df_st5[[db_var]])) else df_st5$DB <- factor("ALL")
-
-if (!is.na(sex_var)) {
-  sx <- to01_sex(df_st5[[sex_var]])
-  if (!all(is.na(sx))) df_st5$Sex_BIN_Male <- factor(as.character(sx), levels = c("0","1"))
+# basic predictors harmonisation
+if (!("Age_num" %in% names(df)) && ("Age" %in% names(df))) {
+  df$Age_num <- suppressWarnings(as.numeric(df$Age))
 }
+if ("Sex_BIN_Male" %in% names(df)) df$Sex_BIN_Male <- to_num01(df$Sex_BIN_Male)
 
-if (!is.na(icd_var)) {
-  ic <- to01_generic(df_st5[[icd_var]])
-  if (!all(is.na(ic))) df_st5$ICD_status <- droplevels(as.factor(ic))
-}
-
-force_in <- c("Year_5y","Age_num","LVEF_num","DB")
-if ("Sex_BIN_Male" %in% names(df_st5) && !all(is.na(df_st5$Sex_BIN_Male))) force_in <- c(force_in, "Sex_BIN_Male")
-if ("ICD_status" %in% names(df_st5) && !all(is.na(df_st5$ICD_status))) force_in <- c(force_in, "ICD_status")
-
-write_tbl(tibble(forced = force_in), "AUDIT_forced_terms")
-
-# ==============================================================================
-# 6) Candidate predictors (leakage-safe) + exclusions
-# ==============================================================================
-# Hard exclusions: outcome/time vars + therapy vars/components of outcome
-exclude_regex <- paste0(
-  "(",
-  # survival/time/process vars
-  "^(Survival_time|Status|fstatus|py|ftime_mo_int|ftime_mo)$|",
-  # time duplicates frequently present
-  "^(Time_zero_Y|Year_index|Year_5y)$|",
-  # ECG duplicates
-  "^(QTC|QTc|OTc)$|",
-  # outcome-related counts & therapy components (LEAKAGE)
-  "^(HF_BIN_|HF_n_classes|HF_GDMT_count|HF_count|HF_therapies|GDMT_|gdmt_)|",
-  "^(ACEI|ACE_|ARB$|ACEI_ARB|RAAS|BB$|Beta|MRA$|ARNI|SGLT2|Aldosterone_antagonist)|",
-  # explicit medication groups sometimes named broadly
-  "^(Antiplatelet|Anticoagulant|Lipid|Statin)",
-  ")"
+# Drop Baseline_within40d if constant (common)
+clinical_vars <- c(
+  "LVEF_num",
+  "ICD_BIN_Yes",
+  "Baseline_within40d",
+  "Time_index_MI_CHD_log1p",
+  "Diabetes_BIN_Yes", "Hypertension_BIN_Yes",
+  "Smoking_BIN_Yes", "AF_atrial_flutter_BIN_Yes",
+  "Stroke_TIA_BIN_Yes"
 )
-
-# Base exclusions list (IMPORTANT: initialize ->  "exclude_vars_base not found")
-exclude_vars_base <- character(0)
-
-# Drop Period_* (Option A)
-exclude_vars_base <- unique(c(exclude_vars_base, grep("^Period_", names(df_st5), value = TRUE)))
-
-# Also exclude the raw duplicates of forced vars if they exist (Age vs Age_num, LVEF vs LVEF_num, etc.)
-exclude_vars_base <- unique(c(exclude_vars_base, age_var, lvef_var, year_var))
-
-candidate_predictors <- setdiff(names(df_st5), exclude_vars_base)
-candidate_predictors <- candidate_predictors[!grepl(exclude_regex, candidate_predictors, ignore.case = FALSE)]
-
-# Drop ultra-missing
-miss_prop <- sapply(candidate_predictors, function(v) mean(is.na(df_st5[[v]])))
-candidate_predictors <- candidate_predictors[miss_prop <= DROP_VARS_MISS_GT]
-
-# Final safety cleaning (prevents select(all_of()) crash)
-candidate_predictors <- as.character(candidate_predictors)
-candidate_predictors <- candidate_predictors[!is.na(candidate_predictors) & nzchar(candidate_predictors)]
-candidate_predictors <- candidate_predictors[candidate_predictors %in% names(df_st5)]
-candidate_predictors <- unique(candidate_predictors)
-
-log_line("[INFO] Candidates after excludes/missing: ", length(candidate_predictors))
-write_tbl(tibble(predictor = candidate_predictors, miss_prop = miss_prop[candidate_predictors]), "AUDIT_candidates")
-
-if (length(candidate_predictors) < 5) AUDIT_FAIL("Too few candidate predictors after exclusions.", tibble(k = length(candidate_predictors)))
-
-# ==============================================================================
-# 7) Step 1 — Univariate screening
-# ==============================================================================
-fit_univariate_or <- function(data, outcome, pred, min_n = 200) {
-  
-  # PATCH #2: blindage pred
-  if (is.na(pred) || !nzchar(pred) || !(pred %in% names(data))) return(NULL)
-  
-  d <- data %>% select(all_of(c(outcome, pred))) %>% filter(!is.na(.data[[outcome]]))
-  
-  if (is_single_level(d[[pred]])) return(NULL)
-  
-  if (is.character(d[[pred]])) d[[pred]] <- as.factor(d[[pred]])
-  if (is.factor(d[[pred]])) {
-    d[[pred]] <- forcats::fct_na_value_to_level(droplevels(d[[pred]]), level = "Missing")
-  }
-  
-  d_cc <- d[complete.cases(d), , drop = FALSE]
-  if (nrow(d_cc) < min_n) return(NULL)
-  
-  y <- d_cc[[outcome]]
-  if (all(y == 0) || all(y == 1)) return(NULL)
-  
-  f <- as.formula(paste0(outcome, " ~ ", pred))
-  got <- fit_binomial_model(f, d_cc)
-  if (is.null(got$fit)) return(NULL)
-  
-  p_overall <- tryCatch({
-    an <- drop1(got$fit, test = "Chisq")
-    if (pred %in% rownames(an)) as.numeric(an[pred, "Pr(>Chi)"]) else NA_real_
-  }, error = function(e) NA_real_)
-  
-  tidy_or_wald(got$fit) %>%
-    mutate(
-      predictor = pred,
-      p_overall = p_overall,
-      n_complete = nrow(d_cc),
-      n_events = sum(d_cc[[outcome]] == 1, na.rm = TRUE),
-      converged = isTRUE(got$fit$converged),
-      separation_flag = got$separation_flag,
-      warning = got$warning
-    ) %>%
-    select(predictor, term, OR, CI_low, CI_high, p_value, p_overall,
-           n_complete, n_events, converged, separation_flag, warning)
-}
-
-log_line("[INFO] Univariate screening running (may take time)...")
-
-# PATCH #1: safety cleaning just before map (belt + suspenders)
-candidate_predictors <- candidate_predictors[!is.na(candidate_predictors) & nzchar(candidate_predictors)]
-candidate_predictors <- candidate_predictors[candidate_predictors %in% names(df_st5)]
-candidate_predictors <- unique(candidate_predictors)
-
-uni_tbl <- purrr::map_dfr(candidate_predictors, ~fit_univariate_or(df_st5, outcome_name, .x, min_n = MIN_N_UNI))
-if (nrow(uni_tbl) == 0) AUDIT_FAIL("Univariate screening produced empty table. Consider lowering MIN_N_UNI.", tibble(MIN_N_UNI = MIN_N_UNI))
-
-write_tbl(uni_tbl, "MD_step1_univariate_OR")
-
-uni_summary <- uni_tbl %>%
-  group_by(predictor) %>%
-  summarise(p_uni = suppressWarnings(min(c(p_overall, p_value), na.rm = TRUE)), .groups = "drop") %>%
-  mutate(p_uni = ifelse(is.infinite(p_uni), NA_real_, p_uni))
-
-write_tbl(uni_summary, "MD_step1_predictor_summary")
-
-selected_pred0 <- uni_summary %>%
-  filter(!is.na(p_uni) & p_uni <= P_SCREEN) %>%
-  pull(predictor) %>% unique()
-
-log_line("[INFO] Pre-selected at p<=", P_SCREEN, ": ", length(selected_pred0))
-write_tbl(tibble(predictor = selected_pred0), "MD_step1_preselected_predictors")
-
-if (length(selected_pred0) < 1) AUDIT_FAIL("No predictors pass univariate screen. Consider raising P_SCREEN or lowering MIN_N_UNI.")
-
-# ==============================================================================
-# 8) Step 2 — Correlation screen (numeric)
-# ==============================================================================
-num_candidates <- selected_pred0[vapply(df_st5[selected_pred0], function(x) is.numeric(x) || is.integer(x), logical(1))]
-corr_tbl <- tibble()
-drop_due_to_corr <- character(0)
-if (length(num_candidates) >= 2) {
-  cor_df <- df_st5 %>% select(all_of(num_candidates))
-  nzv <- vapply(cor_df, function(x) n_unique_nonmiss(x) >= 2, logical(1))
-  cor_df <- cor_df[, nzv, drop = FALSE]
-  if (ncol(cor_df) >= 2) {
-    cor_mat <- suppressWarnings(cor(cor_df, use = "pairwise.complete.obs"))
-    idx <- which(abs(cor_mat) > CORR_THRES & upper.tri(cor_mat), arr.ind = TRUE)
-    if (nrow(idx) > 0) {
-      miss_fun <- function(v) {
-        v <- as.character(v)
-        if (is.na(v) || !(v %in% names(df_st5))) return(NA_real_)
-        mean(is.na(df_st5[[v]]))
-      }
-      
-      corr_tbl <- tibble(
-        var1 = rownames(cor_mat)[idx[, 1]],
-        var2 = colnames(cor_mat)[idx[, 2]],
-        corr = as.numeric(cor_mat[idx])
-      ) %>%
-        mutate(
-          var1 = as.character(var1),
-          var2 = as.character(var2),
-          miss1 = purrr::map_dbl(var1, miss_fun),
-          miss2 = purrr::map_dbl(var2, miss_fun),
-          drop_suggested = dplyr::if_else(miss1 > miss2, var1, var2)
-        ) %>%
-        arrange(desc(abs(corr)))
-      drop_due_to_corr <- unique(corr_tbl$drop_suggested)
-    }
+if ("Baseline_within40d" %in% names(df)) {
+  tab_b40 <- table(df$Baseline_within40d, useNA = "ifany")
+  log_line("[CHECK] Baseline_within40d distribution:")
+  print(tab_b40)
+  if (length(unique(df$Baseline_within40d[!is.na(df$Baseline_within40d)])) < 2) {
+    clinical_vars <- setdiff(clinical_vars, "Baseline_within40d")
+    log_line("[NOTE] Baseline_within40d constant -> excluded.")
   }
 }
 
-write_tbl(corr_tbl, "MD_step2_high_correlations")
+demographic_vars <- intersect(c("Age_num", "Sex_BIN_Male", "DB"), names(df))
 
-selected_pred <- setdiff(selected_pred0, drop_due_to_corr)
-selected_pred <- unique(selected_pred)
+lab_vars_all <- c("eGFR_log1p", "NTProBNP_log1p", "Haemoglobin_log1p", "Sodium_log1p", "Potassium_log1p")
+procedure_vars <- c("PCI_BIN_Yes", "CABG_BIN_Yes", "Revascularisation_acute_BIN_Yes")
 
-write_tbl(tibble(predictor = selected_pred), "MD_step3_selected_predictors")
-log_line("[INFO] Selected after corr screen: ", length(selected_pred))
+keep_existing <- function(v) intersect(v, names(df))
+temporal_vars <- keep_existing(c("Year_index"))
+clinical_vars <- keep_existing(clinical_vars)
+lab_vars_all <- keep_existing(lab_vars_all)
+procedure_vars<- keep_existing(procedure_vars)
 
-# ==============================================================================
-# 9) Step 3.5 — Build modelling dataset (NA-safe)
-# ==============================================================================
-d_full <- df_st5 %>%
-  select(all_of(unique(c(outcome_name, force_in, selected_pred)))) %>%
-  filter(!is.na(.data[[outcome_name]])) %>%
-  mutate(across(where(is.character), as.factor)) %>%
-  mutate(across(where(is.factor), ~forcats::fct_na_value_to_level(droplevels(.x), level = "Missing")))
-
-cc_min_vars <- intersect(unique(c(outcome_name, force_in)), names(d_full))
-d_cc <- d_full %>%
-  filter(if (length(cc_min_vars) > 0) complete.cases(across(all_of(cc_min_vars))) else TRUE)
-
-log_line("[INFO] After minimal CC (outcome+forced): N=", nrow(d_cc),
-         " | events=", sum(d_cc[[outcome_name]] == 1, na.rm = TRUE))
-
-write_tbl(tibble(
-  stage = "after_minimal_CC",
-  n = nrow(d_cc),
-  events = sum(d_cc[[outcome_name]] == 1, na.rm = TRUE)
-), "AUDIT_na_prep")
-
-if (nrow(d_cc) < 500) log_line("[WARN] N is small after minimal CC (N=", nrow(d_cc), ").")
-if (sum(d_cc[[outcome_name]] == 1, na.rm = TRUE) == 0) AUDIT_FAIL("Zero events after NA-safe prep. Cannot fit model.")
-
-if (isTRUE(COLLAPSE_SPARSE_LEVELS)) {
-  fac_vars <- names(d_cc)[vapply(d_cc, is.factor, logical(1))]
-  fac_vars <- setdiff(fac_vars, outcome_name)
-  for (v in fac_vars) d_cc <- collapse_sparse(d_cc, outcome_name, v)
-}
-
-if (isTRUE(DO_SIMPLE_IMPUTE)) {
-  num_vars <- names(d_cc)[vapply(d_cc, is.numeric, logical(1))]
-  num_vars <- setdiff(num_vars, outcome_name)
-  
-  for (v in num_vars) {
-    miss <- is.na(d_cc[[v]])
-    if (any(miss)) {
-      d_cc[[paste0(v, "_mis")]] <- as.integer(miss)
-      d_cc[[v]][miss] <- median(d_cc[[v]], na.rm = TRUE)
-    }
+# exclude labs with >=80% missing (align Script 3 note)
+if (length(lab_vars_all) > 0) {
+  miss_rate <- sapply(lab_vars_all, function(v) mean(is.na(df[[v]])))
+  labs_keep <- names(miss_rate)[miss_rate < 0.80]
+  labs_drop <- setdiff(lab_vars_all, labs_keep)
+  if (length(labs_drop) > 0) {
+    log_line("[NOTE] Dropping labs with >=80% missing: ", paste(labs_drop, collapse=", "))
   }
-  log_line("[INFO] Median imputation + _mis flags applied for numeric vars with NA.")
+  lab_vars <- labs_keep
+} else {
+  lab_vars <- character(0)
 }
 
-# ==============================================================================
-# 10) Step 4 — Full model + backward elimination 
-# ==============================================================================
-all_terms <- setdiff(names(d_cc), outcome_name)
+candidate_vars_all <- unique(c(temporal_vars, demographic_vars, clinical_vars, lab_vars, procedure_vars))
+candidate_vars_all <- setdiff(candidate_vars_all, c("HF_BIN_eq3")) # not predictor
 
-terms_ordered <- c(force_in, setdiff(all_terms, force_in))
-terms_ordered <- terms_ordered[terms_ordered %in% names(d_cc)]
+# forced (clinically / structure) vars always kept in multivariable
+forced_vars <- intersect(c("Year_index", "Age_num", "Sex_BIN_Male", "DB"), names(df))
 
-bad_single <- terms_ordered[vapply(terms_ordered, function(v) is_single_level(d_cc[[v]]), logical(1))]
-if (length(bad_single) > 0) {
-  write_tbl(tibble(dropped = bad_single, reason = "single level after NA-prep"), "MD_step4_dropped_single_level_terms")
-  terms_ordered <- setdiff(terms_ordered, bad_single)
+log_line("[INFO] N=", nrow(df), " | Events=", sum(df$HF_BIN_eq3==1, na.rm=TRUE))
+log_line("[INFO] Forced vars: ", paste(forced_vars, collapse=", "))
+log_line("[INFO] Candidate vars total: ", length(candidate_vars_all))
+
+# =============================================================================
+# 2) Step 1 — Univariate screening
+# =============================================================================
+fit_uni <- function(var) {
+  f <- as.formula(paste0("HF_BIN_eq3 ~ ", var))
+  dsub <- df %>% select(all_of(c("HF_BIN_eq3", var))) %>% na.omit()
+  if (nrow(dsub) < 200) {
+    return(tibble(variable=var, n=nrow(dsub), OR=NA_real_, CI_low=NA_real_, CI_high=NA_real_, p=NA_real_, note="n<200"))
+  }
+  fit <- suppressWarnings(glm(f, data=dsub, family=binomial()))
+  tt <- broom::tidy(fit, conf.int=TRUE, exponentiate=TRUE)
+  tt <- tt %>% filter(term != "(Intercept)")
+  if (nrow(tt)==0) return(tibble(variable=var, n=nrow(dsub), OR=NA_real_, CI_low=NA_real_, CI_high=NA_real_, p=NA_real_, note="no term"))
+  tibble(
+    variable = var,
+    n = nrow(dsub),
+    OR = tt$estimate[1],
+    CI_low = tt$conf.low[1],
+    CI_high = tt$conf.high[1],
+    p = tt$p.value[1],
+    note = ""
+  )
 }
-if (length(terms_ordered) < 1) AUDIT_FAIL("No usable predictors after single-level drop.")
 
-full_formula <- as.formula(paste0(outcome_name, " ~ ", paste(terms_ordered, collapse = " + ")))
+uni_tbl <- map_dfr(candidate_vars_all, fit_uni) %>%
+  arrange(is.na(p), p)
 
-got0 <- fit_binomial_model(full_formula, d_cc)
-fit_current <- got0$fit
-if (is.null(fit_current)) AUDIT_FAIL("Initial full model failed to fit.", tibble(warning = got0$warning, model_type = got0$model_type))
+write_csv(uni_tbl, file.path(OUT_DIR, "01_univariate_OR.csv"))
+log_line("[DONE] Wrote 01_univariate_OR.csv")
 
-initial_diag <- tibble(
-  stage = "initial_full_model",
-  model_type = got0$model_type,
-  separation_flag = got0$separation_flag,
-  warning = got0$warning,
-  n_complete = nrow(d_cc),
-  n_events = sum(d_cc[[outcome_name]] == 1, na.rm = TRUE),
-  n_terms = length(attr(terms(full_formula), "term.labels"))
-)
-write_tbl(initial_diag, "MD_step4_initial_model_diagnostics")
+# screen p<0.10
+screen_vars <- uni_tbl %>%
+  filter(!is.na(p), p < 0.10) %>%
+  pull(variable) %>% unique()
 
-force_in2 <- intersect(force_in, attr(terms(formula(fit_current)), "term.labels"))
+# ensure forced always included
+screen_vars <- unique(c(forced_vars, screen_vars))
+write_csv(tibble(candidate=screen_vars), file.path(OUT_DIR, "03_candidates_after_screening.csv"))
+log_line("[DONE] Wrote 03_candidates_after_screening.csv | n=", length(screen_vars))
 
-backward_log <- list()
-iter <- 0
+# =============================================================================
+# 3) Step 2 — Correlation filtering among numeric predictors (|r|>0.70)
+# =============================================================================
+is_numericish <- function(x) is.numeric(x) || is.integer(x)
+num_vars <- screen_vars[screen_vars %in% names(df)]
+num_vars <- num_vars[sapply(df[num_vars], is_numericish)]
+
+corr_pairs <- tibble()
+corr_mat <- NULL
+
+if (length(num_vars) >= 2) {
+  dnum <- df %>% select(all_of(num_vars))
+  corr_mat <- suppressWarnings(cor(dnum, use="pairwise.complete.obs", method="pearson"))
+  write_csv(as_tibble(corr_mat, .name_repair="minimal") %>% mutate(var=row.names(corr_mat), .before=1),
+            file.path(OUT_DIR, "02_corr_matrix_numeric.csv"))
+  log_line("[DONE] Wrote 02_corr_matrix_numeric.csv")
+  
+  # extract pairs
+  cm <- corr_mat
+  cm[lower.tri(cm, diag=TRUE)] <- NA_real_
+  idx <- which(abs(cm) > 0.70, arr.ind=TRUE)
+  if (nrow(idx) > 0) {
+    corr_pairs <- tibble(
+      var1 = rownames(cm)[idx[,1]],
+      var2 = colnames(cm)[idx[,2]],
+      r = cm[idx]
+    ) %>% arrange(desc(abs(r)))
+    write_csv(corr_pairs, file.path(OUT_DIR, "02_corr_pairs_over_0p70.csv"))
+    log_line("[NOTE] Found correlated pairs |r|>0.70: ", nrow(corr_pairs))
+  } else {
+    write_csv(tibble(message="No |r|>0.70 pairs."), file.path(OUT_DIR, "02_corr_pairs_over_0p70.csv"))
+    log_line("[INFO] No correlated numeric pairs over threshold.")
+  }
+} else {
+  write_csv(tibble(message="Too few numeric vars for correlation step."), file.path(OUT_DIR, "02_corr_pairs_over_0p70.csv"))
+}
+
+# drop rule: for each correlated pair, drop higher missingness (if tie, drop var2)
+drop_vars <- character(0)
+if (nrow(corr_pairs) > 0) {
+  miss <- sapply(num_vars, function(v) mean(is.na(df[[v]])))
+  for (i in seq_len(nrow(corr_pairs))) {
+    a <- corr_pairs$var1[i]; b <- corr_pairs$var2[i]
+    if (a %in% drop_vars || b %in% drop_vars) next
+    ma <- miss[[a]]; mb <- miss[[b]]
+    if (is.na(ma) || is.na(mb)) next
+    if (ma > mb) drop_vars <- c(drop_vars, a) else if (mb > ma) drop_vars <- c(drop_vars, b) else drop_vars <- c(drop_vars, b)
+  }
+}
+cand_vars <- setdiff(screen_vars, drop_vars)
+cand_vars <- unique(c(forced_vars, cand_vars)) # forced stay
+write_csv(tibble(kept=cand_vars, dropped_corr=ifelse(cand_vars %in% drop_vars, 1, 0)),
+          file.path(OUT_DIR, "03_candidates_after_corr_filter.csv"))
+log_line("[DONE] Wrote 03_candidates_after_corr_filter.csv | kept=", length(cand_vars))
+
+# =============================================================================
+# 4) Step 4 — Backward elimination (retain p<0.05; forced always kept)
+# =============================================================================
+build_df_for_fit <- function(vars) {
+  df %>% select(all_of(unique(c("HF_BIN_eq3", vars)))) %>% na.omit()
+}
+
+safe_glm <- function(vars) {
+  dfit <- build_df_for_fit(vars)
+  if (nrow(dfit) < 500) return(list(fit=NULL, n=nrow(dfit), msg="n<500 after complete-case"))
+  f <- as.formula(paste0("HF_BIN_eq3 ~ ", paste(vars, collapse=" + ")))
+  fit <- tryCatch(glm(f, data=dfit, family=binomial()), error=function(e) NULL)
+  list(fit=fit, n=nrow(dfit), msg=ifelse(is.null(fit), "glm failed", "ok"))
+}
+
+selection_path <- tibble(step=integer(), removed=character(), max_p=numeric(), n=integer(), note=character())
+
+current_vars <- cand_vars
+step <- 0
 
 repeat {
-  iter <- iter + 1
-  tp <- get_term_pvalues_fast(fit_current)
-  if (nrow(tp) == 0) break
-  
-  tp2 <- tp %>% filter(!(term %in% force_in2))
-  if (nrow(tp2) == 0) break
-  
-  worst <- tp2 %>% arrange(desc(p)) %>% slice(1)
-  if (!is.finite(worst$p) || worst$p <= P_RETAIN) break
-  
-  worst_term <- worst$term
-  backward_log[[iter]] <- tibble(iteration = iter, removed_term = worst_term, removed_p = worst$p)
-  
-  new_terms <- setdiff(attr(terms(formula(fit_current)), "term.labels"), worst_term)
-  if (length(new_terms) == 0) break
-  
-  new_formula <- as.formula(paste0(outcome_name, " ~ ", paste(new_terms, collapse = " + ")))
-  got_next <- fit_binomial_model(new_formula, d_cc)
-  
-  if (is.null(got_next$fit)) {
-    backward_log[[iter]] <- backward_log[[iter]] %>% mutate(note = "refit failed; stop elimination")
+  step <- step + 1
+  res <- safe_glm(current_vars)
+  if (is.null(res$fit)) {
+    selection_path <- bind_rows(selection_path, tibble(step=step, removed=NA_character_, max_p=NA_real_, n=res$n, note=res$msg))
     break
   }
   
-  fit_current <- got_next$fit
-  force_in2 <- intersect(force_in2, attr(terms(formula(fit_current)), "term.labels"))
+  tt <- broom::tidy(res$fit)
+  tt <- tt %>% filter(term != "(Intercept)")
+  # map term to variable (handles factor levels)
+  tt <- tt %>%
+    mutate(variable = sub("^`|`$", "", term),
+           variable = sub("^([^:]+):.*$", "\\1", variable)) # keep left side if interaction appears
+  
+  # compute p by variable: take max p across its levels (conservative)
+  p_by_var <- tt %>%
+    group_by(variable) %>%
+    summarise(p_max = max(p.value, na.rm=TRUE), .groups="drop")
+  
+  # only removable vars (non-forced)
+  removable <- setdiff(current_vars, forced_vars)
+  if (length(removable) == 0) {
+    selection_path <- bind_rows(selection_path, tibble(step=step, removed="(none)", max_p=NA_real_, n=res$n, note="Only forced vars remain"))
+    final_fit <- res$fit
+    final_n <- res$n
+    break
+  }
+  
+  p_rem <- p_by_var %>% filter(variable %in% removable) %>% arrange(desc(p_max))
+  if (nrow(p_rem)==0) {
+    selection_path <- bind_rows(selection_path, tibble(step=step, removed="(none)", max_p=NA_real_, n=res$n, note="No removable terms found"))
+    final_fit <- res$fit
+    final_n <- res$n
+    break
+  }
+  
+  worst <- p_rem$variable[1]
+  worst_p <- p_rem$p_max[1]
+  
+  if (!is.finite(worst_p) || worst_p <= 0.05) {
+    selection_path <- bind_rows(selection_path, tibble(step=step, removed="(stop)", max_p=worst_p, n=res$n, note="All removable vars p<=0.05"))
+    final_fit <- res$fit
+    final_n <- res$n
+    break
+  }
+  
+  # remove worst
+  current_vars <- setdiff(current_vars, worst)
+  selection_path <- bind_rows(selection_path, tibble(step=step, removed=worst, max_p=worst_p, n=res$n, note="removed"))
 }
 
-write_tbl(bind_rows(backward_log), "MD_step4_backward_log")
+write_csv(selection_path, file.path(OUT_DIR, "04_selection_path.csv"))
+log_line("[DONE] Wrote 04_selection_path.csv")
 
-final_or <- tidy_or_wald(fit_current) %>%
-  mutate(
-    n_complete = nrow(d_cc),
-    n_events = sum(d_cc[[outcome_name]] == 1, na.rm = TRUE)
-  )
-write_tbl(final_or, "MD_step4_final_model_OR")
+if (!exists("final_fit") || is.null(final_fit)) stop("Final model not available (fit failed).")
 
-# cleaner OR table (hide DB terms but keep DB in the model)
-final_or_clean <- final_or %>%
-  filter(!grepl("^DB", term))
-write_tbl(final_or_clean, "MD_step4_final_model_OR_noDB")
+saveRDS(final_fit, file.path(OUT_DIR, "final_model.rds"))
+log_line("[DONE] Saved final_model.rds")
 
-save_rds_safe(list(
-  model = fit_current,
-  formula = formula(fit_current),
-  n_complete = nrow(d_cc),
-  n_events = sum(d_cc[[outcome_name]] == 1, na.rm = TRUE),
-  forced_in = force_in,
-  terms = attr(terms(formula(fit_current)), "term.labels")
-), "MD_step4_final_model_object")
+# =============================================================================
+# 5) Final model table (OR/CI) + VIF
+# =============================================================================
+final_or <- broom::tidy(final_fit, conf.int=TRUE, exponentiate=TRUE) %>%
+  filter(term != "(Intercept)") %>%
+  transmute(term,
+            OR=estimate,
+            CI_low=conf.low,
+            CI_high=conf.high,
+            p=p.value)
 
-# ==============================================================================
-# 11) Step 5 — Diagnostics + VIF (no crash)
-# ==============================================================================
-final_terms <- tryCatch(attr(terms(formula(fit_current)), "term.labels"), error = function(e) character(0))
+write_csv(final_or, file.path(OUT_DIR, "05_final_model_OR.csv"))
+log_line("[DONE] Wrote 05_final_model_OR.csv | N_cc=", final_n)
 
-final_diag <- tibble(
-  stage = "final_model",
-  model_type = got0$model_type,
-  separation_flag = glm_separation_flag(fit_current),
-  warning = got0$warning,
-  n_complete = nrow(d_cc),
-  n_events = sum(d_cc[[outcome_name]] == 1, na.rm = TRUE),
-  n_terms = length(final_terms)
-)
-write_tbl(final_diag, "MD_step5_final_model_diagnostics")
+# VIF (prefer car::vif if available; otherwise manual via R^2)
+compute_vif_manual <- function(fit) {
+  mm <- model.matrix(fit)
+  mm <- mm[, colnames(mm) != "(Intercept)", drop=FALSE]
+  if (ncol(mm) < 2) return(tibble(term=colnames(mm), VIF=1))
+  out <- lapply(seq_len(ncol(mm)), function(j) {
+    y <- mm[, j]
+    x <- mm[, -j, drop=FALSE]
+    r2 <- suppressWarnings(summary(lm(y ~ x))$r.squared)
+    vif <- 1 / (1 - r2)
+    tibble(term=colnames(mm)[j], VIF=vif)
+  })
+  bind_rows(out)
+}
 
-vif_tbl <- tibble(note = "VIF not computed.")
-if (has_car && length(final_terms) > 0) {
-  lm_fit <- tryCatch(lm(formula(fit_current), data = d_cc), error = function(e) NULL)
-  if (!is.null(lm_fit)) {
-    aliased <- is.na(coef(lm_fit))
-    if (any(aliased)) {
-      vif_tbl <- tibble(note = "Aliased coefficient (model not full rank). VIF/GVIF not computed.")
-    } else {
-      v <- tryCatch(car::vif(lm_fit), error = function(e) NULL)
-      if (is.matrix(v)) {
-        vif_tbl <- tibble(
-          term = rownames(v),
-          GVIF = as.numeric(v[, "GVIF"]),
-          Df = as.numeric(v[, "Df"]),
-          GVIF_adj = as.numeric(v[, "GVIF"])^(1 / (2 * as.numeric(v[, "Df"])))
-        )
-      } else if (!is.null(v)) {
-        vif_tbl <- tibble(term = names(v), VIF = as.numeric(v))
-      } else {
-        vif_tbl <- tibble(note = "car::vif failed (likely due to instability).")
-      }
-    }
-  } else {
-    vif_tbl <- tibble(note = "lm() failed; VIF not available.")
+vif_tbl <- NULL
+if (requireNamespace("car", quietly=TRUE)) {
+  vif_raw <- tryCatch(car::vif(final_fit), error=function(e) NULL)
+  if (!is.null(vif_raw)) {
+    vif_tbl <- tibble(term=names(vif_raw), VIF=as.numeric(vif_raw))
   }
 }
-write_tbl(vif_tbl, "MD_step5_vif")
+if (is.null(vif_tbl)) {
+  vif_tbl <- compute_vif_manual(final_fit)
+}
 
-log_line("[OK] Script 07 completed. Output folder: ", OUT_DIR)
+write_csv(vif_tbl, file.path(OUT_DIR, "05_final_model_VIF.csv"))
+log_line("[DONE] Wrote 05_final_model_VIF.csv")
 
+log_line("[DONE] Script 07 finished.")
