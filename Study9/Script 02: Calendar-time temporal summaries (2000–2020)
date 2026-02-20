@@ -1,328 +1,378 @@
-###############################################################################
+# ==============================================================================
 # PROFID — UmBIZO Study 9
-# Script 02: Calendar-time temporal summaries (2000–2020)
+# Script 02 — Calendar-time crude summaries + publication figures (2000–2020)
+# Author: Amina BOUDAMAANA
+# PRIMARY (Results):
+# - Tables by calendar-time band (2000–2004 / 2005–2009 / 2010–2014 / 2015–2020)
+# - MAIN figures by band (pointrange + exact Poisson 95% CI)
 #
-# Uses df_study9_minimal.rds from Script 01.
-# Endpoints:
-# - Non-ICD: SCD_bin
-# - ICD: proxy endpoint = Status==1 among ICD patient-> ICD_proxy_bin
-###############################################################################
+# SUPPLEMENT/QC:
+# - Annual crude plots (ribbon + line + points; exact Poisson 95% CI; display capped)
+# - Non-ICD SCD curve broken at 2005 with dashed line note (denominator artefact)
+# - QC table for 2005 non-ICD person-time artefact
+# - SUPP annual FIGURE as TWO PANELS stacked (aligned X axis)
+# ==============================================================================
 suppressPackageStartupMessages({
   library(dplyr)
   library(readr)
   library(tibble)
   library(tidyr)
   library(ggplot2)
-  library(stringr)
+  library(patchwork)
 })
 
 rm(list = ls()); gc()
+options(stringsAsFactors = FALSE)
 
+# ==============================================================================
+# 0) LOG + PATHS
+# ==============================================================================
 log_line <- function(...) {
-  cat(
-    paste0(
-      format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
-      " | ",
-      paste0(..., collapse = ""),
-      "\n"
-    )
-  )
+  cat(paste0(format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
+             " | ", paste0(..., collapse=""), "\n"))
 }
 
-# ==============================================================================
-# 0) Paths (EDIT ROOT_DIR ONLY)
-# ==============================================================================
 ROOT_DIR <- "T:/Study_9"
 
-IN_DIR <- file.path(ROOT_DIR, "Results_Study9", "Script01_CalendarTime_QC")
-OUT_DIR <- file.path(ROOT_DIR, "Results_Study9", "Script02_TemporalTables_2000_2020")
+# Input minimal RDS from Script 01
+IN_RDS <- file.path(ROOT_DIR, "Results_Study9", "Script01_CalendarTime_QC", "df_study9_minimal.rds")
+
+# Output directory
+OUT_DIR <- file.path(ROOT_DIR, "Results_Study9", "Script02_TemporalTables_2000_2020_PUB")
 dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
 
-IN_RDS <- file.path(IN_DIR, "df_study9_minimal.rds")
+START_Y <- 2000L
+END_Y <- 2020L
+
+# Display caps for SUPP annual figures
+CAP_SCD <- 25 # events / 1,000 PY
+CAP_ICD <- 200 # events / 1,000 PY
+
+# Shared x-axis spacing for annual panels (align both)
+XBY_ANNUAL <- 2 
 
 # ==============================================================================
-# 1) Load minimal dataset
+# 1) LOAD + RESTRICT
 # ==============================================================================
-if (!file.exists(IN_RDS)) {
-  stop("df_study9_minimal.rds not found at:\n", IN_RDS, "\nFix: check ROOT_DIR or rerun Script 01.")
-}
-
+log_line("Reading: ", IN_RDS)
+stopifnot(file.exists(IN_RDS))
 dat0 <- readRDS(IN_RDS)
 stopifnot(is.data.frame(dat0))
 
-log_line("[OK] Loaded minimal dataset: ", IN_RDS)
-log_line("[OK] Dimensions: ", nrow(dat0), " x ", ncol(dat0))
+req <- c("Year_index","ICD_bin","SCD_bin","ICD_proxy_bin","person_years")
+miss <- setdiff(req, names(dat0))
+if (length(miss) > 0) stop("Missing required columns in minimal RDS: ", paste(miss, collapse=", "))
 
-# Required minimum
-req_min <- c("Year_index", "ICD_bin", "SCD_bin")
-miss_min <- req_min[!req_min %in% names(dat0)]
-if (length(miss_min) > 0) {
-  stop("Missing required columns in df_study9_minimal.rds: ",
-       paste(miss_min, collapse = ", "))
-}
-
-# Person-time: prefer person_years; else py; else fu_years; else counts-only
-py_col <- dplyr::case_when(
-  "person_years" %in% names(dat0) ~ "person_years",
-  "py" %in% names(dat0) ~ "py",
-  "fu_years" %in% names(dat0) ~ "fu_years",
-  TRUE ~ NA_character_
-)
-log_line("[INFO] Person-time column: ", ifelse(is.na(py_col), "<none (counts only)>", py_col))
-
-# ------------------------------------------------------------------------------
-# ICD proxy endpoint: ICD_proxy_bin
-# Priority:
-# 1) ICD_proxy_bin exists
-# 2) derive from Status_num
-# 3) derive from Status
-# 4) legacy ICD_therapy_bin (only if exists)
-# else: stop with fix message
-# ------------------------------------------------------------------------------
-if ("ICD_proxy_bin" %in% names(dat0)) {
-  dat0 <- dat0 %>% mutate(ICD_proxy_bin = suppressWarnings(as.integer(ICD_proxy_bin)))
-  log_line("[OK] ICD_proxy_bin found in minimal dataset.")
-} else if ("Status_num" %in% names(dat0)) {
-  dat0 <- dat0 %>%
-    mutate(
-      Status_num = suppressWarnings(as.integer(Status_num)),
-      ICD_proxy_bin = ifelse(suppressWarnings(as.integer(ICD_bin)) == 1L & Status_num == 1L, 1L, 0L)
-    )
-  log_line("[OK] ICD_proxy_bin derived from Status_num (Status_num==1 in ICD).")
-} else if ("Status" %in% names(dat0)) {
-  dat0 <- dat0 %>%
-    mutate(
-      Status_num = suppressWarnings(as.integer(Status)),
-      ICD_proxy_bin = ifelse(suppressWarnings(as.integer(ICD_bin)) == 1L & Status_num == 1L, 1L, 0L)
-    )
-  log_line("[OK] ICD_proxy_bin derived from Status (Status==1 in ICD).")
-} else if ("ICD_therapy_bin" %in% names(dat0)) {
-  dat0 <- dat0 %>% mutate(ICD_proxy_bin = suppressWarnings(as.integer(ICD_therapy_bin)))
-  log_line("[WARN] Using ICD_therapy_bin as ICD_proxy_bin (legacy). Prefer Status-based proxy.")
-} else {
-  # Write columns to help debugging, then stop
-  write_csv(tibble(colname = names(dat0)), file.path(OUT_DIR, "columns_in_minimal_rds.csv"))
-  stop(
-    "ICD proxy not available in df_study9_minimal.rds.\n",
-    "Expected one of: ICD_proxy_bin, Status_num, Status (or legacy ICD_therapy_bin).\n",
-    "I wrote the column list to: ", file.path(OUT_DIR, "columns_in_minimal_rds.csv"), "\n",
-    "Fix: rerun Script 01 and ensure keep_vars includes Status (or Status_num) and/or ICD_proxy_bin."
-  )
-}
-
-# Coerce core vars safely
-dat0 <- dat0 %>%
-  mutate(
+dat <- dat0 %>%
+  transmute(
     Year_index = suppressWarnings(as.integer(Year_index)),
     ICD_bin = suppressWarnings(as.integer(ICD_bin)),
     SCD_bin = suppressWarnings(as.integer(SCD_bin)),
     ICD_proxy_bin = suppressWarnings(as.integer(ICD_proxy_bin)),
-    person_years = if (!is.na(py_col)) suppressWarnings(as.numeric(.data[[py_col]])) else NA_real_,
-    cohort = ifelse(ICD_bin == 1L, "ICD", "Non-ICD"),
-    SCD_bin = ifelse(SCD_bin %in% c(0L,1L), SCD_bin, NA_integer_),
-    ICD_proxy_bin = ifelse(ICD_proxy_bin %in% c(0L,1L), ICD_proxy_bin, NA_integer_)
-  )
-
-# ==============================================================================
-# 2) Restrict to main analysis window (2000–2020)
-# ==============================================================================
-START_Y <- 2000L
-END_Y <- 2020L
-
-dat <- dat0 %>%
+    person_years = suppressWarnings(as.numeric(person_years))
+  ) %>%
   filter(!is.na(Year_index), Year_index >= START_Y, Year_index <= END_Y)
 
-log_line("[OK] Restricted window: ", START_Y, "–", END_Y, " | n=", nrow(dat))
+log_line("[OK] Loaded (raw): n=", nrow(dat0), " x ", ncol(dat0))
+log_line("[OK] Restricted: n=", nrow(dat), " | years ", START_Y, "–", END_Y)
 
-# ==============================================================================
-# 3) Helpers
-# ==============================================================================
 years_grid <- tibble(Year_index = START_Y:END_Y)
 
-summarise_by_year <- function(df, cohort_name, event_col) {
+# ==============================================================================
+# 2) HELPERS
+# ==============================================================================
+make_band <- function(y) {
+  cut(
+    y,
+    breaks = c(1999, 2004, 2009, 2014, 2020),
+    labels = c("2000–2004","2005–2009","2010–2014","2015–2020"),
+    right = TRUE,
+    include.lowest = TRUE
+  )
+}
+
+# Exact Poisson 95% CI for rate per 1000 PY (vectorised)
+rate_ci_poisson <- function(events, py, mult = 1000, alpha = 0.05) {
+  ok <- !is.na(py) & py > 0
+  rate <- ifelse(ok, mult * events / py, NA_real_)
+  lo <- ifelse(ok, mult * (0.5 * qchisq(alpha/2, 2*events)) / py, NA_real_)
+  hi <- ifelse(ok, mult * (0.5 * qchisq(1 - alpha/2, 2*(events + 1))) / py, NA_real_)
+  lo[events == 0 & ok] <- 0
+  tibble(rate = rate, lo = lo, hi = hi)
+}
+
+summarise_by_year <- function(df, event_var) {
   out <- df %>%
-    filter(cohort == cohort_name) %>%
     group_by(Year_index) %>%
     summarise(
-      n = dplyr::n(),
-      events = sum(.data[[event_col]] == 1L, na.rm = TRUE),
-      person_years = if (!all(is.na(person_years))) sum(person_years, na.rm = TRUE) else NA_real_,
+      n = n(),
+      events = sum(.data[[event_var]] == 1L, na.rm = TRUE),
+      person_years = sum(person_years[!is.na(person_years) & person_years > 0], na.rm = TRUE),
       .groups = "drop"
     ) %>%
     right_join(years_grid, by = "Year_index") %>%
     arrange(Year_index) %>%
     mutate(
-      n = tidyr::replace_na(n, 0L),
-      events = tidyr::replace_na(events, 0L),
-      rate_per_1000py = ifelse(!is.na(person_years) & person_years > 0,
-                               1000 * events / person_years,
-                               NA_real_)
+      n = replace_na(n, 0L),
+      events = replace_na(events, 0L),
+      person_years = replace_na(person_years, 0)
     )
-  out
+  
+  bind_cols(out, rate_ci_poisson(out$events, out$person_years))
 }
 
-make_period <- function(y) {
-  cut(
-    y,
-    breaks = c(1999, 2004, 2009, 2014, 2020),
-    labels = c("2000–2004", "2005–2009", "2010–2014", "2015–2020"),
-    right = TRUE
-  )
+summarise_by_band <- function(df, event_var) {
+  df2 <- df %>% mutate(band = make_band(Year_index))
+  out <- df2 %>%
+    filter(!is.na(band)) %>%
+    group_by(band) %>%
+    summarise(
+      n = n(),
+      events = sum(.data[[event_var]] == 1L, na.rm = TRUE),
+      person_years = sum(person_years[!is.na(person_years) & person_years > 0], na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    mutate(band = factor(band, levels = c("2000–2004","2005–2009","2010–2014","2015–2020"))) %>%
+    arrange(band)
+  
+  bind_cols(out, rate_ci_poisson(out$events, out$person_years))
 }
 
-# ==============================================================================
-# 4) Year-wise outputs
-# ==============================================================================
-nonicd_scd_year <- summarise_by_year(dat, "Non-ICD", "SCD_bin") %>%
-  rename(scd_events = events, scd_rate_per_1000py = rate_per_1000py)
-
-write_csv(nonicd_scd_year, file.path(OUT_DIR, "SCD_by_year_nonICD_2000_2020.csv"))
-log_line("[OK] Wrote: SCD_by_year_nonICD_2000_2020.csv")
-
-icd_proxy_year <- summarise_by_year(dat, "ICD", "ICD_proxy_bin") %>%
-  rename(icd_proxy_events = events, icd_proxy_rate_per_1000py = rate_per_1000py)
-
-write_csv(icd_proxy_year, file.path(OUT_DIR, "ICD_proxy_by_year_ICD_2000_2020.csv"))
-log_line("[OK] Wrote: ICD_proxy_by_year_ICD_2000_2020.csv")
-
-availability_by_year <- dat %>%
-  group_by(Year_index) %>%
-  summarise(
-    n_total = n(),
-    n_nonICD = sum(cohort == "Non-ICD"),
-    n_ICD = sum(cohort == "ICD"),
-    .groups = "drop"
-  ) %>%
-  arrange(Year_index)
-
-write_csv(availability_by_year, file.path(OUT_DIR, "availability_by_year_2000_2020.csv"))
-log_line("[OK] Wrote: availability_by_year_2000_2020.csv")
-
-# ==============================================================================
-# 5) Period-wise outputs
-# ==============================================================================
-dat <- dat %>% mutate(period = make_period(Year_index))
-
-coverage_by_period <- dat %>%
-  filter(!is.na(period)) %>%
-  group_by(period, cohort) %>%
-  summarise(
-    n = n(),
-    scd_events = sum(SCD_bin == 1L, na.rm = TRUE),
-    icd_proxy_events = sum(ICD_proxy_bin == 1L, na.rm = TRUE),
-    person_years = if (!all(is.na(person_years))) sum(person_years, na.rm = TRUE) else NA_real_,
-    .groups = "drop"
-  ) %>%
-  arrange(period, cohort)
-
-write_csv(coverage_by_period, file.path(OUT_DIR, "coverage_by_period_2000_2020.csv"))
-log_line("[OK] Wrote: coverage_by_period_2000_2020.csv")
-
-nonicd_scd_period <- dat %>%
-  filter(cohort == "Non-ICD", !is.na(period)) %>%
-  group_by(period) %>%
-  summarise(
-    n = n(),
-    scd_events = sum(SCD_bin == 1L, na.rm = TRUE),
-    person_years = if (!all(is.na(person_years))) sum(person_years, na.rm = TRUE) else NA_real_,
-    scd_rate_per_1000py = ifelse(!is.na(person_years) & person_years > 0,
-                                 1000 * scd_events / person_years,
-                                 NA_real_),
-    .groups = "drop"
-  ) %>%
-  arrange(period)
-
-write_csv(nonicd_scd_period, file.path(OUT_DIR, "SCD_by_period_nonICD_2000_2020.csv"))
-log_line("[OK] Wrote: SCD_by_period_nonICD_2000_2020.csv")
-
-icd_proxy_period <- dat %>%
-  filter(cohort == "ICD", !is.na(period)) %>%
-  group_by(period) %>%
-  summarise(
-    n = n(),
-    icd_proxy_events = sum(ICD_proxy_bin == 1L, na.rm = TRUE),
-    person_years = if (!all(is.na(person_years))) sum(person_years, na.rm = TRUE) else NA_real_,
-    icd_proxy_rate_per_1000py = ifelse(!is.na(person_years) & person_years > 0,
-                                       1000 * icd_proxy_events / person_years,
-                                       NA_real_),
-    .groups = "drop"
-  ) %>%
-  arrange(period)
-
-write_csv(icd_proxy_period, file.path(OUT_DIR, "ICD_proxy_by_period_ICD_2000_2020.csv"))
-log_line("[OK] Wrote: ICD_proxy_by_period_ICD_2000_2020.csv")
-
-# ==============================================================================
-# 6) Figures
-# ==============================================================================
-p1 <- ggplot(nonicd_scd_year, aes(x = Year_index, y = scd_rate_per_1000py)) +
-  geom_line(na.rm = TRUE) +
-  geom_point(na.rm = TRUE) +
-  labs(
-    title = "Non-ICD sudden cardiac death (SCD) crude rate, 2000–2020",
-    x = "Calendar year",
-    y = "SCD rate (events per 1,000 person-years)"
-  ) +
-  theme_bw()
-
-ggsave(file.path(OUT_DIR, "Fig1_SCD_rate_nonICD_2000_2020.png"),
-       plot = p1, width = 9, height = 5, dpi = 300)
-
-p2 <- ggplot(nonicd_scd_year, aes(x = Year_index, y = n)) +
-  geom_col() +
-  labs(
-    title = "Non-ICD denominator by calendar year, 2000–2020",
-    x = "Calendar year",
-    y = "Number of patients"
-  ) +
-  theme_bw()
-
-ggsave(file.path(OUT_DIR, "Fig2_Denom_nonICD_2000_2020.png"),
-       plot = p2, width = 9, height = 5, dpi = 300)
-
-p3 <- ggplot(icd_proxy_year, aes(x = Year_index, y = icd_proxy_rate_per_1000py)) +
-  geom_line(na.rm = TRUE) +
-  geom_point(na.rm = TRUE) +
-  labs(
-    title = "ICD proxy outcome crude rate (Status=1), 2000–2020",
-    x = "Calendar year",
-    y = "ICD proxy rate (events per 1,000 person-years)"
-  ) +
-  theme_bw()
-
-ggsave(file.path(OUT_DIR, "Fig3_ICD_proxy_rate_ICD_2000_2020.png"),
-       plot = p3, width = 9, height = 5, dpi = 300)
-
-p4 <- ggplot(icd_proxy_year, aes(x = Year_index, y = n)) +
-  geom_col() +
-  labs(
-    title = "ICD denominator by calendar year, 2000–2020",
-    x = "Calendar year",
-    y = "Number of patients"
-  ) +
-  theme_bw()
-
-ggsave(file.path(OUT_DIR, "Fig4_Denom_ICD_2000_2020.png"),
-       plot = p4, width = 9, height = 5, dpi = 300)
-
-log_line("[OK] Figures saved in: ", OUT_DIR)
-
-# ==============================================================================
-# 7) QC
-# ==============================================================================
-qc_icd_proxy <- dat %>%
-  filter(cohort == "ICD") %>%
-  summarise(
-    n_icd = n(),
-    proxy_events = sum(ICD_proxy_bin == 1L, na.rm = TRUE),
-    proxy_missing = sum(is.na(ICD_proxy_bin)),
-    status_num_present = as.integer("Status_num" %in% names(dat0)),
-    status_present = as.integer("Status" %in% names(dat0)),
-    .groups = "drop"
+# Journal-like theme
+theme_journal <- theme_classic(base_size = 12) +
+  theme(
+    plot.title = element_text(face = "bold", size = 13),
+    plot.subtitle = element_text(size = 11),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(color = "black"),
+    axis.line = element_line(linewidth = 0.6),
+    axis.ticks = element_line(linewidth = 0.6),
+    plot.margin = margin(8, 10, 8, 10)
   )
 
-write_csv(qc_icd_proxy, file.path(OUT_DIR, "QC_icd_proxy_counts.csv"))
+# MAIN band figure
+plot_band_pointrange <- function(df, title, subtitle) {
+  ggplot(df, aes(x = band, y = rate, group = 1)) +
+    geom_line(linewidth = 0.8) +
+    geom_pointrange(aes(ymin = lo, ymax = hi), linewidth = 0.7) +
+    labs(
+      title = title,
+      subtitle = subtitle,
+      x = "Calendar-time band",
+      y = "Crude rate (events per 1,000 person-years)"
+    ) +
+    theme_journal
+}
 
-log_line("[DONE] Script 02 completed successfully.")
+# SUPP annual figure (aligned X-axis across panels)
+plot_year_ribbon <- function(df, rate_col, lo_col, hi_col,
+                             title, subtitle,
+                             break_year = NA_integer_,
+                             vline_year = NA_integer_,
+                             cap = NA_real_,
+                             x_by = 2,
+                             rotate_x = TRUE,
+                             bottom_note = NULL) {
+  
+  d <- df %>%
+    mutate(
+      rate2 = .data[[rate_col]],
+      lo2 = .data[[lo_col]],
+      hi2 = .data[[hi_col]],
+      rate_line = ifelse(!is.na(break_year) & Year_index == break_year, NA_real_, rate2),
+      lo_line = ifelse(!is.na(break_year) & Year_index == break_year, NA_real_, lo2),
+      hi_line = ifelse(!is.na(break_year) & Year_index == break_year, NA_real_, hi2)
+    )
+  
+  if (!is.na(cap)) {
+    d <- d %>%
+      mutate(
+        rate2 = pmin(rate2, cap),
+        lo2 = pmin(lo2, cap),
+        hi2 = pmin(hi2, cap),
+        rate_line = pmin(rate_line, cap),
+        lo_line = pmin(lo_line, cap),
+        hi_line = pmin(hi_line, cap)
+      )
+  }
+  
+  p <- ggplot(d, aes(x = Year_index)) +
+    geom_ribbon(aes(ymin = lo_line, ymax = hi_line), alpha = 0.18, na.rm = TRUE) +
+    geom_line(aes(y = rate_line), linewidth = 0.9, na.rm = TRUE) +
+    geom_point(aes(y = rate2), size = 1.6, na.rm = TRUE) +
+    scale_x_continuous(
+      limits = c(START_Y, END_Y),
+      breaks = seq(START_Y, END_Y, by = x_by),
+      expand = c(0, 0)
+    ) +
+    labs(
+      title = title,
+      subtitle = subtitle,
+      x = "Calendar year",
+      y = "Crude rate (events per 1,000 person-years)"
+    ) +
+    theme_journal
+  
+  if (!is.na(vline_year)) {
+    p <- p + geom_vline(xintercept = vline_year, linetype = "dashed", linewidth = 0.6)
+  }
+  if (!is.na(cap)) {
+    p <- p + coord_cartesian(ylim = c(0, cap))
+  }
+  if (!is.null(bottom_note)) {
+    p <- p + labs(caption = bottom_note) +
+      theme(plot.caption = element_text(hjust = 0, size = 10))
+  }
+  if (isTRUE(rotate_x)) {
+    p <- p + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  }
+  
+  p
+}
+
+write_legend <- function(path, lines) writeLines(lines, con = path, useBytes = TRUE)
+# ==============================================================================
+# 3) TABLES — YEAR (SUPP)
+# ==============================================================================
+nonicd_year <- dat %>%
+  filter(ICD_bin == 0L) %>%
+  summarise_by_year(event_var = "SCD_bin") %>%
+  mutate(cohort = "Without ICD")
+
+icd_year <- dat %>%
+  filter(ICD_bin == 1L) %>%
+  summarise_by_year(event_var = "ICD_proxy_bin") %>%
+  mutate(cohort = "With ICD")
+
+write_csv(nonicd_year, file.path(OUT_DIR, "SCD_nonICD_by_year_2000_2020.csv"))
+write_csv(icd_year, file.path(OUT_DIR, "ICDproxy_by_year_2000_2020.csv"))
+
+# ==============================================================================
+# 4) TABLES — BANDS (PRIMARY)
+# ==============================================================================
+nonicd_band <- dat %>%
+  filter(ICD_bin == 0L) %>%
+  summarise_by_band(event_var = "SCD_bin") %>%
+  mutate(cohort = "Without ICD")
+
+icd_band <- dat %>%
+  filter(ICD_bin == 1L) %>%
+  summarise_by_band(event_var = "ICD_proxy_bin") %>%
+  mutate(cohort = "With ICD")
+
+write_csv(nonicd_band, file.path(OUT_DIR, "SCD_nonICD_by_band_2000_2020.csv"))
+write_csv(icd_band, file.path(OUT_DIR, "ICDproxy_by_band_2000_2020.csv"))
+
+# ==============================================================================
+# 5) QC — 2005 denominator artefact (non-ICD)
+# ==============================================================================
+qc2005 <- dat %>%
+  filter(Year_index == 2005L, ICD_bin == 0L) %>%
+  summarise(
+    Year_index = 2005L,
+    n = n(),
+    events = sum(SCD_bin == 1L, na.rm = TRUE),
+    person_years = sum(person_years[!is.na(person_years) & person_years > 0], na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  bind_cols(rate_ci_poisson(.$events, .$person_years))
+
+write_csv(qc2005, file.path(OUT_DIR, "QC_2005_nonICD_denominator_artefact.csv"))
+
+# ==============================================================================
+# 6) FIGURES — MAIN (band) + PANEL
+# ==============================================================================
+p_main_scd <- plot_band_pointrange(
+  df = nonicd_band,
+  title = "Sudden cardiac death (SCD)",
+  subtitle = "Patients without an implantable cardioverter-defibrillator (ICD)"
+)
+
+p_main_icd <- plot_band_pointrange(
+  df = icd_band,
+  title = "Appropriate ICD therapy (proxy outcome; Status = 1)",
+  subtitle = "Patients with an implantable cardioverter-defibrillator (ICD)"
+)
+
+fig_main_panel <- (p_main_scd / p_main_icd) +
+  plot_layout(heights = c(1, 1))
+
+ggsave(file.path(OUT_DIR, "Fig_MAIN_two_panels_by_band_2000_2020.png"),
+       fig_main_panel, width = 10.5, height = 11.5, dpi = 320)
+ggsave(file.path(OUT_DIR, "Fig_MAIN_two_panels_by_band_2000_2020.pdf"),
+       fig_main_panel, width = 10.5, height = 11.5)
+
+# (optionnel) exports single panels
+ggsave(file.path(OUT_DIR, "Fig_MAIN_SCD_by_band_nonICD_2000_2020.png"),
+       p_main_scd, width = 10, height = 5.5, dpi = 320)
+ggsave(file.path(OUT_DIR, "Fig_MAIN_ICDproxy_by_band_ICD_2000_2020.png"),
+       p_main_icd, width = 10, height = 5.5, dpi = 320)
+
+write_legend(
+  file.path(OUT_DIR, "Legend_MAIN_band_figures.txt"),
+  c(
+    "Main figure: Crude rates (events per 1,000 person-years) by calendar-time band.",
+    "Points indicate crude rates; whiskers indicate exact Poisson 95% confidence intervals.",
+    "Lines connect band-specific estimates (display aid only).",
+    "Calendar time was grouped into multi-year bands to stabilise estimates in years with sparse person-time."
+  )
+)
+
+# ==============================================================================
+# 7) FIGURES 
+# ==============================================================================
+note2005 <- "Dashed line: 2005 estimate unstable due to very low person-time (denominator artefact)."
+
+p_supp_scd <- plot_year_ribbon(
+  df = nonicd_year,
+  rate_col = "rate", lo_col = "lo", hi_col = "hi",
+  title = "Sudden cardiac death (SCD) — annual crude rate",
+  subtitle = "Patients without an implantable cardioverter-defibrillator (ICD)",
+  break_year = 2005L,
+  vline_year = 2005L,
+  cap = CAP_SCD,
+  x_by = XBY_ANNUAL,
+  rotate_x = TRUE,
+  bottom_note = note2005
+)
+
+p_supp_icd <- plot_year_ribbon(
+  df = icd_year,
+  rate_col = "rate", lo_col = "lo", hi_col = "hi",
+  title = "Appropriate ICD therapy (proxy outcome; Status = 1) — annual crude rate",
+  subtitle = "Patients with an implantable cardioverter-defibrillator (ICD)",
+  break_year = NA_integer_,
+  vline_year = NA_integer_,
+  cap = CAP_ICD,
+  x_by = XBY_ANNUAL,
+  rotate_x = TRUE,
+  bottom_note = NULL
+)
+
+fig_supp_panel <- (p_supp_icd / p_supp_scd) + 
+  plot_layout(heights = c(1, 1))
+
+ggsave(file.path(OUT_DIR, "Fig_SUPP_two_panels_by_year_2000_2020.png"),
+       fig_supp_panel, width = 12, height = 11.5, dpi = 320)
+ggsave(file.path(OUT_DIR, "Fig_SUPP_two_panels_by_year_2000_2020.pdf"),
+       fig_supp_panel, width = 12, height = 11.5)
+
+# (optionnel) exports single panels
+ggsave(file.path(OUT_DIR, "Fig_SUPP_ICDproxy_by_year_ICD_2000_2020_cap200.png"),
+       p_supp_icd, width = 10, height = 5.5, dpi = 320)
+ggsave(file.path(OUT_DIR, "Fig_SUPP_SCD_by_year_nonICD_2000_2020_cap25.png"),
+       p_supp_scd, width = 10, height = 5.5, dpi = 320)
+
+write_legend(
+  file.path(OUT_DIR, "Legend_SUPP_annual_figures.txt"),
+  c(
+    "Supplementary figure: Annual crude rates (events per 1,000 person-years).",
+    "Solid line shows crude rate; shaded band indicates exact Poisson 95% confidence interval.",
+    paste0("For display, the y-axis was truncated at ", CAP_SCD, " (SCD) and ", CAP_ICD,
+           " (ICD proxy); values above these limits were clipped for display."),
+    "In the non-ICD cohort, the 2005 estimate is unstable due to very low person-time (denominator artefact); the curve is broken at 2005."
+  )
+)
+
 log_line("[DONE] Outputs written to: ", OUT_DIR)
-###############################################################################
+if (.Platform$OS.type == "windows") try(shell.exec(normalizePath(OUT_DIR)), silent = TRUE)
