@@ -1,19 +1,22 @@
-
 # ==============================================================================
 # PROFID — UmBIZO Study 9
-# Script 01: Final EHJ dataset unchanged + calendar-time QC + minimal dataset
-#
+# Script 01: Final EHJ dataset unchanged + calendar-time QC 
+# Autor: Amina BOUDAMAANA
 # Objective
-# - we Keep the final harmonised PROFID dataset unchanged (no new inclusion filters)
-# - Use existing calendar-time anchor (Time_zero_Y)
-# - Produce transparent denominators and crude temporal summaries:
-# * Non-ICD: SCD counts + crude rates over calendar time (per 1,000 person-years)
-# * ICD: ICD outcome proxy encoded as Status = 1 in ICD patients 
+# - We use existing calendar-time anchor (Time_zero_Y)
+# - Produce transparent denominators and crude temporal summaries (2000–2020):
+# * Non-ICD: SCD counts + crude rates (per 1,000 person-years)
+# * ICD: ICD proxy outcome defined as Status==1 among ICD patients
+# -> ICD_proxy_bin = 1 if ICD_bin==1 & Status==1; else 0
 #
-# Input (reference extract):
-# - df_handled.csv (preferred here; expected n=139,915; p=107)
+# 
+# - Provide calendar-band summaries for stable visualisation:
+# bands: 2000–2004, 2005–2009, 2010–2014, 2015–2020
+# - Provide QC file highlighting sparse years (e.g., 2005 artefact)
+#
+# Input:
+# - df_handled.csv (expected n≈139,915; p≈107)
 # ==============================================================================
-
 suppressPackageStartupMessages({
   library(dplyr)
   library(readr)
@@ -21,17 +24,15 @@ suppressPackageStartupMessages({
   library(tibble)
 })
 
+rm(list = ls()); gc()
 # ==============================================================================
 # 0) Paths (EDIT THESE TWO ONLY)
 # ==============================================================================
 IN_ROOT <- "S:/AG/f-dhzC-profid/Data Transfer to Charite"
-
-# Output folder
-OUT_ROOT <- "T:/Study_9" 
+OUT_ROOT <- "T:/Study_9"
 dir.create(OUT_ROOT, recursive = TRUE, showWarnings = FALSE)
 
 IN_CSV <- file.path(IN_ROOT, "df_handled.csv")
-
 OUT_DIR <- file.path(OUT_ROOT, "Results_Study9", "Script01_CalendarTime_QC")
 dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
 
@@ -45,9 +46,8 @@ log_line <- function(...) {
     )
   )
 }
-
 # ==============================================================================
-# 1) Load dataset (FORCED CSV reference)
+# 1) Load dataset
 # ==============================================================================
 stopifnot(file.exists(IN_CSV))
 
@@ -56,29 +56,26 @@ stopifnot(is.data.frame(df0))
 
 log_line("[OK] Loaded input (CSV): ", IN_CSV)
 log_line("[OK] Dimensions: ", nrow(df0), " x ", ncol(df0))
-# Expected: 139915 x 107
-
+   #  Dimensions: 139915 x 107
 nm <- names(df0)
 readr::write_csv(tibble(colname = nm), file.path(OUT_DIR, "columns_snapshot.csv"))
-
 # ==============================================================================
 # 2) Required columns (edit only if names differ)
 # ==============================================================================
 col_icd <- "ICD_status"
 col_scd <- "SCD_event"
 col_y <- "Time_zero_Y"
-
-# ICD proxy endpoint : Status == 1 among ICD patients
-col_status <- "Status"
+col_status <- "Status" 
 
 # Optional
 col_ym <- "Time_zero_Ym"
 col_base <- "Baseline_type"
+col_db <- if ("DB" %in% nm) "DB" else NA_character_
+col_dbp <- if ("DBP" %in% nm) "DBP" else NA_character_
 
 req <- c(col_icd, col_scd, col_y, col_status)
 miss <- req[!req %in% nm]
 if (length(miss) > 0) stop("Missing required columns: ", paste(miss, collapse = ", "))
-
 # ==============================================================================
 # 3) Helpers
 # ==============================================================================
@@ -90,6 +87,14 @@ to_bin01 <- function(x) {
 }
 as_num_safely <- function(x) suppressWarnings(as.numeric(as.character(x)))
 
+make_band_2000_2020 <- function(y) {
+  cut(
+    y,
+    breaks = c(1999, 2004, 2009, 2014, 2020),
+    labels = c("2000–2004", "2005–2009", "2010–2014", "2015–2020"),
+    right = TRUE
+  )
+}
 # ==============================================================================
 # 4) Person-time (prefer py; else follow-up months)
 # ==============================================================================
@@ -98,9 +103,8 @@ col_fmo <- if ("ftime_mo_int" %in% nm) "ftime_mo_int" else NA_character_
 
 log_line("[INFO] Person-time column (py): ", ifelse(is.na(col_py), "<not found>", col_py))
 log_line("[INFO] Follow-up months (ftime_mo_int): ", ifelse(is.na(col_fmo), "<not found>", col_fmo))
-
 # ==============================================================================
-# 5) Build derived dataset (keep final dataset unchanged; add calendar-time + proxy vars)
+# 5) Build derived dataset (NO new inclusion filters; add calendar-time + proxy vars)
 # ==============================================================================
 df1 <- df0 %>%
   mutate(
@@ -110,10 +114,10 @@ df1 <- df0 %>%
     ICD_bin = to_bin01(.data[[col_icd]]),
     SCD_bin = to_bin01(.data[[col_scd]]),
     
-    # Status as provided (proxy coding already done in the extract)
+    # Status as provided in extract
     Status_num = suppressWarnings(as.integer(.data[[col_status]])),
     
-    # Person-years:
+    # Person-years
     person_years = if (!is.na(col_py)) {
       as_num_safely(.data[[col_py]])
     } else if (!is.na(col_fmo)) {
@@ -126,13 +130,19 @@ df1 <- df0 %>%
     ICD_proxy_bin = ifelse(ICD_bin == 1L & Status_num == 1L, 1L, 0L)
   )
 
-# Restrict to 2000–2020 for the main temporal comparisons (as per Study 9 plan)
+# Main calendar window for summaries
+START_Y <- 2000L
+END_Y <- 2020L
+
 dat <- df1 %>%
-  filter(!is.na(Year_index), Year_index >= 2000L, Year_index <= 2020L)
+  filter(!is.na(Year_index), Year_index >= START_Y, Year_index <= END_Y) %>%
+  mutate(
+    cohort = ifelse(ICD_bin == 1L, "ICD", "Non-ICD"),
+    band_2000_2020 = make_band_2000_2020(Year_index)
+  )
 
 log_line("[OK] Restricted to 2000–2020: n=", nrow(dat))
-# Expected: n=136336
-
+   #Restricted to 2000–2020: n=136336
 # ==============================================================================
 # 6) QC tables
 # ==============================================================================
@@ -142,108 +152,179 @@ year_audit <- tibble(
   year_min = suppressWarnings(min(dat$Year_index, na.rm = TRUE)),
   year_max = suppressWarnings(max(dat$Year_index, na.rm = TRUE))
 )
-write_csv(year_audit, file.path(OUT_DIR, "year_audit.csv"))
+write.csv(year_audit, file.path(OUT_DIR, "year_audit.csv"))
 
 py_audit <- tibble(
-  py_col = ifelse(is.na(col_py) & is.na(col_fmo), "<none>", ifelse(!is.na(col_py), col_py, col_fmo)),
+  py_source = ifelse(is.na(col_py) & is.na(col_fmo), "<none>", ifelse(!is.na(col_py), col_py, col_fmo)),
   py_missing = sum(is.na(dat$person_years)),
   py_nonpositive = sum(!is.na(dat$person_years) & dat$person_years <= 0),
   py_min = suppressWarnings(min(dat$person_years, na.rm = TRUE)),
   py_max = suppressWarnings(max(dat$person_years, na.rm = TRUE))
 )
-write_csv(py_audit, file.path(OUT_DIR, "person_years_audit.csv"))
+write.csv(py_audit, file.path(OUT_DIR, "person_years_audit.csv"))
 
 if (col_base %in% nm) {
   base_dist <- dat %>%
     count(.data[[col_base]], name = "n") %>%
     arrange(desc(n))
-  write_csv(base_dist, file.path(OUT_DIR, "baseline_type_distribution.csv"))
+  write.csv(base_dist, file.path(OUT_DIR, "baseline_type_distribution.csv"))
 }
-
 # ==============================================================================
 # 7) Coverage by year (overall + by ICD status)
 # ==============================================================================
-coverage_overall <- dat %>%
+coverage_by_year_overall <- dat %>%
   group_by(Year_index) %>%
   summarise(
     n = n(),
-    scd_events_total = sum(SCD_bin == 1, na.rm = TRUE),
-    icd_share = mean(ICD_bin == 1, na.rm = TRUE),
-    person_years = sum(person_years, na.rm = TRUE),
+    scd_events_total = sum(SCD_bin == 1L, na.rm = TRUE),
+    icd_share = mean(ICD_bin == 1L, na.rm = TRUE),
+    person_years = if (!all(is.na(person_years))) sum(person_years, na.rm = TRUE) else NA_real_,
     .groups = "drop"
   ) %>%
   arrange(Year_index)
-write_csv(coverage_overall, file.path(OUT_DIR, "coverage_by_year_overall.csv"))
+write.csv(coverage_by_year_overall, file.path(OUT_DIR, "coverage_by_year_overall.csv"))
 
-coverage_by_icd <- dat %>%
-  mutate(cohort = ifelse(ICD_bin == 1, "ICD", "Non-ICD")) %>%
+coverage_by_year_by_icd <- dat %>%
   group_by(Year_index, cohort) %>%
   summarise(
     n = n(),
-    scd_events = sum(SCD_bin == 1, na.rm = TRUE),
-    person_years = sum(person_years, na.rm = TRUE),
+    scd_events = sum(SCD_bin == 1L, na.rm = TRUE),
+    icd_proxy_events = sum(ICD_proxy_bin == 1L, na.rm = TRUE),
+    person_years = if (!all(is.na(person_years))) sum(person_years, na.rm = TRUE) else NA_real_,
     .groups = "drop"
   ) %>%
   arrange(Year_index, cohort)
-write_csv(coverage_by_icd, file.path(OUT_DIR, "coverage_by_year_by_icd.csv"))
+write.csv(coverage_by_year_by_icd, file.path(OUT_DIR, "coverage_by_year_by_icd.csv"))
 
-# Convenience availability table (non-ICD denominators by year)
-availability_nonICD <- dat %>%
+availability_by_year <- dat %>%
   group_by(Year_index) %>%
   summarise(
     n_total = n(),
-    n_nonICD = sum(ICD_bin == 0, na.rm = TRUE),
-    n_ICD = sum(ICD_bin == 1, na.rm = TRUE),
+    n_nonICD = sum(cohort == "Non-ICD"),
+    n_ICD = sum(cohort == "ICD"),
     .groups = "drop"
   ) %>%
   arrange(Year_index)
-write_csv(availability_nonICD, file.path(OUT_DIR, "availability_nonICD_by_year.csv"))
-
+write.csv(availability_by_year, file.path(OUT_DIR, "availability_by_year.csv"))
 # ==============================================================================
 # 8) Main output: Non-ICD SCD counts + crude rates by year
 # ==============================================================================
-nonicd_by_year <- dat %>%
-  filter(ICD_bin == 0) %>%
+scd_nonICD_by_year <- dat %>%
+  filter(cohort == "Non-ICD") %>%
   group_by(Year_index) %>%
   summarise(
     n = n(),
-    scd_events = sum(SCD_bin == 1, na.rm = TRUE),
-    person_years = sum(person_years, na.rm = TRUE),
+    scd_events = sum(SCD_bin == 1L, na.rm = TRUE),
+    person_years = if (!all(is.na(person_years))) sum(person_years, na.rm = TRUE) else NA_real_,
     scd_rate_per_1000py = ifelse(!is.na(person_years) & person_years > 0,
                                  1000 * scd_events / person_years,
                                  NA_real_),
     .groups = "drop"
   ) %>%
   arrange(Year_index)
-write_csv(nonicd_by_year, file.path(OUT_DIR, "scd_nonICD_by_year_counts_rates.csv"))
-
+write.csv(scd_nonICD_by_year, file.path(OUT_DIR, "scd_nonICD_by_year_counts_rates.csv"))
 # ==============================================================================
 # 9) ICD proxy outcome by year (Status==1 in ICD patients)
 # ==============================================================================
 icd_proxy_by_year <- dat %>%
-  filter(ICD_bin == 1) %>%
+  filter(cohort == "ICD") %>%
   group_by(Year_index) %>%
   summarise(
     n = n(),
-    icd_proxy_events = sum(ICD_proxy_bin == 1, na.rm = TRUE),
-    person_years = sum(person_years, na.rm = TRUE),
+    icd_proxy_events = sum(ICD_proxy_bin == 1L, na.rm = TRUE),
+    person_years = if (!all(is.na(person_years))) sum(person_years, na.rm = TRUE) else NA_real_,
     icd_proxy_rate_per_1000py = ifelse(!is.na(person_years) & person_years > 0,
                                        1000 * icd_proxy_events / person_years,
                                        NA_real_),
     .groups = "drop"
   ) %>%
   arrange(Year_index)
-write_csv(icd_proxy_by_year, file.path(OUT_DIR, "icd_proxy_by_year_counts_rates.csv"))
+write.csv(icd_proxy_by_year, file.path(OUT_DIR, "icd_proxy_by_year_counts_rates.csv"))
 
-# Also save a minimal QC cross-tab for transparency
+# Status distribution in ICD cohort (QC)
 status_icd_tab <- dat %>%
-  filter(ICD_bin == 1) %>%
+  filter(cohort == "ICD") %>%
   count(Status_num, name = "n") %>%
   arrange(desc(n))
-write_csv(status_icd_tab, file.path(OUT_DIR, "Status_distribution_in_ICD_cohort_2000_2020.csv"))
+write.csv(status_icd_tab, file.path(OUT_DIR, "Status_distribution_in_ICD_cohort_2000_2020.csv"))
 
 # ==============================================================================
-# 10) ICD cohort audit: FAT / VT / VF fields by name + NSVT distribution
+# 10) Calendar bands 
+# ==============================================================================
+coverage_by_band_by_icd <- dat %>%
+  filter(!is.na(band_2000_2020)) %>%
+  group_by(band_2000_2020, cohort) %>%
+  summarise(
+    n = n(),
+    scd_events = sum(SCD_bin == 1L, na.rm = TRUE),
+    icd_proxy_events = sum(ICD_proxy_bin == 1L, na.rm = TRUE),
+    person_years = if (!all(is.na(person_years))) sum(person_years, na.rm = TRUE) else NA_real_,
+    .groups = "drop"
+  ) %>%
+  arrange(band_2000_2020, cohort)
+write.csv(coverage_by_band_by_icd, file.path(OUT_DIR, "coverage_by_band_by_icd_2000_2020.csv"))
+
+scd_nonICD_by_band <- dat %>%
+  filter(cohort == "Non-ICD", !is.na(band_2000_2020)) %>%
+  group_by(band_2000_2020) %>%
+  summarise(
+    n = n(),
+    scd_events = sum(SCD_bin == 1L, na.rm = TRUE),
+    person_years = if (!all(is.na(person_years))) sum(person_years, na.rm = TRUE) else NA_real_,
+    scd_rate_per_1000py = ifelse(!is.na(person_years) & person_years > 0,
+                                 1000 * scd_events / person_years,
+                                 NA_real_),
+    .groups = "drop"
+  ) %>%
+  arrange(band_2000_2020)
+write.csv(scd_nonICD_by_band, file.path(OUT_DIR, "scd_nonICD_by_band_counts_rates_2000_2020.csv"))
+
+icd_proxy_by_band <- dat %>%
+  filter(cohort == "ICD", !is.na(band_2000_2020)) %>%
+  group_by(band_2000_2020) %>%
+  summarise(
+    n = n(),
+    icd_proxy_events = sum(ICD_proxy_bin == 1L, na.rm = TRUE),
+    person_years = if (!all(is.na(person_years))) sum(person_years, na.rm = TRUE) else NA_real_,
+    icd_proxy_rate_per_1000py = ifelse(!is.na(person_years) & person_years > 0,
+                                       1000 * icd_proxy_events / person_years,
+                                       NA_real_),
+    .groups = "drop"
+  ) %>%
+  arrange(band_2000_2020)
+write.csv(icd_proxy_by_band, file.path(OUT_DIR, "icd_proxy_by_band_counts_rates_2000_2020.csv"))
+# ==============================================================================
+# 11) QC: highlight sparse years (explains artefacts like 2005)
+# ==============================================================================
+# we define "sparse" as very small denominators or person-time (tunable thresholds)
+SPARSE_N <- 50L
+SPARSE_PY <- 50
+
+sparse_years_nonICD <- scd_nonICD_by_year %>%
+  mutate(
+    is_sparse_n = n < SPARSE_N,
+    is_sparse_py = !is.na(person_years) & person_years < SPARSE_PY,
+    flag_sparse = is_sparse_n | is_sparse_py
+  ) %>%
+  filter(flag_sparse) %>%
+  arrange(Year_index)
+
+write.csv(sparse_years_nonICD, file.path(OUT_DIR, "QC_sparse_years_nonICD.csv"))
+
+# Log the 2005 row explicitly if present
+row2005 <- scd_nonICD_by_year %>% filter(Year_index == 2005)
+if (nrow(row2005) == 1) {
+  log_line(
+    "[QC] 2005 (Non-ICD): n=", row2005$n,
+    " | SCD=", row2005$scd_events,
+    " | PY=", format(row2005$person_years, digits = 6),
+    " | rate/1000PY=", format(row2005$scd_rate_per_1000py, digits = 6)
+  )
+}
+    # [QC] 2005 (Non-ICD): n=3 | SCD=1 | PY=5.48793 | rate/1000PY=182.218
+
+# ==============================================================================
+# 12) ICD cohort audit: FAT / VT / VF fields by name + NSVT distribution
 # ==============================================================================
 pat_vtvf <- "(^|_)(fat|vt|vf)(_|$)|ventric|ventri|tachy|fibrill"
 cand_vtvf <- names(df0)[stringr::str_detect(tolower(names(df0)), pat_vtvf)]
@@ -253,7 +334,7 @@ audit_vtvf <- tibble(
   n_candidates = length(cand_vtvf),
   candidates = ifelse(length(cand_vtvf) == 0, "<none>", paste(cand_vtvf, collapse = ", "))
 )
-write_csv(audit_vtvf, file.path(OUT_DIR, "audit_FAT_VT_VF_candidates.csv"))
+write.csv(audit_vtvf, file.path(OUT_DIR, "audit_FAT_VT_VF_candidates.csv"))
 
 pat_rhythm <- "(nsvt|af|atrial|flutter|anti[_ ]?arrhyth|arrhyth|tachy)"
 cand_rhythm <- names(df0)[stringr::str_detect(tolower(names(df0)), pat_rhythm)]
@@ -262,29 +343,27 @@ rhythm_list <- tibble(
   n_fields = length(cand_rhythm),
   fields = ifelse(length(cand_rhythm) == 0, "<none>", paste(cand_rhythm, collapse = ", "))
 )
-write_csv(rhythm_list, file.path(OUT_DIR, "audit_rhythm_fields_broadscan.csv"))
+write_=.csv(rhythm_list, file.path(OUT_DIR, "audit_rhythm_fields_broadscan.csv"))
 
-# NSVT distribution within ICD cohort (if NSVT exists)
 if ("NSVT" %in% names(df0)) {
   tb_nsvt <- table(df0$NSVT[df0[[col_icd]] == 1], useNA = "ifany")
-  nsvt_tab <- tibble(
-    value = names(tb_nsvt),
-    n = as.integer(tb_nsvt)
-  )
+  nsvt_tab <- tibble(value = names(tb_nsvt), n = as.integer(tb_nsvt))
   write_csv(nsvt_tab, file.path(OUT_DIR, "NSVT_distribution_in_ICD_cohort.csv"))
 }
-
 # ==============================================================================
-# 11) Save minimal dataset for Script 02
+# 13) Save minimal dataset for Script 02 (must include Status + ICD_proxy_bin)
 # ==============================================================================
 keep_vars <- unique(c(
   col_y, col_icd, col_scd, col_status,
   if (col_ym %in% nm) col_ym else NULL,
   if (col_base %in% nm) col_base else NULL,
+  if (!is.na(col_db)) col_db else NULL,
+  if (!is.na(col_dbp)) col_dbp else NULL,
   if (!is.na(col_py)) col_py else NULL,
   if (!is.na(col_fmo)) col_fmo else NULL,
   "Year_index", "YearMonth_index", "ICD_bin", "SCD_bin", "person_years",
-  "Status_num", "ICD_proxy_bin"
+  "Status_num", "ICD_proxy_bin",
+  "band_2000_2020"
 ))
 
 dat_min <- dat %>% select(any_of(keep_vars))
@@ -292,24 +371,24 @@ saveRDS(dat_min, file.path(OUT_DIR, "df_study9_minimal.rds"))
 
 log_line("[DONE] Outputs written to: ", OUT_DIR)
 log_line("[DONE] Minimal dataset saved: ", file.path(OUT_DIR, "df_study9_minimal.rds"))
-
 # ==============================================================================
-# Quick file existence check (optional)
+# 14) Quick file existence check (optional)
 # ==============================================================================
-OUT_DIR_CHECK <- OUT_DIR
 files <- c(
+  "columns_snapshot.csv",
   "year_audit.csv",
   "person_years_audit.csv",
+  "baseline_type_distribution.csv",
   "coverage_by_year_overall.csv",
   "coverage_by_year_by_icd.csv",
+  "availability_by_year.csv",
   "scd_nonICD_by_year_counts_rates.csv",
-  "availability_nonICD_by_year.csv",
   "icd_proxy_by_year_counts_rates.csv",
+  "coverage_by_band_by_icd_2000_2020.csv",
+  "scd_nonICD_by_band_counts_rates_2000_2020.csv",
+  "icd_proxy_by_band_counts_rates_2000_2020.csv",
+  "QC_sparse_years_nonICD.csv",
   "Status_distribution_in_ICD_cohort_2000_2020.csv",
   "df_study9_minimal.rds"
 )
-print(file.info(file.path(OUT_DIR_CHECK, files))[, c("size","mtime")])
-# ================================================================================
-dat0 <- readRDS("T:/Study_9/Results_Study9/Script01_CalendarTime_QC/df_study9_minimal.rds")
-intersect(c("Status","Status_num","ICD_proxy_bin"), names(dat0))
-
+print(file.info(file.path(OUT_DIR, files))[, c("size","mtime")])
