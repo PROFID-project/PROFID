@@ -1,7 +1,7 @@
 # ==============================================================================
 # PROFID — UmBIZO Study 9
 # Script 01: Final EHJ dataset unchanged + calendar-time QC 
-# Autor: Amina BOUDAMAANA
+# Author: Amina BOUDAMAANA
 # Objective
 # - We use existing calendar-time anchor (Time_zero_Y)
 # - Produce transparent denominators and crude temporal summaries (2000–2020):
