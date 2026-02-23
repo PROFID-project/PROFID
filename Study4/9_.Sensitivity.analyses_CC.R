@@ -1,7 +1,6 @@
 ##################################################################################################################
-##################################################################################################################
 # projet: UmBIZO- PROFID_Study4 (SCD post-MI, age- stratified)
-# Script: 09_Sensitivity_analyses.R
+# Script: 09_Sensitivity_analyses
 # Author: Amina Boudamaana
 # =========================================================================================
 ## STUDY 4 — Sensitivity analyses (COX) on complete cases (df_handled_cc)
