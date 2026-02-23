@@ -1,7 +1,7 @@
 # ==============================================================================
 # UmBIZO — PROFID Study 5 
-# Script 07: Model development (SAP steps 1–5)
-#
+# Script 07: Model development ( steps 1–5)
+# Author: Amina BOUDAMAANA
 # Cohort: HFrEF only (LVEF <40%) from Script 1 output df_study5_hfref.rds
 # Window: 2000–2020
 # Primary outcome (binary): HF_BIN_eq3 = 1 if HF_n_classes == 3 (RAAS + BB + MRA)
@@ -13,12 +13,12 @@
 # 4) Backward elimination (retain p<0.05; forced vars always kept)
 # 5) Multicollinearity check (VIF < 5)
 #
-# Outputs (CSV + RDS):
-# - 01_univariate_OR.csv
-# - 02_corr_matrix_numeric.csv + 02_corr_pairs_over_0p70.csv
-# - 03_candidates_after_screening.csv
-# - 04_selection_path.csv
-# - 05_final_model_OR.csv + 05_final_model_VIF.csv
+# Outputs
+# - 01_univariate_OR
+# - 02_corr_matrix_numeric + 02_corr_pairs_over_0p70
+# - 03_candidates_after_screening
+# - 04_selection_path
+# - 05_final_model_OR + 05_final_model_VIF
 # - final_model.rds
 # ==============================================================================
 options(stringsAsFactors = FALSE)
@@ -31,9 +31,9 @@ suppressPackageStartupMessages({
 })
 
 log_line <- function(...) cat(paste0(..., "\n"))
-# =============================================================================
+# ===================================================================================
 # 0) PATHS
-# =============================================================================
+# ===================================================================================
 ROOT_DIR <- "T:/Study_5"
 RESULTS_ROOT <- file.path(ROOT_DIR, "Results_Study5")
 
@@ -172,7 +172,6 @@ screen_vars <- uni_tbl %>%
 screen_vars <- unique(c(forced_vars, screen_vars))
 write_csv(tibble(candidate=screen_vars), file.path(OUT_DIR, "03_candidates_after_screening.csv"))
 log_line("[DONE] Wrote 03_candidates_after_screening.csv | n=", length(screen_vars))
-
 # =============================================================================
 # 3) Step 2 — Correlation filtering among numeric predictors (|r|>0.70)
 # =============================================================================
@@ -210,7 +209,7 @@ if (length(num_vars) >= 2) {
   write_csv(tibble(message="Too few numeric vars for correlation step."), file.path(OUT_DIR, "02_corr_pairs_over_0p70.csv"))
 }
 
-# drop rule: for each correlated pair, drop higher missingness (if tie, drop var2)
+# we drop rule: for each correlated pair, drop higher missingness
 drop_vars <- character(0)
 if (nrow(corr_pairs) > 0) {
   miss <- sapply(num_vars, function(v) mean(is.na(df[[v]])))
@@ -227,10 +226,9 @@ cand_vars <- unique(c(forced_vars, cand_vars)) # forced stay
 write_csv(tibble(kept=cand_vars, dropped_corr=ifelse(cand_vars %in% drop_vars, 1, 0)),
           file.path(OUT_DIR, "03_candidates_after_corr_filter.csv"))
 log_line("[DONE] Wrote 03_candidates_after_corr_filter.csv | kept=", length(cand_vars))
-
-# =============================================================================
+# ===================================================================================
 # 4) Step 4 — Backward elimination (retain p<0.05; forced always kept)
-# =============================================================================
+# ===================================================================================
 build_df_for_fit <- function(vars) {
   df %>% select(all_of(unique(c("HF_BIN_eq3", vars)))) %>% na.omit()
 }
@@ -263,7 +261,7 @@ repeat {
     mutate(variable = sub("^`|`$", "", term),
            variable = sub("^([^:]+):.*$", "\\1", variable)) # keep left side if interaction appears
   
-  # compute p by variable: take max p across its levels (conservative)
+  # we compute p by variable: take max p across its levels (conservative)
   p_by_var <- tt %>%
     group_by(variable) %>%
     summarise(p_max = max(p.value, na.rm=TRUE), .groups="drop")
@@ -295,7 +293,7 @@ repeat {
     break
   }
   
-  # remove worst
+  # we remove worst
   current_vars <- setdiff(current_vars, worst)
   selection_path <- bind_rows(selection_path, tibble(step=step, removed=worst, max_p=worst_p, n=res$n, note="removed"))
 }
@@ -307,10 +305,9 @@ if (!exists("final_fit") || is.null(final_fit)) stop("Final model not available 
 
 saveRDS(final_fit, file.path(OUT_DIR, "final_model.rds"))
 log_line("[DONE] Saved final_model.rds")
-
-# =============================================================================
+# ====================================================================================
 # 5) Final model table (OR/CI) + VIF
-# =============================================================================
+# ====================================================================================
 final_or <- broom::tidy(final_fit, conf.int=TRUE, exponentiate=TRUE) %>%
   filter(term != "(Intercept)") %>%
   transmute(term,
