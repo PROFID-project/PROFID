@@ -1,469 +1,451 @@
 
-##################################################################################################
-##################################################################################################
+##################################################################################################################
 # projet: UmBIZO- PROFID_Study4 (SCD post-MI, age- stratified)
-# Script: 06_Risk_factor_identification.R
+# Script: 07_Validation_FG_Model_and_Performance.R
 # Author: Amina Boudamaana
-# ================================================================================================
-# Project: PROFID Study 4 — Risk-factor identification (age-stratified)
-# Dataset: df_handled_cc (complete-case working table already prepared upstream)
-# Model : Fine-Gray (crr) with SAP rules
-# Steps :
-# 1) Define core vars (always kept) and a candidate list from columns present in df_handled_cc
-# 2) Per age band:
-# - Univariate screen (core + one candidate), keep if p < 0.10 (joint Wald for the candidate)
-# - Check non-linearity for numeric vars; use ns(df=4) when p_nonlinear < 0.05
-# - Fit multivariable model (core + screened vars, with splines where needed)
-# - Backward elimination on non-core variables (joint Wald), keep if p <= 0.10
-# ================================================================================================
-
+# ====================================================================================================
+# Study 4 — Validation model Fine-Gray and Performance
+# ====================================================================================================
+# ====================================================================================================
+## ===== FG discrimination  =====
+# ====================================================================================================
 suppressPackageStartupMessages({
   library(cmprsk)
-  library(splines)
+  library(survival)
+  library(timeROC)
 })
 
-# ==========================0) Attach the analysis dataset ==========================================
+## 0) data( months)
 stopifnot(exists("df_handled_cc"), is.data.frame(df_handled_cc))
-df <- df_handled_cc
-
-# Time in YEARS (prefer integer months if available)
-if (!"time_years" %in% names(df)) {
-  if ("ftime_mo_int" %in% names(df)) {
-    df$time_years <- as.numeric(df$ftime_mo_int) / 12
-  } else if ("Survival_time" %in% names(df)) {
-    df$time_years <- as.numeric(df$Survival_time) / 12
-  } else stop("No time variable found (need ftime_mo_int or Survival_time).")
-}
-
-# Fine-Gray status coding (1 = SCD of interest, 2 = competing, 0 = censored)
-status_col <- if ("Status" %in% names(df)) "Status" else if ("fstatus" %in% names(df)) "fstatus" else
-  stop("No Status/fstatus column found.")
-cause_code <- 1L; comp_code <- 2L
-df[[status_col]] <- suppressWarnings(as.integer(df[[status_col]]))
-df[[status_col]][!df[[status_col]] %in% c(0L, cause_code, comp_code)] <- 0L
-
-# Age groups (normalize labels)
-norm_age <- function(x){
+canon <- c("<=50","51-65","66-75",">75")
+clean_age <- function(x){
   x <- trimws(as.character(x))
-  x <- gsub("\u2264|<=\\s*50.*","<=50", x)
-  x <- gsub("^51\\s*[-–]\\s*65.*","51-65", x)
-  x <- gsub("^66\\s*[-–]\\s*75.*","66-75", x)
-  x <- gsub("^>\\s*75.*",">75", x)
-  factor(x, levels = c("<=50","51-65","66-75",">75"), ordered = TRUE)
-}
-if (!"age_group" %in% names(df) && "age_group_desc" %in% names(df)) df$age_group <- df$age_group_desc
-df$age_group <- norm_age(df$age_group)
-df <- df[!is.na(df$age_group), , drop = FALSE] # drop rows with missing band (rare but safer)
-
-# ===========================1) Small helpers ============================================================================
-pick_present <- function(x, nm = names(df)) intersect(x, nm)
-
-recode_yesno <- function(z){
-  if (is.factor(z)) z <- as.character(z)
-  yes <- c("1","y","Y","yes","Yes","TRUE","true")
-  no <- c("0","n","N","no","No","FALSE","false")
-  out <- ifelse(z %in% yes, "Yes", ifelse(z %in% no, "No", NA))
-  factor(out, levels = c("No","Yes"))
+  x <- gsub("\u2264","<=",x)
+  x <- gsub("\u2013|\u2014|–|—","-",x) # tirets exotiques -> "-"
+  x <- gsub("\\s+","",x)
+  x[x %in% c("<=50","<=50y","<=50yrs","<=50years")] <- "<=50"
+  x[x %in% c("51-65","51–65")] <- "51-65"
+  x[x %in% c("66-75","66–75")] <- "66-75"
+  x[grepl("^> ?75|^>=?76|\\b76\\+\\b", x)] <- ">75"
+  factor(x, levels = canon)
 }
 
-# Canonicalize medication names to avoid duplicates (ACE/ARB and Anticoagulant flags)
-canon_med_cols <- function(d){
-  if (!"ACE_inhibitor_ARB" %in% names(d)) {
-    has <- intersect(c("ACE_inhibitor","ARB"), names(d))
-    if (length(has)) {
-      z <- Reduce(function(a,b) ifelse(is.na(a), b, a),
-                  lapply(has, function(v) recode_yesno(d[[v]])))
-      d$ACE_inhibitor_ARB <- factor(ifelse(z=="Yes","Yes", ifelse(z=="No","No", NA)), levels=c("No","Yes"))
-    }
+df_cr <- within(df_handled_cc, {
+
+  time_months <- as.integer(round(ftime_mo_int))
+  Status <- as.integer(fstatus) # 0=cens, 1=SCD, 2=non-SCD
+  age_group <- clean_age(age_group)
+})
+
+df_cr <- subset(df_cr,
+                is.finite(time_months) & time_months > 0 &
+                  Status %in% 0:2 & !is.na(age_group))
+
+## 1) Fine-Gray model
+X_age <- model.matrix(~ age_group, data = df_cr)[, -1, drop = FALSE] # ref <=50
+fit_fg <- crr(ftime = df_cr$time_months,
+              fstatus = df_cr$Status,
+              cov1 = X_age,
+              failcode = 1, cencode = 0, variance = TRUE)
+
+## 2) Table SHR 
+beta <- setNames(as.numeric(fit_fg$coef), colnames(X_age))
+se <- sqrt(diag(fit_fg$var))
+shr_tab <- data.frame(
+  age_contrast = sub("^age_group","", names(beta)),
+  SHR = exp(beta),
+  LCL95 = exp(beta - 1.96*se),
+  UCL95 = exp(beta + 1.96*se),
+  p = 2*pnorm(abs(beta/se), lower.tail = FALSE)
+)
+cat("\nFine-Gray SHR (ref <=50):\n"); print(shr_tab, row.names = FALSE)
+
+## 3) Score (LP) & Harrell-C
+lp <- drop(X_age %*% beta)
+t_mo <- df_cr$time_months 
+e01 <- as.integer(df_cr$Status == 1) # binaire pour Harrell-C
+
+ok <- is.finite(t_mo) & is.finite(lp) & is.finite(e01)
+c_h <- survival::concordance(Surv(t_mo[ok], e01[ok]) ~ lp[ok], timefix = TRUE)
+harrell_df <- data.frame(Harrell_C = unname(as.numeric(c_h$concordance)))
+cat("\nHarrell's C (cause=1):\n"); print(harrell_df, row.names = FALSE)
+ # Harrell_C  =  0.4067889
+## 4) AUC dependant time  via timeROC (competing-risk)
+times_m <- c(12, 36, 60) # horizons -months
+times_m <- times_m[times_m <= max(t_mo, na.rm=TRUE)] 
+
+## Check: number of events and at-risk per horizon
+diag_tab <- sapply(times_m, function(tt) c(
+  events = sum(df_cr$Status==1 & t_mo <= tt, na.rm=TRUE),
+  at_risk= sum(t_mo >= tt, na.rm=TRUE)
+))
+cat("\n[Diag] Events/At-risk :\n"); print(diag_tab)
+
+tr <- timeROC(T = t_mo, delta = df_cr$Status, cause = 1,
+              marker = lp, times = times_m,
+              weighting = "marginal", iid = FALSE)
+
+##Robust extraction of AUCs according to the timeROC version
+get_auc <- function(obj){
+  if (!is.null(obj$AUC)) return(as.numeric(obj$AUC))
+  if (!is.null(obj$AUC_1)) return(as.numeric(obj$AUC_1))
+  if (!is.null(obj$AUC.t)) return(as.numeric(obj$AUC.t))
+  rep(NA_real_, length(obj$times))
+}
+fg_auc <- data.frame(time_months = tr$times, AUC = get_auc(tr))
+
+cat("\nAUC(t) Fine-Gray (months):\n"); print(fg_auc, row.names = FALSE)
+ # AUC(t) Fine-Gray (months):
+# time_months       AUC
+#12 0.5824350
+#36 0.6103838
+#60 0.6457874
+fg_auc <- subset(fg_auc, is.finite(time_months) & is.finite(AUC))
+print(fg_auc); 
+wcsv(fg_auc, "fg_timeROC_AUC.csv")
+
+plot(fg_auc$time_months, fg_auc$AUC,
+     type = "b", pch = 16, lwd = 2,
+     xlab = "Follow-up (months)",
+     ylab = "AUC (Fine-Gray)",
+     ylim = c(0.5, 1))
+graphics::grid(col = "gray90") 
+title("Fine-Gray time-dependent AUC")
+out_dir <- "T:/study4/Results_tables"
+dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+
+## Secure/filter objects before export
+fg_auc <- subset(fg_auc, is.finite(time_months) & is.finite(AUC))
+harrell_df <- as.data.frame(harrell_df)
+names(harrell_df) <- "C_index"
+
+## exports CSV
+write.csv(fg_auc,
+          file = file.path(out_dir, "fg_timeROC_AUC.csv"),
+          row.names = FALSE)
+
+write.csv(harrell_df,
+          file = file.path(out_dir, "fg_HarrellC.csv"),
+          row.names = FALSE)
+
+###
+suppressPackageStartupMessages({
+  library(ggplot2); library(ggrepel); library(scales)
+})
+
+stopifnot(exists("fg_auc"), is.data.frame(fg_auc))
+
+# 1)All in fraction form[0..1] (we will displayen %)
+to_frac <- function(x){
+  if (!is.numeric(x)) return(x)
+  mx <- suppressWarnings(max(x, na.rm=TRUE))
+  if (!is.finite(mx)) return(x)
+  if (mx > 100) x <- x/10000 
+  else if (mx > 1) x <- x/100 
+  x
+}
+names(fg_auc)
+library()
+fg_auc <- within(fg_auc, {
+  pred_f <- to_frac(pred)
+  obs_f <- to_frac(obs)
+  LCL_f <- to_frac(LCL)
+  UCL_f <- to_frac(UCL)
+  time_lab <- factor(time_months, levels=c(12,36,60),
+                     labels=c("12 months","36 months","60 months"))
+})
+cal_plot <- subset(cal_plot, is.finite(pred_f) & is.finite(obs_f))
+
+# 2) Common limits and 1:1 ratio
+mmax <- suppressWarnings(max(cal_plot$pred_f, cal_plot$obs_f, na.rm=TRUE))
+mmax <- min(1, max(0.01, mmax*1.1))
+
+# 3) Plot
+gg <- ggplot(cal_plot, aes(x=pred_f, y=obs_f)) +
+  geom_abline(slope=1, intercept=0, linetype=2, linewidth=0.5, alpha=0.6) +
+  geom_errorbar(aes(ymin=LCL_f, ymax=UCL_f), width=0, alpha=0.6) +
+  geom_point(size=2.4) +
+  ggrepel::geom_text_repel(aes(label=paste0("D", decile, "\n n=", n)),
+                           size=2.6, max.overlaps=100,
+                           box.padding=0.15, min.segment.length=0,
+                           show.legend=FALSE) +
+  scale_x_continuous(labels=label_percent(accuracy=0.1),
+                     limits=c(0, mmax), breaks=pretty(c(0, mmax), 6)) +
+  scale_y_continuous(labels=label_percent(accuracy=0.1),
+                     limits=c(0, mmax), breaks=pretty(c(0, mmax), 6)) +
+  coord_equal() +
+  facet_wrap(~ time_lab, nrow=1) +
+  labs(title="Fine-Gray calibration by deciles",
+       x="Predicted CIF SCD", y="Observed CIF SCD") +
+  theme_minimal(base_size=12) +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major = element_line(linewidth=0.25, colour="grey85"),
+        strip.text = element_text(face="bold"),
+        plot.title = element_text(face="bold"))
+print(gg)
+dev.off()
+# =======================================================================================
+#HL = calibration
+# ====================================================================================
+suppressPackageStartupMessages({
+  library(riskRegression) # FGR + predictRisk
+  library(cmprsk)
+  library(prodlim)# cuminc/timepoints 
+  library(ggplot2); library(ggrepel)
+})
+
+# 1) build df_cr 
+if (!exists("df_cr")) {
+  stopifnot(exists("df_handled_cc"), is.data.frame(df_handled_cc))
+  canon <- c("<=50","51-65","66-75",">75")
+  clean_age <- function(x){
+    x <- trimws(as.character(x))
+    x <- gsub("\u2264","<=",x); x <- gsub("\u2013|\u2014|–|—","-",x); x <- gsub("\\s+","",x)
+    x[x %in% c("<=50","<=50y","<=50yrs","<=50years")] <- "<=50"
+    x[x %in% c("51-65","51–65")] <- "51-65"
+    x[x %in% c("66-75","66–75")] <- "66-75"
+    x[grepl("^> ?75|^>=?76|\\b76\\+\\b", x)] <- ">75"
+    factor(x, levels = canon)
   }
-  anti_syn <- intersect(c("Anticoagulant","Anti_coagulant","anti_coagulant","anticoagulant"), names(d))
-  if (length(anti_syn)) {
-    z <- Reduce(function(a,b) ifelse(is.na(a), b, a),
-                lapply(anti_syn, function(v) recode_yesno(d[[v]])))
-    d$Anticoagulant_any <- factor(ifelse(z=="Yes","Yes", ifelse(z=="No","No", NA)), levels=c("No","Yes"))
-    d[anti_syn] <- NULL
-  }
-  d
-}
-df <- canon_med_cols(df)
-
-# Complete-case mask for a variable set
-cc_mask <- function(d, vars){
-  need <- c("time_years", status_col, vars)
-  complete.cases(d[, need, drop = FALSE]) & is.finite(d$time_years) & d$time_years > 0
-}
-
-# Export directory (T: drive if writable; fallback = ./Results_tables)
-ensure_writable <- function(path){
-  ok <- tryCatch({
-    if (!dir.exists(path)) dir.create(path, recursive = TRUE, showWarnings = FALSE)
-    tf <- tempfile(tmpdir = path)
-    writeLines("ok", tf); unlink(tf); TRUE
-  }, error = function(e) FALSE)
-  ok
-}
-TAB_DIR <- "T:/study_4/Results_tables"
-if (!ensure_writable(TAB_DIR)) TAB_DIR <- file.path(getwd(), "Results_tables")
-invisible(ensure_writable(TAB_DIR))
-message("[Export] writing CSVs to: ", normalizePath(TAB_DIR, winslash = "/", mustWork = FALSE))
-wcsv <- function(x, name){
-  if (is.null(x) || !NROW(x)) return(invisible(FALSE))
-  fn <- file.path(TAB_DIR, name)
-  utils::write.csv(x, fn, row.names = FALSE)
-  message(" - wrote ", basename(fn))
-  TRUE
-}
-
-# ====================== 2) SAP thresholds =========================================================================
-P_SCREEN <- 0.10 # univariate screen threshold (candidate added to core)
-P_KEEP <- 0.10 # backward keep threshold (joint Wald)
-DF_SPLINE <- 4L # degrees of freedom when a numeric var is non-linear
-NLIN_P <- 0.05 # non-linearity test p-value
-MIN_EV <- 5L # minimum SCD events per band (after CC)
-MIN_N <- 50L # minimum complete-case sample size per band
-
-# (Computation-only scaling for numerical stability)
-SCALE_NUM <- TRUE
-z_params <- function(x){ x <- as.numeric(x); x <- x[is.finite(x)]
-m <- stats::median(x, na.rm=TRUE); s <- stats::IQR(x, na.rm=TRUE)
-if (!is.finite(s) || s <= 0) s <- stats::sd(x, na.rm=TRUE)
-if (!is.finite(s) || s <= 0) s <- 1
-if (isFALSE(SCALE_NUM)) s <- 1
-list(center=m, scale=s)
-}
-z_transform <- function(v, par) as.numeric((v - par$center) / par$scale)
-
-#========================== 3) Design builders (linear or spline), robust crr fitting, and tests ==================
-build_design <- function(d, spec){
-  stopifnot(is.list(spec), length(spec) > 0)
-  cols <- list(); map <- list(); cn <- character(0); zmap <- list(); k <- 0L
-  for (v in names(spec)){
-    if (!v %in% names(d)) next
-    vv <- d[[v]]
-    if (is.numeric(vv) || is.integer(vv)){
-      par <- z_params(vv); zmap[[v]] <- par
-      xnum <- z_transform(vv, par)
-      if (identical(spec[[v]]$type, "spline")){
-        B <- splines::ns(xnum, df = spec[[v]]$df); B <- as.matrix(B)
-        cols[[v]] <- B
-        idx <- seq_len(ncol(B)) + k; k <- k + ncol(B); map[[v]] <- idx
-        cn <- c(cn, paste0("ns(", v, ",", spec[[v]]$df, ")[", seq_len(ncol(B)), "]"))
-      } else {
-        cols[[v]] <- cbind(xnum)
-        idx <- (k + 1L); k <- k + 1L; map[[v]] <- idx
-        cn <- c(cn, v)
-      }
-    } else { # factors
-      f <- factor(vv)
-      if (nlevels(f) <= 1L) next
-      M <- model.matrix(~ f)[, -1, drop = FALSE]
-      cols[[v]] <- M
-      idx <- seq_len(ncol(M)) + k; k <- k + ncol(M); map[[v]] <- idx
-      cn <- c(cn, paste0(v, levels(f)[-1]))
-    }
-  }
-  X <- if (length(cols)) do.call(cbind, cols) else matrix(0, nrow = nrow(df), ncol = 0)
-  colnames(X) <- cn
-  list(X = X, map = map, colnames = cn)
-}
-
-prune_X <- function(X, tol = 1e-8){
-  if (is.null(X) || !is.matrix(X) || !ncol(X)) return(list(X = X, keep = integer(0)))
-  sds <- apply(X, 2, function(z) stats::sd(z, na.rm = TRUE))
-  keep <- which(is.finite(sds) & sds > 0)
-  X1 <- if (length(keep)) X[, keep, drop=FALSE] else X[, integer(0), drop=FALSE]
-  if (!ncol(X1)) return(list(X = X1, keep = integer(0)))
-  QR <- qr(X1, tol = tol); keep2 <- QR$pivot[seq_len(QR$rank)]
-  list(X = X1[, keep2, drop = FALSE], keep = keep[keep2])
-}
-
-safe_crr <- function(t, status, X, failcode = 1L, cencode = 0L, max_prune = 3){
-  if (!is.matrix(X) || ncol(X) == 0) {
-    fit0 <- cmprsk::crr(ftime = t, fstatus = status, cov1 = NULL,
-                        failcode = failcode, cencode = cencode,
-                        maxiter = 100, variance = TRUE)
-    fit0$coef <- numeric(0); fit0$var <- matrix(,0,0); fit0$._cols_used <- integer(0)
-    return(fit0)
-  }
-  tried <- 0L; cols_keep <- seq_len(ncol(X)); Xcur <- X
-  repeat{
-    fit <- try(cmprsk::crr(ftime = t, fstatus = status, cov1 = Xcur,
-                           failcode = failcode, cencode = cencode,
-                           maxiter = 100, variance = TRUE), silent = TRUE)
-    if (!inherits(fit, "try-error")) { fit$._cols_used <- cols_keep; return(fit) }
-    if (tried >= max_prune || ncol(Xcur) <= 1L) return(fit)
-    pr <- prune_X(Xcur)
-    if (!ncol(pr$X) || length(pr$keep) == ncol(Xcur)) return(fit)
-    Xcur <- pr$X; cols_keep <- cols_keep[pr$keep]; tried <- tried + 1L
-  }
-}
-
-align_design_to_fit <- function(des, fit){
-  keep <- fit$._cols_used
-  if (is.null(keep)) return(des)
-  if (!length(keep)) {
-    des$X <- matrix(, nrow = nrow(des$X), ncol = 0)
-    des$colnames <- character(0)
-    for (v in names(des$map)) des$map[[v]] <- integer(0)
-    return(des)
-  }
-  des$X <- des$X[, keep, drop = FALSE]
-  des$colnames <- colnames(des$X)
-  new_map <- des$map
-  for (v in names(des$map)){
-    idx <- des$map[[v]]
-    new_idx <- match(idx, keep)
-    new_map[[v]] <- new_idx[!is.na(new_idx)]
-  }
-  des$map <- new_map; des
-}
-
-wald_p_block <- function(fit, idx){
-  if (length(idx) == 0) return(NA_real_)
-  V <- try(fit$var, silent = TRUE); b <- try(as.numeric(fit$coef), silent = TRUE)
-  if (inherits(V,"try-error") || inherits(b,"try-error")) return(NA_real_)
-  if (length(b) == 0) return(NA_real_)
-  b <- b[idx]; V <- V[idx, idx, drop = FALSE]
-  if (length(b) == 1L) {
-    z2 <- (b^2) / V[1,1]; return(stats::pchisq(z2, df = 1, lower.tail = FALSE))
-  } else {
-    z2 <- try(as.numeric(t(b) %*% solve(V, b)), silent = TRUE)
-    if (inherits(z2,"try-error") || !is.finite(z2)) return(NA_real_)
-    return(stats::pchisq(z2, df = length(b), lower.tail = FALSE))
-  }
-}
-
-splines_used_log <- function(map, var_names){
-  if (!length(var_names)) return(logical(0))
-  sapply(var_names, function(v){
-    idx <- map[[v]]
-    isTRUE(!is.null(idx) && length(idx) > 1L)
+  
+  stopifnot(all(c("ftime_mo_int","fstatus","age_group") %in% names(df_handled_cc)))
+  df_cr <- within(df_handled_cc, {
+    time_months <- as.numeric(ftime_mo_int) # en mois
+    Status <- as.integer(fstatus) # 0/1/2
+    age_group <- clean_age(age_group)
   })
+  df_cr <- subset(df_cr, is.finite(time_months) & time_months > 0 &
+                    Status %in% 0:2 & !is.na(age_group))
 }
 
-coef_table <- function(fit, band, colnames_used){
-  if (length(fit$coef) == 0) {
-    return(data.frame(age_band = band, term = character(0), SHR = numeric(0),
-                      LCL_95 = numeric(0), UCL_95 = numeric(0), p_value = numeric(0)))
-  }
-  b <- as.numeric(fit$coef); se <- sqrt(diag(fit$var)); z <- b/se; p <- 2*pnorm(-abs(z))
-  data.frame(
-    age_band = band,
-    term = colnames_used,
-    SHR = exp(b),
-    LCL_95 = exp(b - 1.96*se),
-    UCL_95 = exp(b + 1.96*se),
-    p_value = p,
-    check.names = FALSE
-  )
-}
-# ============================ 4) Variables per SAP =========================================================
-# Core variables (always kept if present)
-core_vars <- pick_present(c("LVEF","eGFR","Diabetes","ACE_inhibitor_ARB","Beta_blockers","Lipid_lowering"))
-
-# Candidate list (only those present in df)
-af_col <- pick_present(c("AF_any","AF_atrial_flutter"))[1]
-candidates_all <- pick_present(unique(na.omit(c(
-  "Hypertension","HF","BMI","Haemoglobin","Cholesterol","CRP_log1p",
-  "Smoking","Alcohol","Sex", af_col, "Anticoagulant_any"
-))))
-
-# ============================5) Containers for exports =======================================================
-final_summary <- list()
-shr_tabs <- list()
-var_tests_all <- list()
-splines_used <- list()
-
-# =============================6) Loop by age band =============================================================
-for (b in levels(df$age_group)) {
-  cat("\n================ AGE BAND:", b, "================\n")
-  d_b <- df[df$age_group == b, , drop = FALSE]
-  
-  # --- Univariate screen: core + one candidate (linear) ----
-  keep_screen <- character(0)
-  cand <- setdiff(candidates_all, core_vars)
-  for (v in cand){
-    vars <- unique(c(core_vars, v))
-    mm <- cc_mask(d_b, vars); if (!any(mm)) next
-    dd <- d_b[mm, , drop = FALSE]
-    ev <- sum(dd[[status_col]] == cause_code)
-    if (nrow(dd) < MIN_N || ev < MIN_EV) next
-    spec <- setNames(rep(list(list(type = "linear")), length(vars)), vars)
-    des <- build_design(dd, spec)
-    fit <- safe_crr(dd$time_years, dd[[status_col]], des$X, failcode = cause_code, cencode = 0L)
-    if (inherits(fit, "try-error")) next
-    p <- wald_p_block(fit, des$map[[v]])
-    if (is.finite(p) && p < P_SCREEN) keep_screen <- c(keep_screen, v)
-  }
-  keep_screen <- unique(keep_screen)
-  
-  # --- Build viable set (meet CC N and events) ----
-  current_all <- unique(c(core_vars, keep_screen))
-  mm_all <- cc_mask(d_b, current_all)
-  dd <- d_b[mm_all, , drop = FALSE]
-  ev <- sum(dd[[status_col]] == cause_code)
-  if (nrow(dd) < MIN_N || ev < MIN_EV) {
-    cat("Not enough complete cases/events; skipping band.\n")
-    next
-  }
-  
-  # --- Non-linearity check among numeric vars present ----
-  numeric_check <- intersect(c("LVEF","eGFR","BMI","Haemoglobin","Cholesterol","CRP_log1p"), current_all)
-  spline_flag <- setNames(as.list(rep(FALSE, length(current_all))), current_all)
-  for (v in numeric_check){
-    spec <- setNames(rep(list(list(type = "linear")), length(current_all)), current_all)
-    spec[[v]] <- list(type = "spline", df = DF_SPLINE)
-    des_v <- build_design(dd, spec)
-    fit_v <- safe_crr(dd$time_years, dd[[status_col]], des_v$X, failcode = cause_code, cencode = 0L)
-    if (inherits(fit_v, "try-error")) next
-    des_v <- align_design_to_fit(des_v, fit_v)
-    idx <- des_v$map[[v]]
-    if (length(idx) > 1L) {
-      p_nl <- wald_p_block(fit_v, idx[-1])
-      if (is.finite(p_nl) && p_nl < NLIN_P) spline_flag[[v]] <- TRUE
-    }
-  }
-  
-  # --- Initial multivariable model (respect splines) ----
-  spec0 <- setNames(rep(list(list(type = "linear")), length(current_all)), current_all)
-  for (v in names(spline_flag)) if (isTRUE(spline_flag[[v]])) spec0[[v]] <- list(type = "spline", df = DF_SPLINE)
-  des0 <- build_design(dd, spec0)
-  fit0 <- safe_crr(dd$time_years, dd[[status_col]], des0$X, failcode = cause_code, cencode = 0L)
-  if (inherits(fit0, "try-error")) { cat("crr failed after design build; skipping band.\n"); next }
-  des0 <- align_design_to_fit(des0, fit0)
-  
-  # --- Backward elimination on non-core variables (joint Wald) ----
-  vars_keep <- current_all[sapply(des0$map[current_all], function(ix) length(ix) > 0)]
-  des_cur <- des0; fit_cur <- fit0
-  repeat {
-    if (!length(vars_keep)) break
-    p_map <- sapply(vars_keep, function(v) wald_p_block(fit_cur, des_cur$map[[v]]))
-    droppables <- setdiff(vars_keep, core_vars)
-    if (!length(droppables)) break
-    worst <- droppables[which.max(ifelse(is.finite(p_map[droppables]), p_map[droppables], -1))]
-    if (!is.finite(p_map[worst]) || p_map[worst] <= P_KEEP) break
-    # refit without the worst variable
-    vars_keep <- setdiff(vars_keep, worst)
-    spec_new <- setNames(rep(list(list(type = "linear")), length(vars_keep)), vars_keep)
-    for (v in vars_keep) if (isTRUE(spline_flag[[v]])) spec_new[[v]] <- list(type = "spline", df = DF_SPLINE)
-    des_new <- build_design(dd, spec_new)
-    fit_new <- safe_crr(dd$time_years, dd[[status_col]], des_new$X, failcode = cause_code, cencode = 0L)
-    if (inherits(fit_new,"try-error")) { vars_keep <- union(vars_keep, worst); break }
-    des_new <- align_design_to_fit(des_new, fit_new)
-    vars_keep <- vars_keep[sapply(des_new$map[vars_keep], function(ix) length(ix) > 0)]
-    des_cur <- des_new; fit_cur <- fit_new
-  }
-  
-  # --- Exports per band ----
-  shr_tab <- coef_table(fit_cur, b, colnames(des_cur$X))
-  shr_tabs[[length(shr_tabs)+1]] <- shr_tab
-  
-  vt <- data.frame(
-    age_band = b,
-    variable = vars_keep,
-    p_joint = sapply(vars_keep, function(v) wald_p_block(fit_cur, des_cur$map[[v]])),
-    stringsAsFactors = FALSE
-  )
-  var_tests_all[[length(var_tests_all)+1]] <- vt
-  
-  sp_log <- splines_used_log(des_cur$map, vars_keep)
-  sp_txt <- if (any(sp_log)) paste(vars_keep[sp_log], collapse = ", ") else "none"
-  EPV <- sum(dd[[status_col]] == cause_code) / max(1, ncol(des_cur$X))
-  
-  final_summary[[b]] <- data.frame(
-    age_band = b,
-    N_CC = nrow(dd),
-    SCD = sum(dd[[status_col]] == cause_code),
-    EPV = round(EPV, 1),
-    n_vars = length(vars_keep),
-    vars = paste(vars_keep, collapse = ", "),
-    splines = sp_txt,
-    stringsAsFactors = FALSE
-  )
-  splines_used[[b]] <- data.frame(age_band = b, variable = vars_keep, spline = sp_log)
-  
-  # write per-band SHR CSV
-  if (NROW(shr_tab)) {
-    fn <- paste0("SHR_", gsub("[^A-Za-z0-9]+","_", b), ".csv")
-    wcsv(shr_tab, fn)
-  }
+# 2) Créer fgr_fit si absent
+if (!exists("fgr_fit") || !inherits(fgr_fit, "FGR")) {
+  fg_form <- Hist(time_months, Status) ~ age_group
+  fgr_fit <- FGR(formula = fg_form, data = df_cr, cause = 1)
 }
 
-# ================================7) Write stacked tables ===========================================================
-final_summary_df <- if (length(final_summary)) do.call(rbind, final_summary) else NULL
-shr_all_df <- if (length(shr_tabs)) do.call(rbind, shr_tabs) else NULL
-var_tests_df <- if (length(var_tests_all)) do.call(rbind, var_tests_all) else NULL
-splines_used_df <- if (length(splines_used)) do.call(rbind, splines_used) else NULL
+dir.create("T:/study4/Results_tables", showWarnings = FALSE, recursive = TRUE)
+saveRDS(fgr_fit, "T:/study4/Results_tables/fgr_fit_age_only.rds")
 
-wcsv(final_summary_df, "final_summary_crr.csv")
-wcsv(shr_all_df, "SHR_all_bands.csv")
-wcsv(var_tests_df, "var_level_tests.csv")
-wcsv(splines_used_df, "splines_used.csv")
+stopifnot(inherits(fgr_fit,"FGR"),
+          all(c("time_months","Status") %in% names(df_cr)))
 
-message("[Done] All Fine-Gray risk-factor CSV files written to: ",
-        normalizePath(TAB_DIR, winslash = "/", mustWork = FALSE))
+## ---- 1) Decile table at time t (in months)
+calib_deciles <- function(fit, data, t, K=10){
+  pr <- drop(predictRisk(fit, newdata=data, times=t)) # E = risque prédit(t)
+  keep <- is.finite(pr) & is.finite(data$time_months) & !is.na(data$Status)
+  pr <- pr[keep]; d <- data[keep, , drop=FALSE]
+  if (!length(pr)) return(NULL)
+  
+  qs <- unique(quantile(pr, probs=seq(0,1,length.out=K+1), na.rm=TRUE))
+  grp <- cut(pr, breaks=qs, include.lowest=TRUE, labels=paste0("D", seq_len(length(qs)-1)))
+  if (nlevels(grp) < 2L) return(NULL)
+  
+  one_decile <- function(idx){
+    id <- which(idx); n <- length(id)
+    if (!n) return(data.frame(n=0,pred=NA,obs=NA,se=NA))
+    pe <- mean(pr[id], na.rm=TRUE)
+    
+    ci <- cmprsk::cuminc(ftime=d$time_months[id], fstatus=d$Status[id], cencode=0)
+    id1 <- grep(" 1$", names(ci))
+    tp <- cmprsk::timepoints(ci, times=t)
+    est <- try(tp$est[id1,1], silent=TRUE); est <- if (inherits(est,"try-error")) NA_real_ else as.numeric(est)
+    se <- sqrt(pmax(est,0)*pmax(1-est,0)/max(n,1)) # var binomiale simple
+    
+    data.frame(n=n, pred=pe, obs=est, se=se)
+  }
+  
+  tab <- by(seq_along(pr), grp, function(ii) one_decile(seq_along(pr) %in% ii))
+  out <- do.call(rbind, tab)
+  out$decile <- rownames(out); rownames(out) <- NULL
+  out$time_months <- t
+  transform(out,
+            pred=100*pred,
+            obs =100*obs,
+            LCL =pmax(0, 100*(obs/100 - 1.96*se)),
+            UCL =pmin(100,100*(obs/100 + 1.96*se)))[,c("time_months","decile","n","pred","obs","LCL","UCL")]
+}
 
-## ====================================================================================================================
-# (Optional)  COX cause-specific risk-factor tables mirroring the same rules,
-# uncomment the block below. Outputs: final_summary_cox.csv, HR_all_bands_cox.csv, HR_cox_<band>.csv
-# =====================================================================================================================
-# suppressPackageStartupMessages(library(survival))
-# event_cs <- as.integer(df[[status_col]] == cause_code)
-# cox_final <- list(); cox_hr_all <- list()
-# for (b in levels(df$age_group)) {
-# d_b <- df[df$age_group==b, , drop=FALSE]
-# current_all <- unique(c(core_vars, candidates_all))
-# mm <- cc_mask(d_b, current_all); if (!any(mm)) next
-# dd <- d_b[mm, , drop=FALSE]
-# if (nrow(dd) < MIN_N || sum(event_cs[mm]==1) < MIN_EV) next
-# # quick nonlinearity tagging (df=4) for numeric present
-# present_num <- intersect(c("LVEF","eGFR","BMI","Haemoglobin","Cholesterol","CRP_log1p"), current_all)
-# nl_set <- character(0)
-# for (v in present_num) {
-# f_lin <- as.formula(paste0("Surv(time_years, event_cs[mm]) ~ ", v))
-# f_spl <- as.formula(paste0("Surv(time_years, event_cs[mm]) ~ splines::ns(", v, ", df=4)"))
-# fit_lin <- try(coxph(f_lin, data = dd), silent=TRUE)
-# fit_spl <- try(coxph(f_spl, data = dd), silent=TRUE)
-# if (!inherits(fit_lin,"try-error") && !inherits(fit_spl,"try-error")) {
-# a <- anova(fit_lin, fit_spl, test="Chisq"); p_nl <- tail(a[,"P(>|Chi|)"], 1)
-# if (is.finite(p_nl) && p_nl < NLIN_P) nl_set <- c(nl_set, v)
-# }
-# }
-# rhs <- vapply(current_all, function(v){
-# if (v %in% nl_set) paste0("splines::ns(", v, ", df=4)") else v
-# }, character(1))
-# fit <- try(coxph(as.formula(paste("Surv(time_years, event_cs[mm]) ~", paste(rhs, collapse=" + "))),
-# data=dd, ties="efron", x=TRUE), silent=TRUE)
-# if (inherits(fit,"try-error")) next
-# # backward using drop1 (never remove core terms)
-# repeat {
-# dr <- try(drop1(fit, test="Chisq"), silent=TRUE)
-# if (inherits(dr,"try-error")) break
-# tt <- rownames(dr); tt <- tt[tt!="<none>"]; if (!length(tt)) break
-# term_to_var <- sub("^splines::ns\\(([^,]+).*$","\\1", tt)
-# droppables <- tt[!(term_to_var %in% core_vars)]; if (!length(droppables)) break
-# pvals <- dr[droppables, "Pr(>Chi)"]
-# worst <- droppables[ which.max(ifelse(is.finite(pvals), pvals, -1)) ]
-# if (!is.finite(pvals[worst]) || pvals[worst] <= P_KEEP) break
-# fit <- update(fit, as.formula(paste(". ~ . -", worst)))
-# }
-# s <- summary(fit)
-# hr_tab <- data.frame(
-# age_band = b,
-# term = rownames(s$coefficients),
-# HR = exp(s$coefficients[,"coef"]),
-# LCL_95 = exp(s$coefficients[,"coef"] - 1.96*s$coefficients[,"se(coef)"]),
-# UCL_95 = exp(s$coefficients[,"coef"] + 1.96*s$coefficients[,"se(coef)"]),
-# p_value = s$coefficients[,"Pr(>|z|)"], check.names = FALSE
-# )
-# cox_hr_all[[length(cox_hr_all)+1]] <- hr_tab
-# cox_final[[b]] <- data.frame(age_band=b, N_CC=nrow(dd),
-# SCD=sum(event_cs[mm]==1), n_terms=nrow(hr_tab),
-# terms=paste(hr_tab$term, collapse=", "))
-# if (NROW(hr_tab)) wcsv(hr_tab, paste0("HR_cox_", gsub("[^A-Za-z0-9]+","_", b), ".csv"))
-# }
-# COX_HR_ALL <- if (length(cox_hr_all)) do.call(rbind, cox_hr_all) else NULL
-# COX_SUM <- if (length(cox_final)) do.call(rbind, cox_final) else NULL
-# wcsv(COX_HR_ALL, "HR_all_bands_cox.csv")
-# wcsv(COX_SUM, "final_summary_cox.csv")
-# message("[Done] Optional COX CSVs written.")
+## ---- 2) tables at the 3 horizons
+times_m <- c(12,36,60)
+cal_list <- lapply(times_m, function(t) calib_deciles(fgr_fit, df_cr, t))
+cal_all <- do.call(rbind, cal_list)
+
+write.csv(subset(cal_all, time_months==12), "fg_calibration_deciles_12m.csv", row.names=FALSE)
+write.csv(subset(cal_all, time_months==36), "fg_calibration_deciles_36m.csv", row.names=FALSE)
+write.csv(subset(cal_all, time_months==60), "fg_calibration_deciles_60m.csv", row.names=FALSE)
+write.csv(cal_all, "fg_calibration_deciles_all.csv", row.names=FALSE)
+
+## ---- 3) HL-like (chi2 approximatif) by horizon
+hl_like <- do.call(rbind, lapply(split(cal_all, cal_all$time_months), function(d){
+  d <- subset(d, is.finite(pred) & is.finite(obs) & is.finite(n) & n>0)
+  p <- d$pred/100; o <- d$obs/100; n <- d$n
+  V <- p*(1-p)/pmax(n,1)
+  chisq <- sum((o - p)^2 / pmax(V, 1e-12))
+  G <- length(o)
+  df <- max(G - 2L, 1L) # df ≈ G-2 (classic HL) – approximation
+  data.frame(time_months = unique(d$time_months)[1],
+             groups = G, chisq = chisq, df = df,
+             p_value = pchisq(chisq, df=df, lower.tail=FALSE))
+}))
+print(hl_like, digits=4)
+write.csv(hl_like, "fg_calibration_HL_like.csv", row.names=FALSE)
+ # ===============================================================================================
+#            Plot Calibration
+# ================================================================================================
+suppressPackageStartupMessages({library(ggplot2); library(ggrepel); library(scales)})
+
+cal_plot <- subset(cal_all, is.finite(pred) & is.finite(obs) & is.finite(n) & n > 0)
+
+if ("LCL" %in% names(cal_plot)) cal_plot$LCL <- pmax(0, cal_plot$LCL)
+if ("UCL" %in% names(cal_plot)) cal_plot$UCL <- pmin(100, cal_plot$UCL)
+
+if ("decile" %in% names(cal_plot) && is.numeric(cal_plot$decile)) {
+  cal_plot$decile <- paste0("D", cal_plot$decile)
+}
+
+rng <- range(c(cal_plot$pred, cal_plot$obs), na.rm = TRUE)
+rng <- c(0, max(2, ceiling(rng[2] * 1.10))) 
+
+gg <- ggplot(cal_plot, aes(x = pred, y = obs)) +
+  geom_abline(slope = 1, intercept = 0, linetype = 2, linewidth = 0.5, alpha = 0.7) +
+  {if (all(c("LCL","UCL") %in% names(cal_plot)))
+    geom_errorbar(aes(ymin = LCL, ymax = UCL), width = 0, alpha = 0.6)} +
+  geom_point(aes(size = n), shape = 16, alpha = 0.9) +
+  ggrepel::geom_text_repel(aes(label = decile),
+                           size = 2.8, box.padding = 0.15,
+                           min.segment.length = 0, max.overlaps = Inf, seed = 1) +
+  coord_equal(xlim = rng, ylim = rng, expand = FALSE, clip = "off") +
+  facet_wrap(~ time_months, nrow = 1,
+             labeller = labeller(time_months = function(x) paste(x, "months"))) +
+  scale_x_continuous("Predicted CIF SCD (%)", breaks = pretty(rng, 6)) +
+  scale_y_continuous("Observed CIF SCD (%)", breaks = pretty(rng, 6)) +
+  guides(size = guide_legend(title = "n", override.aes = list(alpha = 1))) +
+  theme_minimal(base_size = 12) +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major = element_line(linewidth = 0.25, colour = "grey85"),
+        strip.text = element_text(face = "bold"),
+        plot.title = element_text(face = "bold"),
+        legend.position = "bottom") +
+  labs(title = "Fine-Gray calibration by deciles")
+
+gg <- gg +
+  guides(size = guide_legend(title = "n")) 
+  scale_size_continuous(range = c(2.2, 6)) 
+  theme(
+    text = element_text(size = 12),
+    strip.text = element_text(face = "bold"),
+    plot.title = element_text(face = "bold"),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_line(linewidth = 0.25, colour = "grey85")
+  )
+  fmt1 <- function(x) sub("\\.0$", "", sprintf("%.1f", x))
+  
+  gg <- gg +
+    scale_x_continuous("Predicted CIF SCD (%)",
+                       breaks = pretty(rng, 6),
+                       labels = fmt1) +
+    scale_y_continuous("Observed CIF SCD (%)",
+                       breaks = pretty(rng, 6),
+                       labels = fmt1)
+  print(gg)
+  
+print(gg)
+# ==============================================================================================================
+# Validation internal : Bootstrap (n=1000)
+# ==============================================================================================================
+suppressPackageStartupMessages({
+  library(riskRegression); library(survival); library(timeROC)
+})
+marker_at_t <- function(fit, data, t0=36){
+  drop(predictRisk(fit, newdata=data, times=t0))
+}
+harrell_c_fg <- function(time_mo, status012, marker){
+  ok <- is.finite(time_mo) & is.finite(marker) & status012 %in% 0:2
+  if (!any(ok)) return(NA_real_)
+  cc <- survival::concordance(Surv(time_mo[ok]/12, status012[ok]==1) ~ marker[ok], timefix=TRUE)
+  as.numeric(unclass(cc$concordance))
+}
+safe_timeROC <- function(time_mo, status012, marker, times=c(12,36,60)){
+  out <- setNames(rep(NA_real_, length(times)), paste0(times,"m"))
+  times <- times[times <= max(time_mo, na.rm=TRUE)]
+  if (!length(times)) return(out)
+  tr <- try(timeROC::timeROC(T=time_mo, delta=status012, cause=1,
+                             marker=marker, times=times,
+                             iid=FALSE, weighting="marginal"), silent=TRUE)
+  if (inherits(tr,"try-error")) return(out)
+  auc <- if (!is.null(tr$AUC)) tr$AUC else if(!is.null(tr$AUC.t)) tr$AUC.t else tr$AUC_1
+  names(auc) <- paste0(times,"m")
+  out[names(auc)] <- as.numeric(auc); out
+}
+
+## ---- bootstrap (chunking)
+fg_formula <- formula(fgr_fit)
+times_eval <- c(12,36,60)
+run_boot_fg <- function(B=10, seed=1, ckpt="fg_boot_ckpt.csv", out="fg_boot_summary.csv"){
+  set.seed(seed)
+  n <- nrow(df_cr)
+  app_fit <- fgr_fit
+  app_marker <- marker_at_t(app_fit, df_cr, t0=36)
+  app_C <- harrell_c_fg(df_cr$time_months, df_cr$Status, app_marker)
+  app_AUC <- safe_timeROC(df_cr$time_months, df_cr$Status, app_marker, times_eval)
+  
+  ##  checkpoint
+  b_start <- 1L
+  if (file.exists(ckpt)) {
+    tmp <- try(read.csv(ckpt), silent=TRUE)
+    if (!inherits(tmp,"try-error") && nrow(tmp)>0) b_start <- nrow(tmp)+1L
+  }
+  
+  res <- if (b_start>1) tmp else data.frame(optC=numeric(0), optAUC12=numeric(0),
+                                            optAUC36=numeric(0), optAUC60=numeric(0))
+  
+  pb <- utils::txtProgressBar(min=b_start-1, max=B, style=3)
+  for (b in b_start:B){
+    id <- sample.int(n, replace=TRUE)
+    dB <- df_cr[id, , drop=FALSE]
+    
+    fitB <- try(FGR(fg_formula, data=dB, cause=1), silent=TRUE)
+    if (inherits(fitB,"try-error")) { utils::setTxtProgressBar(pb,b); next }
+    
+    ## apparent "bootstrap"
+    m_app <- marker_at_t(fitB, dB, t0=36)
+    C_app <- harrell_c_fg(dB$time_months, dB$Status, m_app)
+    A_app <- safe_timeROC(dB$time_months, dB$Status, m_app, times_eval)
+    
+    ## test on the original
+    m_tst <- marker_at_t(fitB, df_cr, t0=36)
+    C_tst <- harrell_c_fg(df_cr$time_months, df_cr$Status, m_tst)
+    A_tst <- safe_timeROC(df_cr$time_months, df_cr$Status, m_tst, times_eval)
+    
+    res[b, c("optC","optAUC12","optAUC36","optAUC60")] <-
+      c(C_app - C_tst,
+        (A_app["12m"] - A_tst["12m"]),
+        (A_app["36m"] - A_tst["36m"]),
+        (A_app["60m"] - A_tst["60m"]))
+    
+    if (b %% 10L == 0L) write.csv(res, ckpt, row.names=FALSE) # checkpoint toutes les 10 itérations
+    utils::setTxtProgressBar(pb,b)
+  }
+  close(pb); write.csv(res, ckpt, row.names=FALSE)
+  
+  mean_opt <- colMeans(res, na.rm=TRUE)
+  out_tab <- data.frame(
+    metric = c("HarrellC","AUC_12m","AUC_36m","AUC_60m"),
+    apparent = c(app_C, unname(app_AUC[c("12m","36m","60m")])),
+    optimism = unname(mean_opt[c("optC","optAUC12","optAUC36","optAUC60")]),
+    optimism_corrected = c(app_C, unname(app_AUC[c("12m","36m","60m")])) -
+      unname(mean_opt[c("optC","optAUC12","optAUC36","optAUC60")])
+  )
+  print(out_tab, digits=4)
+  write.csv(out_tab, out, row.names=FALSE)
+  invisible(out_tab)
+}
+
+run_boot_fg(B = 200, seed = 2025,
+            ckpt = "fg_boot_ckpt_200.csv",
+            out = "fg_boot_summary_200.csv")
+
+run_boot_fg(B = 1000, seed = 2025,
+            ckpt = "fg_boot_ckpt_1000.csv",
+            out = "fg_boot_summary_1000.csv")
