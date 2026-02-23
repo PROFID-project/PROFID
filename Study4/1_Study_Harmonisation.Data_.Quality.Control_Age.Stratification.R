@@ -1,11 +1,8 @@
-########################################################################################################################
-########################################################################################################################
-# projet: UmBIZO- PROFID (SCD post-MI, age- stratified)
-# Script: 01_pipeline_professionnel.R
+############################################################################################################
+# projet: UmBIZO- PROFID_Study4 (SCD post-MI, age- stratified)
+# Script: 01_Study_Harmonisation_Data_Quality_Age_stratification.R
 # Author: Amina Boudamaana
-# Date: 2025-10-24
-# 
-#
+# ========================================================================================================
 # Purpose: 
 #       1)  Harmonization of ICD& non-ICD cohorts
 #       2)  Data Quality Control (Table 1 bounds + <= 40day rule)
@@ -13,12 +10,11 @@
 #       4)  Age stratification (<= 50, 51-65, 66-75, >75)
 
 # SAP references: Variable selection & Harmonization, Data Quality Control
-######################################################"
-
 ## ========================================================================================================
 ## 0. Reproducibility & Session Info
 ## ========================================================================================================
 #file.edit('~/.Renviron')
+R.version.string
 set.seed(20251224)
 ## ========================================================================================================
 ## 1. Packages
@@ -30,12 +26,14 @@ library(dplyr)
 library(janitor)
 library(stringr)
 library(readr)
-
+library(cmprsk)
+library(survival)
 ## ========================================================================================================
 ## 2. Data import
 ## ========================================================================================================
 getwd()
-
+setwd("S:/AG/f-dhzc-profid/Data Transfer to Charite")
+combined_dataset <- read.csv("combined_dataset.csv")
 ICD_all          <- read.csv("ICD_all.csv")  #(Reference)
 ICD              <- read.csv("ICD.csv")
 NonICD_preserved <-read.csv("NonICD_preserved.csv")
@@ -53,17 +51,25 @@ str(ICD) ; str(NonICD_preserved); str(NonICD_reduced)
 ## ========================================================================================================
 # ICD_status :   identifies implanted-ICD registry vs non-ICD cohorts (selection bias later)
 # LVEF_category: cohort-defined preserved ">35%" vs reduced "<=35%" ( used for descriptive stratification)
-ICD$ICD_status               <- 1
-NonICD_preserved$ICD_status  <- 0
-NonICD_reduced$ICD_status    <- 0
-
-
+ICD$ICD_status               <- 1        # LVEF <=35
+NonICD_preserved$ICD_status  <- 0 >35    #LVEF >35
+NonICD_reduced$ICD_status    <- 0 <=35   # LVEF <=35
+### =========================================================
+summary(ICD$Hypertension)
+summary(NonICD_reduced$eGFR)
+summary(NonICD_preserved$eGFR)
+#
+sd(ICD$LVEF, na.rm=TRUE)
+sd(NonICD_reduced$eGFR, na.rm=TRUE)
+sd(NonICD_preserved$eGFR, na.rm=TRUE)
+#
+## ===========================================================
 ICD$LVEF_category              <- "Reduced"     # ICD cohort (post-IM, reduced EF)
 
 NonICD_preserved$LVEF_category <- "Preserved"   # Non-ICD preserved EF
 
 NonICD_reduced$LVEF_category   <- "Reduced"     # Non-ICD reduced EF
- 
+
 
 # Clean factors with stable ordering for reporting 
 ICD$LVEF_category               <- as.factor(ICD$LVEF_category)
@@ -108,7 +114,6 @@ final_col    <- sort(unique(c(present_all, must_have)))
 ## ========================================================================================================
 ## 5. Coercions +column alignment + Merge
 ## ========================================================================================================
-
 ICD               <- force_numeric(ICD,numeric_vars)
 NonICD_preserved  <- force_numeric(NonICD_preserved, numeric_vars)
 NonICD_reduced    <- force_numeric(NonICD_reduced, numeric_vars)
@@ -127,7 +132,6 @@ stopifnot(identical(names(ICD_align) , names(NR_align)))
 identical(names(ICD_align), names(NP_align))
 identical(names(ICD_align), names(NR_align))
 cat("Merged rows", nrow(dat),  "| variables", ncol(dat) ,"\n")  # dat==> 140204 obs. 93 variables
-
 ## ========================================================================================================
 ## 6.  Column order 
 ## ========================================================================================================
@@ -153,26 +157,23 @@ print(table(dat$LVEF_category,useNA = "ifany"))
 print(table(dat$ICD_status, useNA = "ifany"))
 by(dat$LVEF_category, dat$ICD_status, function(x) head(x,3))
 set.seed(1); print(sample(dat$LVEF_category, 20))
-
-
-
 ## ========================================================================================================
 ## 7.  Choose which variables to log1p
 ## ========================================================================================================
 # Rationale for log1p candidate selection:
-   ## We do NOT log-tranform every numeric field, Instead, we add *_log1p only for continuous variables
-     #  that are strictly non-negative and show clear right-skew,where a multiplicative scale is clinically sensible and improves model fit!
+## We do NOT log-tranform every numeric field, Instead, we add *_log1p only for continuous variables
+#  that are strictly non-negative and show clear right-skew,where a multiplicative scale is clinically sensible and improves model fit!
 
-          
+
 #  1) Safely coerce to numeric:
-      ## We parse each column to numeric with suppressWarnings(); character columns
-    #  are treated as "numeric-like" only if >=70% of values can be parsed as finite numbers.
-    #  This avoids spuriously analysing  codes/labels as numbers.
+## We parse each column to numeric with suppressWarnings(); character columns
+#  are treated as "numeric-like" only if >=70% of values can be parsed as finite numbers.
+#  This avoids spuriously analysing  codes/labels as numbers.
 as_num<-function(x) suppressWarnings(as.numeric(x))
 
 # 2) Quartile (Bowly) skewness: robuste to outliers:
-      ##We compute Bowley (quartile) skewness:
-       # (Q3+Q1-2*Q2)/(Q3-Q1), which depends on quartiles (Q1,Q2,Q3) and is  robust to outliers.
+##We compute Bowley (quartile) skewness:
+# (Q3+Q1-2*Q2)/(Q3-Q1), which depends on quartiles (Q1,Q2,Q3) and is  robust to outliers.
 bowley_skew <- function(x) {
   x <- x[is.finite(x)]
   if (length(x) <20) return(NA_real_)
@@ -217,12 +218,12 @@ metrics  <- do.call(rbind, lapply(numeric_like, function(v){
 cand_report <- metrics
 print(head(cand_report, 50), digits = 3)  # Only 38 variables metrics
 # 4) Heuristic decision rule: Hard-exclude variables where log is rarely useful 
-   ## A variable is flagged for log1p if: 
-                                        # prop_negative ==0 AND 
-                                        # at least two of {bowley_skew> 0.6, r_q95_q50 >3, r_max_med >10}
-    #This captures clearly right-skewed, positive distribution (NTProBNP, Troponin_T, CRP, Greyzone_size,
-   # often TSH/BUN,  and some sacr/volume metrics) while leaving physiologically bounded or clinically  linear variables
-   # Age, LVEF, SBP/DBP, HR, PR, QRS, QTc, electrolytes, lipides, eGFR) on the original scale.
+## A variable is flagged for log1p if: 
+# prop_negative ==0 AND 
+# at least two of {bowley_skew> 0.6, r_q95_q50 >3, r_max_med >10}
+#This captures clearly right-skewed, positive distribution (NTProBNP, Troponin_T, CRP, Greyzone_size,
+# often TSH/BUN,  and some sacr/volume metrics) while leaving physiologically bounded or clinically  linear variables
+# Age, LVEF, SBP/DBP, HR, PR, QRS, QTc, electrolytes, lipides, eGFR) on the original scale.
 
 hard_exclude  <- c( "Age", "LVEF", "SBP", "DBP", "HR", "PR", "QRS", "QTc",
                     "Sodium", "Haemoglobin", "Cholesterol","HDL", "LDL",
@@ -232,9 +233,9 @@ hard_exclude  <- c( "Age", "LVEF", "SBP", "DBP", "HR", "PR", "QRS", "QTc",
 # 5) Heuristic to flag "very right-skewed & positive" candidates
 cand <- subset(metrics,
                prop_negative <= 0.01 &  # should be >= 0 for log1p
-              (bowley_skew   > 0.6 |      # strongly right-skewed
-                r_q95_q50    > 3   |      # 95th >> median
-                r_max_med    > 10))       # extreme range
+                 (bowley_skew   > 0.6 |      # strongly right-skewed
+                    r_q95_q50    > 3   |      # 95th >> median
+                    r_max_med    > 10))       # extreme range
 cand_vars <- intersect(trimws(cand$variable), names(dat))
 
 # 6) Remove hard-excluded variables and keep only columns that exist in dat
@@ -246,11 +247,11 @@ cand_vars <- setdiff(cand_vars, hard_exclude)
 cand_report <- cand[order(-cand$bowley_skew), c("variable", "n_nonmiss", "prop_zero",
                                                 "bowley_skew", "r_q95_q50", "r_max_med", "median", "q95", "max")]
 print(head(cand_report, 20),  digits=3)
-       ## Based on the screening metrics, we will log-transform NTProBNP, Troponin_T, CRP, and Greyzone_size, 
-       # as each shows marked right-skew (meets >2 of: r_q95_q50 >3, r_max_med >10, Bowley_skew >0.6) and contains no negatives
- 
-  ##   The SAP requires the inclusion of BMI and eGFR log-transformed versions for model stability, 
-   #   regardless of the statistical skewness test results
+## Based on the screening metrics, we will log-transform NTProBNP, Troponin_T, CRP, and Greyzone_size, 
+# as each shows marked right-skew (meets >2 of: r_q95_q50 >3, r_max_med >10, Bowley_skew >0.6) and contains no negatives
+
+##   The SAP requires the inclusion of BMI and eGFR log-transformed versions for model stability, 
+#   regardless of the statistical skewness test results
 vars_sap <- c("BMI", "eGFR")
 
 # Merge the automatic selection (cand_vars) with the required variables (SA)
@@ -259,11 +260,11 @@ cand_vars_final <- unique(c(cand_vars, vars_sap))
 # verification of the final list
 cat("Final_list of log-transformed candidates (SAP+skewness): \n")
 print(cand_vars_final)
-           
+
 # 8) create log1p companions ONLY for the chosen candidates (the final shortlist):
-  ## Apply log1p only to variables that (i) exist in 'dat' and (ii) passed the skewness screen('cand_vars').
-  # Values <0 are set to NA because log1p is not appropriate for negatives on these clinical scales
-  # The function returns 'dat' with new columns named <var>_log1p
+## Apply log1p only to variables that (i) exist in 'dat' and (ii) passed the skewness screen('cand_vars').
+# Values <0 are set to NA because log1p is not appropriate for negatives on these clinical scales
+# The function returns 'dat' with new columns named <var>_log1p
 
 
 add_log1p <- function (df, vars){
@@ -280,19 +281,18 @@ dat  <- add_log1p(dat, cand_vars_final)
 created_logs  <- paste0(cand_vars_final, "_log1p")
 created_logs  <- created_logs[created_logs %in% names(dat)]
 cat ("Created log1p variables:\n"); print(created_logs) 
-            # Created log1p variables:
-                  #  [1] "CRP_log1p"   "Greyzone_size_log1p" "NTProBNP_log1p"   "Troponin_T_log1p, "BMI_log1p","eGFR_log1p" 
+# Created log1p variables:
+#  [1] "CRP_log1p"   "Greyzone_size_log1p" "NTProBNP_log1p"   "Troponin_T_log1p, "BMI_log1p","eGFR_log1p" 
 
 ## ========================================================================================================
 ## 8.  Standardise binary indicators to an ordered factor {No, Yes}
 ## ========================================================================================================
-
 # Different cohorts encode binaries in many ways (0/1, TRUE/FALSE),
 # "yes"/"no", "Y/N") For modelling and reporting we harmonise them
 # to a single, ordered factor with levels c("No", "Yes")
 
 ## - Preserves NA values- Converts safely when values are clearly binary; otherwise leaves the vector as a factor (fallback) 
-   # so we do not silently recode non-binary values
+# so we do not silently recode non-binary values
 
 to_no_yes <- function (x) {
   ## Standarise to factor ("No", "Yes")
@@ -300,15 +300,15 @@ to_no_yes <- function (x) {
   
   ## 1/ Numeric/integer 0/1 already
   if (is.numeric(x)|| is.integer(x)) {
-   if (all(na.omit(x)%in% c(0,1))) {  
-     return(factor(x, levels = c(0,1), labels = c("No", "Yes")))
-   }
+    if (all(na.omit(x)%in% c(0,1))) {  
+      return(factor(x, levels = c(0,1), labels = c("No", "Yes")))
+    }
   }
   ## 2/ Character "0"/"1"
-    if (is.character(x) && all(na.omit(x)%in% c("0","1"))) {
+  if (is.character(x) && all(na.omit(x)%in% c("0","1"))) {
     y <- as.numeric(x)
     return(factor(y, levels=c(0,1), labels=c("No", "Yes")))
-    }
+  }
   ## 3/ Logical TRUE/FALSE
   if (is.logical(x)) {
     return(factor(ifelse(x, "Yes", "No"), levels=c("No", "Yes")))   
@@ -321,20 +321,19 @@ to_no_yes <- function (x) {
     out <- ifelse(z== "yes", "Yes", ifelse(z=="no", "No", NA))
     return(factor(out, levels = c("No", "Yes")))
   }
-   ##fallback:  we return as factor without forcing a binary mapping 
+  ##fallback:  we return as factor without forcing a binary mapping 
   return(as.factor(x))
 }
 
 ## Priority binaires to standardise if they exist in data##
 priority_bin <-c(
-            "Diabetes","Hypertension","HF", "COPD","Stroke_TIA","Smoking","FH_CAD","FH_SCD",
-            "AV_block","AV_blokc_II_or_III", "RBBB","LBBB",
-            ## Medications
-            "ACE_inhibitor","ARB","ACE_inhibitor_ARB","Beta_blockers","Diuretics","Calcium_antagonistes",
-            "Aldosterone_antagonist","Anti_arrhythmic_III","Anti_coagulant","Anti_platelet","Lipid_lowering",
-            "Anti_diabtetic","Anti_diabetic_oral","Anti_diabetic_insulin",
-      
-            "CABG", "PCI", "Thromolysis_acute","Revascularisation_acute","CABG_acute","PCI_acute","HaMRI"
+  "Diabetes","Hypertension","HF", "COPD","Stroke_TIA","Smoking","FH_CAD","FH_SCD",
+  "AV_block","AV_blokc_II_or_III", "RBBB","LBBB",
+  ## Medications
+  "ACE_inhibitor","ARB","ACE_inhibitor_ARB","Beta_blockers","Diuretics","Calcium_antagonistes",
+  "Aldosterone_antagonist","Anti_arrhythmic_III","Anti_coagulant","Anti_platelet","Lipid_lowering",
+  "Anti_diabetic","Anti_diabetic_oral","Anti_diabetic_insulin",
+  "CABG", "PCI", "Thromolysis_acute","Revascularisation_acute","CABG_acute","PCI_acute","HaMRI"
 )
 # Apply the standardization ONLY to variables that are present in 'dat' 
 for (v in intersect(priority_bin, names(dat))) {
@@ -362,13 +361,11 @@ log_chk<- data.frame(
 )
 print(log_chk)
 ## =================================================================================================================================
-
 ##  DATA QUALITY- Table 1 invalide-value bounds 
-
 ## =================================================================================================================================
-   # for each variable listed in Table 1 , we set clearly inadmissible values to NA on the original clinical scale,
-   # Boundry inclusions follow Table 1 exactly 
-   # Important: the "measured <=40 days  after MI- rule is applied elsewhere and is intentionally Not handled in this function
+# for each variable listed in Table 1 , we set clearly inadmissible values to NA on the original clinical scale,
+# Boundry inclusions follow Table 1 exactly 
+# Important: the "measured <=40 days  after MI- rule is applied elsewhere and is intentionally Not handled in this function
 ## -----------------------------------------------------------------------------------------------------------------------------------
 ## numeric coercion without stopping on non-numeric  strings
 as_num  <- function(x) suppressWarnings(as.numeric(x)) 
@@ -376,7 +373,7 @@ as_num  <- function(x) suppressWarnings(as.numeric(x))
 ## 1A. Inadmissible bounds from Table 1   ##
 set_bounds <- function(x, lower=-Inf, upper= Inf,
                        include_lower=TRUE, include_upper=TRUE) {
-                         
+  
   v<- as_num(x)
   # lower bound
   if (is.finite(lower)) {
@@ -390,63 +387,63 @@ set_bounds <- function(x, lower=-Inf, upper= Inf,
 }
 ## Apply Table 1 bounds only if columns  exist
 apply_table1_bounds <- function(df) {
- 
-      ## BMI< 12 or >69 -> NA 
+  
+  ## BMI< 12 or >69 -> NA 
   if ("BMI" %in% names(df)) {
     v<- as_num(df$BMI); v[v <12 | v> 69] <- NA; df$BMI <-v
   }
-     ## BUN >900 mmo/L --> NA
+  ## BUN >900 mmo/L --> NA
   if ("BUN" %in% names(df)){  
     df$BUN <- set_bounds(df$BUN, upper = 900, include_upper= FALSE)
-    } 
-    ## Cholesterol <= 50 mg/dL -> NA
+  } 
+  ## Cholesterol <= 50 mg/dL -> NA
   if ("Cholesterol"  %in% names(df)) {
     df$Cholesterol <- set_bounds(df$Cholesterol, lower = 50, include_lower= TRUE)
   } 
-   ## Haemoglobin <2 or >110 g/dL -> NA
+  ## Haemoglobin <2 or >110 g/dL -> NA
   if ("Haemoglobin" %in% names(df)) 
     v<- as_num(df$Haemoglobin); v[v < 2 | v> 110] <- NA; df$Haemoglobin <-v
-  ## HbA1c < 2.5% -> NA 
-  if ("HbA1c"  %in% names(df)) {
-    df$HbA1c <- set_bounds(df$HbA1c, lower = 2.5, include_lower= FALSE)
-  }
-  ## HDL 0 mg/dL -> NA (<=0)
-  if ("HDL"  %in% names(df)) {
-    df$HDL <- set_bounds(df$HDL, lower = 0, include_lower= TRUE)
-  } 
-  ## LDL 0 mg/dL --> NA (<= 0)
-  if ("LDL" %in% names(df)) {
-    df$LDL <- set_bounds(df$LDL, lower = 0, include_lower= TRUE)
-  }
-  ## Sodium < 99 mmol/L ->NA 
-  if ("Sodium" %in% names(df)) {
-    df$Sodium <- set_bounds(df$Sodium, lower = 99, include_lower= FALSE)
-  } 
-  ## Triglycerides <20 mg/dL -> NA (20 is OK)
-  if ("Triglycerides" %in% names(df)) {
-    df$Triglycerides <- set_bounds(df$Triglycerides, lower = 20, include_lower= FALSE)
-  }
-  ## TSH 0 mU/L -> NA (<=0)
-  if ("TSH" %in%  names(df)){
-    df$TSH <- set_bounds(df$TSH, lower = 0, include_lower= TRUE)
-  } 
-  ## HR < 25 or >140 bpm -> NA  
-  if ("HR" %in% names(df)) {
-    v<- as_num(df$HR); v[v < 25 | v> 140] <- NA; df$HR<-v
- }
-  ## PR < 50 or >1000 ms -> NA
-  if ("PR" %in% names(df)) {
-    v<- as_num(df$PR); v[v < 50 | v> 1000] <- NA; df$PR<-v
- }
-  ## QRS <50 ms-> NA (50 Okay)
-  if ("QRS" %in% names(df)) {
-    df$QRS <- set_bounds(df$QRS, lower = 50, include_lower= FALSE)
-  }
-  ## QTc <= 250 or >790 ms -> NA
-  if ("QTc" %in% names(df)) {
-    v<- as_num(df$QTc); v[v <= 250 | v> 790] <- NA; df$QTC<-v
-  }
-  df
+    ## HbA1c < 2.5% -> NA 
+    if ("HbA1c"  %in% names(df)) {
+      df$HbA1c <- set_bounds(df$HbA1c, lower = 2.5, include_lower= FALSE)
+    }
+    ## HDL 0 mg/dL -> NA (<=0)
+    if ("HDL"  %in% names(df)) {
+      df$HDL <- set_bounds(df$HDL, lower = 0, include_lower= TRUE)
+    } 
+    ## LDL 0 mg/dL --> NA (<= 0)
+    if ("LDL" %in% names(df)) {
+      df$LDL <- set_bounds(df$LDL, lower = 0, include_lower= TRUE)
+    }
+    ## Sodium < 99 mmol/L ->NA 
+    if ("Sodium" %in% names(df)) {
+      df$Sodium <- set_bounds(df$Sodium, lower = 99, include_lower= FALSE)
+    } 
+    ## Triglycerides <20 mg/dL -> NA (20 is OK)
+    if ("Triglycerides" %in% names(df)) {
+      df$Triglycerides <- set_bounds(df$Triglycerides, lower = 20, include_lower= FALSE)
+    }
+    ## TSH 0 mU/L -> NA (<=0)
+    if ("TSH" %in%  names(df)){
+      df$TSH <- set_bounds(df$TSH, lower = 0, include_lower= TRUE)
+    } 
+    ## HR < 25 or >140 bpm -> NA  
+    if ("HR" %in% names(df)) {
+      v<- as_num(df$HR); v[v < 25 | v> 140] <- NA; df$HR<-v
+    }
+    ## PR < 50 or >1000 ms -> NA
+    if ("PR" %in% names(df)) {
+      v<- as_num(df$PR); v[v < 50 | v> 1000] <- NA; df$PR<-v
+    }
+    ## QRS <50 ms-> NA (50 Okay)
+    if ("QRS" %in% names(df)) {
+      df$QRS <- set_bounds(df$QRS, lower = 50, include_lower= FALSE)
+    }
+    ## QTc <= 250 or >790 ms -> NA
+    if ("QTc" %in% names(df)) {
+      v<- as_num(df$QTc); v[v <= 250 | v> 790] <- NA; df$QTC<-v
+    }
+    df
 }
 # Save pre-Quality Controle (pre-QC) copy for audit
 preQC <- dat
@@ -462,7 +459,7 @@ relog1p <- function(df, vars){
   df
 }
 dat<- relog1p(dat, c("BMI", "eGFR", "NTProBNP", "CRP", "Troponin_T", "Greyzone_size"))
- 
+
 # Audit: How many values were set to NA by QC??
 na_delta <- function (before, after)sum(is.na(after) & !is.na(before))
 vars_chek <- c("BMI", "BUN","Cholesterol", "Haemoglobin", "HbA1c", "HDL","LDL","Sodium", "Triglycerides","TSH","HR", "PR", "QRS", "QTc" )
@@ -475,8 +472,6 @@ audit <- do.call(rbind, lapply(vars_chek, function(v){
              n_nonmiss_post=sum(is.finite(a)))
 }))
 cat("Table-1 audit (values set to NA by QC):\n"); print(audit, row.names =FALSE)
-
-
 ## =================================================================================================================================
 ## Rule: Set measurements taken <=40 days after MI to NA
 ## Applies to: SBP, DBP, CRP,Troponin_T, NYHA, AV_blok, AV_blok_II_III
@@ -492,28 +487,28 @@ within_40d_flag <- function(df){
   n<- nrow(df)
   flag<- rep(FALSE, n)
   
-# A/ Use Baseline_type : match 'before', 'pre-40', '<=40', <40', 'within 40', 'early' 
+  # A/ Use Baseline_type : match 'before', 'pre-40', '<=40', <40', 'within 40', 'early' 
   if("Baseline_type" %in% names(df)){
     bt<- tolower(trimws(as.character(df$Baseline_type)))
     bt<- gsub("\\s+", " ", bt) ## normalize spaces##
-   ## 'pre' only when followed by -40 or 40 (avoid matching 'preserved')
+    ## 'pre' only when followed by -40 or 40 (avoid matching 'preserved')
     pat<- "(before|pre[ -]?40|<=\\s*40|<\\s*40|within\\s*40|within40|early|<=\\s*40)"
-        flag<- flag | grepl(pat,bt)
+    flag<- flag | grepl(pat,bt)
   }
-# B/ Use numeric time sine MI in years(Time_zero_Y)(covert threshold into years =40/365.25 years)
+  # B/ Use numeric time sine MI in years(Time_zero_Y)(covert threshold into years =40/365.25 years)
   year_threshold <- 40/365.25
   
   if("Time_zero_Y" %in% names(df)){
     y<- suppressWarnings(as.numeric(df$Time_Y))
     flag<- flag | (is.na(y) & y< year_threshold)
   }
-
-# C/ If we also have another "years since MI" fiels  => same threshold
+  
+  # C/ If we also have another "years since MI" fiels  => same threshold
   if("Time_zero_Ym" %in% names(df)){
     ym<- suppressWarnings(as.numeric(df$Time_zero_Ym))
     flag<- flag | (is.na(ym) & ym <year_threshold)
   }
-# D/ Explicit days since MI(Time_index_MI_CHD) last  
+  # D/ Explicit days since MI(Time_index_MI_CHD) last  
   if("Time_index_MI_CHD" %in% names(df)) {
     ty<- suppressWarnings(as.numeric(df$Time_index_MI_CHD))
     flag<- flag | (is.na(ty) & ty<year_threshold)
@@ -526,9 +521,7 @@ cat("Rows flagged as <=40 days:", sum(flag40), "out of", nrow(dat), "\n")
 ## 2/ Variables affected by the <=40 days rule (Table1) 
 vars_40d_all <- c("SBP", "DBP", "CRP", "Troponin_T", "NYHA", "AV_block", "AV_block_II_or_III")
 vars_40d<-intersect(vars_40d_all, names(dat)) ### keep only those that exist
-
-
-##NYHA harmonisation (SAP) 
+##NYHA harmonisation 
 ## Convert various encodings to an ordered factor: I < II < III < IV
 standardise_nyha <- function(x){
   z <- tolower(trimws(as.character(x)))
@@ -555,8 +548,6 @@ if ("NYHA" %in% names(dat)) {
   cat("NYHA levels after standardisation:\n")
   print(table(dat$NYHA, useNA = "ifany"))
 }
-## ----------------------------------------------------
-
 ## 3/ Count how many values will be set to NA (pre-application) 
 count_40d_na <- function(df, var, flag){
   x<- df[[var]]
@@ -567,14 +558,14 @@ count_40d_na <- function(df, var, flag){
   )
 }
 report_40d <- do.call(rbind, lapply(vars_40d, function(v) count_40d_na(dat, v, flag40)))
-print(report_40d)     # variable    nonNA_before
-     #                 SBP          8906
-    #                  DBP         8904
-    #                  CRP         6416
-    #              Troponin_T      6216
-    #                  NYHA        15008
-    #             AV_block         8010
-    #   AV_block_II_or_III         8254
+print(report_40d)                 # variable    nonNA_before
+#              SBP                 8906
+#              DBP                 8904
+#              CRP                 6416
+#              Troponin_T          6216
+#              NYHA                15008
+#              AV_block            8010
+#   AV_block_II_or_III             8254
 
 ## 4/ Apply the <= 40 days rule: set values to NA where flag40 is TRUE
 for(v in vars_40d){
@@ -605,8 +596,8 @@ relog1p<- function(df, vars){
   df
 }
 dat<- relog1p(dat, c("CRP", "Troponin_T")) # We only recomputed CRP_log1p and Troponin_T_log1p because 
-                                           # The <= 40 days rule affects only these two variables among those with log transformation. 
-                                           # Recomputing the other _log1p variables isn't necessary
+# The <= 40 days rule affects only these two variables among those with log transformation. 
+# Recomputing the other _log1p variables isn't necessary
 
 summary(dat$Time_index_MI_CHD)    # Min=1314 (years), so the shortest delay is =480 days (>40 days)
 sum(flag40, na.rm = TRUE)         # ==0 is consistent: no measurements <= 40 days, so nothing needs to be set to NA under this rule
@@ -656,9 +647,9 @@ if("NTProBNP" %in% names(dat)){
 }
 ##Quick sanity check ##
 summary(dat$NTProBNP_log1p)
- #  NTProBNP_log1p summary (after recomputation):
- # Min= 0.40, Q1= 2.80, Median=3.75, Q3=4.84, Max=9.26
- # NA'S=133.220 -this reflects limited availability for NTProBNP in the cohort and is NOT due to the 7*IQR screening (no values were set to NA)
+#  NTProBNP_log1p summary (after recomputation):
+# Min= 0.40, Q1= 2.80, Median=3.75, Q3=4.84, Max=9.26
+# NA'S=133.220 -this reflects limited availability for NTProBNP in the cohort and is NOT due to the 7*IQR screening (no values were set to NA)
 ## =================================================================================================================================
 ##        AGE STRATIFICATION
 # <= 50 = young adults
@@ -669,7 +660,7 @@ summary(dat$NTProBNP_log1p)
 # Create the 4 age cohorts per SAP: 
 dat$age_group<- cut(as.numeric(dat$Age),
                     breaks=c(-Inf,50, 65, 75, Inf),
-                      labels=c("<=50", "51-65", "66-75", ">75"),
+                    labels=c("<=50", "51-65", "66-75", ">75"),
                     right=TRUE)
 
 # Ensure a consistent ordered factor( same order everywhere)
@@ -679,26 +670,381 @@ dat$age_group <- factor(dat$age_group,
 
 # A descriptive label version 
 dat$age_group_desc <- factor(dat$age_group,
-                        levels = c("<=50", "51-65", "66-75", ">75"),
-                        labels = c("<=50  (young adults)",
-                                   "51-65 (middle-aged)",
-                                   "66-75 (older adults)", 
-                                   ">75   (elderly)"),
-                        ordered = TRUE)
-
-                        
+                             levels = c("<=50", "51-65", "66-75", ">75"),
+                             labels = c("<=50  (young adults)",
+                                        "51-65 (middle-aged)",
+                                        "66-75 (older adults)", 
+                                        ">75   (elderly)"),
+                             ordered = TRUE)
 ## Sanity check 
 stopifnot(sum(!is.na(dat$Age)) == sum(!is.na(dat$age_group)))
-print(table(dat$age_group, dat$ICD_status,     useNA = "ifany")) #  ICD_status             0      1
-                                                                  # young-adult "<=50"     9507   845
-                                                                  # middle-aged "51-65"    39728  3061
-                                                                  # Older adults "66-75"   40063  2558
-                                                                  # elderly      ">75"     43363  1077
-                                                                  # <NA>                   0      2
+print(table(dat$age_group, dat$ICD_status,     useNA = "ifany")) #  ICD_status        0      1
+# young-adult "<=50"     9507   845
+# middle-aged "51-65"    39728  3061
+# Older adults "66-75"   40063  2558
+# elderly      ">75"     43363  1077
+# <NA>                   0      2
 print(table(dat$age_group, dat$LVEF_category,  useNA = "ifany"))
-  ##  LVEF_category        Reduced Preserved
- #     young-adult "<=50"     1922      8430
- #     middle-aged  "51-65"   8532      34257
- #     Older-adults "66-75"   9705      32916
- #    elderly       ">75"     12440     32000
- #    <NA>                    2         0
+##  LVEF_category        Reduced Preserved
+#     young-adult "<=50"     1922      8430
+#     middle-aged  "51-65"   8532      34257
+#     Older-adults "66-75"   9705      32916
+#     elderly       ">75"     12440     32000
+#     <NA>                    2         0
+
+
+nrow(dat)  # 140204 ob
+ncol(dat) # 102 variables
+# =============================================Baseline charactéerustics # =========================
+
+## --- Clean and tabulate ARB for Table 1 ---
+
+# 1) Harmonize ARB into factor Yes/No (handles 0/1, y/n, true/false, etc.)
+recode_yesno <- function(x){
+  x <- trimws(tolower(as.character(x)))
+  yes <- c("1","y","yes","true","oui")
+  no <- c("0","n","no","false","non")
+  out <- ifelse(x %in% yes, "Yes",
+                ifelse(x %in% no, "No", NA))
+  factor(out, levels = c("No","Yes"))
+}
+
+# Quick sanity check of raw values
+sort(table(tolower(trimws(as.character(ICD$ARB))), useNA = "ifany"))
+
+# 2) Overall % in one data frame (replace ICD by your data frame)
+ICD$ARB_fac <- recode_yesno(ICD$ARB)
+arb_overall <- data.frame(
+  group = "ICD",
+  n = sum(!is.na(ICD$ARB_fac)),
+  Yes_n = sum(ICD$ARB_fac == "Yes", na.rm = TRUE),
+  No_n = sum(ICD$ARB_fac == "No", na.rm = TRUE),
+  Missing_n = sum(is.na(ICD$ARB_fac)),
+  Yes_pct = round(100 * mean(ICD$ARB_fac == "Yes", na.rm = TRUE), 1),
+  No_pct = round(100 * mean(ICD$ARB_fac == "No", na.rm = TRUE), 1)
+)
+arb_overall
+##
+# --- Clean and tabulate ARB for Table 1 ---
+
+# 1) Harmonize ARB into factor Yes/No (handles 0/1, y/n, true/false, etc.)
+recode_yesno <- function(x){
+  x <- trimws(tolower(as.character(x)))
+  yes <- c("1","y","yes","true","oui")
+  no <- c("0","n","no","false","non")
+  out <- ifelse(x %in% yes, "Yes",
+                ifelse(x %in% no, "No", NA))
+  factor(out, levels = c("No","Yes"))
+}
+
+# Quick sanity check of raw values
+sort(table(tolower(trimws(as.character(ICD$ARB))), useNA = "ifany"))
+
+# 2) Overall % in one data frame (replace ICD by your data frame)
+ICD$ARB_fac <- recode_yesno(ICD$ARB)
+arb_overall <- data.frame(
+  group = "ICD",
+  n = sum(!is.na(ICD$ARB_fac)),
+  Yes_n = sum(ICD$ARB_fac == "Yes", na.rm = TRUE),
+  No_n = sum(ICD$ARB_fac == "No", na.rm = TRUE),
+  Missing_n = sum(is.na(ICD$ARB_fac)),
+  Yes_pct = round(100 * mean(ICD$ARB_fac == "Yes", na.rm = TRUE), 1),
+  No_pct = round(100 * mean(ICD$ARB_fac == "No", na.rm = TRUE), 1)
+)
+arb_overall
+##
+
+# Put your data frames in a named list
+dfs <- list(
+  ICD = ICD,
+  NonICD_preserved = NonICD_preserved,
+  NonICD_reduced = NonICD_reduced
+)
+
+tab_by_df <- lapply(names(dfs), function(nm){
+  d <- dfs[[nm]]
+  d$ARB_fac <- recode_yesno(d$ARB)
+  out <- as.data.frame(prop.table(table(d$ARB_fac), 1)) # overall in that df
+  names(out) <- c("ARB","prop")
+  out$group <- nm
+  out$n <- sum(!is.na(d$ARB_fac))
+  out$Missing_n <- sum(is.na(d$ARB_fac))
+  out$percent <- round(100*out$prop, 1)
+  out
+})
+tab_by_df <- do.call(rbind, tab_by_df)
+tab_by_df[order(tab_by_df$group, tab_by_df$ARB), c("group","ARB","n","Missing_n","percent")]
+## ===============================================================================================
+
+# chercher des colonnes plausibles
+pat <- "(vessel|vessels|coronar|arter|diseased|mv|multivessel|3v|2v|1v|syntax|stenos|lesion|n_.*v)"
+grep(pat, names(dat), ignore.case = TRUE, value = TRUE)
+
+# si tu travailles par cohortes
+grep(pat, names(ICD), ignore.case = TRUE, value = TRUE)
+grep(pat, names(NonICD_reduced), ignore.case = TRUE, value = TRUE)
+grep(pat, names(NonICD_preserved), ignore.case = TRUE, value = TRUE)
+
+table(dat$Diseased_arteries_num_cat, useNA = "ifany"
+      # ==================================================)
+
+      
+      vars_check <- c("Beta_blockers","SGLT2_inhibitors","Diuretics","ARNI",
+                      "Betablocker","SGLT2i","SGLT2","Diuretic","Sacubitril_Valsartan")
+      lapply(list(ICD=ICD, NonICD_reduced=NonICD_reduced, NonICD_preserved=NonICD_preserved),
+             \(d) intersect(vars_check, names(d)))
+# ==================================================================================#
+      # --- helper yes/no (reprend ton to_yesno si tu l'as déjà) ---
+      to_yesno <- function(x){
+        if (is.factor(x)) x <- as.character(x)
+        if (is.logical(x)) return(factor(ifelse(x, "Yes", "No"), levels=c("No","Yes")))
+        z <- tolower(trimws(as.character(x)))
+        z[z %in% c("1","y","yes","true","t","oui")] <- "yes"
+        z[z %in% c("0","n","no","false","f","non")] <- "no"
+        out <- ifelse(z=="yes","Yes", ifelse(z=="no","No", NA))
+        factor(out, levels=c("No","Yes"))
+      }
+      
+      fmt_n_pct <- function(x_yes, denom){
+        n <- sum(x_yes, na.rm=TRUE)
+        sprintf("%d (%.1f%%)", n, 100*n/denom)
+      }
+      fmt_missing <- function(x, denom){
+        m <- sum(is.na(x))
+        sprintf("%d (%.1f%%)", m, 100*m/denom)
+      }
+      
+      # --- construire mini dataset table1 ---
+      make_tab_dat <- function(df, cohort_label){
+        df %>%
+          mutate(
+            cohort = cohort_label,
+            Beta_blockers = if("Beta_blockers" %in% names(.)) to_yesno(Beta_blockers) else NA,
+            Diuretics = if("Diuretics" %in% names(.)) to_yesno(Diuretics) else NA
+          )
+      }
+      
+      tab_dat <- dplyr::bind_rows(
+        make_tab_dat(ICD, "ICD patients"),
+        make_tab_dat(NonICD_reduced, "Non-ICD patients <=35%"),
+        make_tab_dat(NonICD_preserved, "Non-ICD patients >35%")
+      )
+      
+      N_by <- tab_dat %>% dplyr::count(cohort, name="N")
+      
+      build_med_row <- function(var, label){
+        tab_dat %>%
+          dplyr::left_join(N_by, by="cohort") %>%
+          dplyr::group_by(cohort, N) %>%
+          dplyr::summarise(cell = fmt_n_pct(.data[[var]]=="Yes", unique(N)), .groups="drop") %>%
+          tidyr::pivot_wider(names_from=cohort, values_from=cell) %>%
+          dplyr::mutate(
+            Variable = label,
+            Level = NA_character_,
+            `Missing data n (%)` = fmt_missing(tab_dat[[var]], nrow(tab_dat))
+          ) %>%
+          dplyr::select(Variable, Level,
+                        `ICD patients`, `Non-ICD patients <=35%`, `Non-ICD patients >35%`,
+                        `Missing data n (%)`)
+      }
+      
+      beta_row <- build_med_row("Beta_blockers", "Beta-blockers")
+      diur_row <- build_med_row("Diuretics", "Diuretics")
+      
+      med_addon <- dplyr::bind_rows(beta_row, diur_row)
+      med_addon
+# =========================================================================================================
+      library(dplyr)
+      
+      # 1) helper Yes/No
+      to_yesno <- function(x){
+        if (is.factor(x)) x <- as.character(x)
+        if (is.logical(x)) return(factor(ifelse(x, "Yes", "No"), levels=c("No","Yes")))
+        z <- tolower(trimws(as.character(x)))
+        z[z %in% c("1","y","yes","true","t","oui")] <- "yes"
+        z[z %in% c("0","n","no","false","f","non")] <- "no"
+        out <- ifelse(z=="yes","Yes", ifelse(z=="no","No", NA))
+        factor(out, levels=c("No","Yes"))
+      }
+      
+      # 2) variable anticoagulant (selon tes noms)
+      pick_anticoag <- function(df){
+        if ("Anti_coagulant" %in% names(df)) return("Anti_coagulant")
+        if ("Anticoagulant" %in% names(df)) return("Anticoagulant")
+        stop("Je ne trouve ni 'Anti_coagulant' ni 'Anticoagulant' dans ce df")
+      }
+      
+      # 3) fonction de check pour 1 cohorte
+      check_AF_AC <- function(df, cohort_name){
+        ac_var <- pick_anticoag(df)
+        
+        d <- df %>%
+          transmute(
+            cohort = cohort_name,
+            AF = if ("AF" %in% names(df)) to_yesno(.data$AF) else NA,
+            AC = to_yesno(.data[[ac_var]])
+          )
+        
+        # Résumé: anticoagulant parmi les AF
+        out <- d %>%
+          filter(AF == "Yes") %>% # uniquement patients AF
+          summarise(
+            cohort = cohort_name,
+            n_AF_total = n(), # tous AF (incluant AC manquant)
+            n_AC_nonmiss = sum(!is.na(AC)),
+            n_AC_yes = sum(AC=="Yes", na.rm=TRUE),
+            pct_AC_yes_among_AF = round(100*n_AC_yes/n_AF_total, 1), # denom = tous AF
+            pct_AC_yes_among_AF_available = round(100*n_AC_yes/n_AC_nonmiss, 1), # denom = AC dispo
+            n_AC_missing_among_AF = sum(is.na(AC)),
+            .groups="drop"
+          )
+        out
+      }
+      
+      # 4) lance sur tes 3 dfs
+      res_AF_AC <- bind_rows(
+        check_AF_AC(ICD, "ICD patients"),
+        check_AF_AC(NonICD_reduced, "Non-ICD <=35%"),
+        check_AF_AC(NonICD_preserved, "Non-ICD >35%")
+      )
+      
+      res_AF_AC
+# =================#
+      grep("(^AF$|atrial|fibril)", names(ICD), ignore.case=TRUE, value=TRUE)
+      grep("(^AF$|atrial|fibril)", names(NonICD_reduced), ignore.case=TRUE, value=TRUE)
+      grep("(^AF$|atrial|fibril)", names(NonICD_preserved), ignore.case=TRUE, value=TRUE)
+      table(ICD$AF, useNA="ifany")
+      
+      
+      table(to_yesno(ICD$AF), useNA="ifany")
+      
+      
+      
+      af_var <- "AF" # <-- remplace par le vrai nom trouvé par grep()
+      
+      check_AF_AC2 <- function(df, cohort_name, af_var){
+        ac_var <- pick_anticoag(df)
+        d <- df %>%
+          transmute(
+            cohort = cohort_name,
+            AF = to_yesno(.data[[af_var]]),
+            AC = to_yesno(.data[[ac_var]])
+          )
+        
+        d %>%
+          filter(AF == "Yes") %>%
+          summarise(
+            cohort = cohort_name,
+            n_AF_total = n(),
+            n_AC_nonmiss = sum(!is.na(AC)),
+            n_AC_yes = sum(AC=="Yes", na.rm=TRUE),
+            pct_AC_yes_among_AF = round(100*n_AC_yes/n_AF_total, 1),
+            pct_AC_yes_among_AF_available = round(100*n_AC_yes/n_AC_nonmiss, 1),
+            n_AC_missing_among_AF = sum(is.na(AC)),
+            .groups="drop"
+          )
+      }
+      
+      bind_rows(
+        check_AF_AC2(ICD, "ICD patients", af_var),
+        check_AF_AC2(NonICD_reduced, "Non-ICD <=35%", af_var),
+        check_AF_AC2(NonICD_preserved, "Non-ICD >35%", af_var)
+      )
+      
+# =======================================#
+      library(dplyr)
+      
+      # 1) le bon nom
+      af_var <- "AF_atrial_flutter"
+      
+      # 2) trouver automatiquement la colonne anticoagulant
+      pick_anticoag <- function(df){
+        cand <- c("Anti_coagulant","Anticoagulant","Anti_coag","OAC","Oral_anticoagulant")
+        hit <- intersect(cand, names(df))
+        if (length(hit)==0) stop("No anticoagulant variable found")
+        hit[1]
+      }
+      
+      # 3) ton recode (garde le tien si tu l’as déjà)
+      to_yesno <- function(x){
+        if (is.factor(x)) x <- as.character(x)
+        if (is.logical(x)) return(factor(ifelse(x, "Yes","No"), levels=c("No","Yes")))
+        z <- tolower(trimws(as.character(x)))
+        z[z %in% c("1","y","yes","true","t","oui")] <- "yes"
+        z[z %in% c("0","n","no","false","f","non")] <- "no"
+        out <- ifelse(z=="yes","Yes", ifelse(z=="no","No", NA))
+        factor(out, levels=c("No","Yes"))
+      }
+      
+      check_AF_AC <- function(df, cohort_name, af_var){
+        ac_var <- pick_anticoag(df)
+        
+        d <- df %>%
+          transmute(
+            cohort = cohort_name,
+            AF = to_yesno(.data[[af_var]]),
+            AC = to_yesno(.data[[ac_var]])
+          )
+        
+        d_af <- d %>% filter(AF == "Yes")
+        
+        tibble(
+          cohort = cohort_name,
+          AF_var = af_var,
+          AC_var = ac_var,
+          n_AF_total = nrow(d_af),
+          n_AC_nonmiss_among_AF = sum(!is.na(d_af$AC)),
+          n_AC_yes_among_AF = sum(d_af$AC == "Yes", na.rm=TRUE),
+          pct_AC_yes_among_AF_total = round(100 * n_AC_yes_among_AF / n_AF_total, 1),
+          pct_AC_yes_among_AF_available = round(100 * n_AC_yes_among_AF / n_AC_nonmiss_among_AF, 1),
+          n_AC_missing_among_AF = sum(is.na(d_af$AC))
+        )
+      }
+      
+      res_AF_AC <- bind_rows(
+        check_AF_AC(ICD, "ICD patients", af_var),
+        check_AF_AC(NonICD_reduced, "Non-ICD <=35%", af_var),
+        check_AF_AC(NonICD_preserved,"Non-ICD >35%", af_var)
+      )
+      res_AF_AC
+  # ========================================================================================# 
+      # patterns "thérapies ICD" (ATP / shock / appropriate / therapy)
+      pat_icdtx <- "(atp|shock|therapy|therap|appropriate|icd_therapy|treated|intervent|vf|vt)"
+      grep(pat_icdtx, names(ICD), ignore.case = TRUE, value = TRUE)
+      
+      
+      pat_time <- "(fu|follow|time|days|day|years|year|py|person|tstart|tstop|duration|censor)"
+      grep(pat_time, names(ICD), ignore.case = TRUE, value = TRUE)
+      
+      
+      pat_event <- "(event|status|death|mort|scd|sudden|endpoint|outcome)"
+      grep(pat_event, names(ICD), ignore.case = TRUE, value = TRUE)
+      
+      # remplace VAR par le nom trouvé
+      table(ICD$VAR, useNA = "ifany")
+      
+      # si c’est une date ou un numérique
+      summary(ICD$VAR)
+
+      exists("dat")
+      if (exists("dat")) grep(pat_icdtx, names(dat), ignore.case=TRUE, value=TRUE)
+# =============================================================================================# 
+table(ICD$NSVT, useNA="ifany")
+grep("icd|device|implant|shock|atp", names(ICD), ignore.case=TRUE, value=TRUE)
+
+# 2) chercher tout ce qui ressemble à épisodes / VT/VF / therapy / intervention
+grep("appropr|therap|episode|deliver|intervent|vf|vt|tachy|arrh|defib",
+     names(ICD), ignore.case=TRUE, value=TRUE)
+
+# 3) faire pareil dans le dataset global si tu l’as
+grep("icd|device|implant|shock|atp|appropr|therap|episode|deliver|vf|vt",
+     names(dat), ignore.case=TRUE, value=TRUE)
+
+grep("vt|vf|fat|fas|svt|npscd|atp|shock|therapy|icd", names(ICD), ignore.case=TRUE, value=TRUE)
+ICD
+# ===============================================================================
+table(ICD[["NSVT"]], useNA="ifany")
+table(ICD[["ICD_status"]], useNA="ifany")
+
+names(ICD)
+names(dat)
