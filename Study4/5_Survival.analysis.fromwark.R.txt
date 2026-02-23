@@ -1,20 +1,16 @@
 #######################################################################################################################
-########################################################################################################################
 # projet: UmBIZO- PROFID_Study4 (SCD post-MI, age- stratified)
-# Script: 05_Survival_analysis_framwork.R
+# Script: 05_Survival_analysis_framwork
 # Author: Amina Boudamaana
-
 # =========================================================================================================
 ## Study 4 — Survival analysis end-to-end (KM + Cox PH, age-stratified)
 ## Dataset: df_handled_cc (complete cases)
 ## Time scale: months in df_handled_cc$ftime_mo_int -> converted to years
-## Endpoint: cause-specific SCD (fstatus == 1); non-SCD (2) and censored (0) treated as 0
-## Plots: shown in RStudio (no PNG device by default)
+## Endpoint:   cause-specific SCD (fstatus == 1); non-SCD (2) and censored (0) treated as 0
 ## Covariates (same set as our Fine–Gray):
 ## continuous -> LVEF, eGFR, BMI, Haemoglobin (scaled to report HR per 1 SD)
-## binary -> Diabetes, Hypertension, ACE_inhibitor, ARB, Anti_coagulant
+## binary     -> Diabetes, Hypertension, ACE_inhibitor, ARB, Anti_coagulant
 # ==========================================================================================================
-
 ## ===== Packages =====
 suppressPackageStartupMessages({
   library(survival)
@@ -52,7 +48,6 @@ write_tab <- function(x, filename){
     write.csv(x, file.path(OUT_TAB, filename), row.names = FALSE)
   }
 }
-
 # ----------- Construction of the data frame 'df' from df_handled_cc -------------
 stopifnot(exists("df_handled") || exists("df"))
 base <- if (exists("df_handled")) df_handled else df
@@ -79,7 +74,6 @@ df_handled_cc <- subset(df_handled_cc,
                           Status %in% 0:2 & !is.na(age_group))
 
 stopifnot(nrow(df_handled_cc) > 0)
-
 ## ==============================================================================================
 ## Kaplan–Meier by age group
 ## ==============================================================================================
@@ -143,7 +137,6 @@ grid(col = "grey90"); par(op)
 
 ## Export the KM 1/3/5-year table
 write.csv(km_tab, file.path(OUT_DIR, "KM_survival_at_1_3_5_years_by_age.csv"), row.names = FALSE)
-
 # ==========================================================================================================
 ## ===== STEP 2 — Cox PH UNi& multivariable (cause-specific) =====
 # =========================================================================================================
@@ -194,7 +187,6 @@ hr_multi <- tidy_cox(cox_multi)
 
 print(hr_uni)
 print(hr_multi)
-
 # ===========================================================================================================
 ## ===== STEP 3 — PH assumption (Schoenfeld residuals) ======================================================
 # ============================================================================================================
@@ -240,7 +232,6 @@ if (dir.exists(OUT_TAB)) print(list.files(OUT_TAB, full.names = TRUE))
 ## STEP 4 — Age-by-covariate interactions (screen, fit, export)
 ## Model scale stays identical to Step 2 (time = ftime_mo_int; event = fstatus==1)
 ## ===============================================================================================
-
 suppressPackageStartupMessages({ library(survival); library(broom) })
 
 # 0) Make sure export folder exists (harmless if it already exists)
