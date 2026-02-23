@@ -1,17 +1,15 @@
 # ==============================================================================
 # UmBIZO_PROFID — Study 5
-# Script 05B — SENSITIVITY (MULTIPLE IMPUTATION; mice) — 2000–2020 
-# Author: Amina BOUDAMAANA
-# Population: HFrEF (LVEF <40%)
-# Outcome: HF_BIN_eq3 (1 if ACEi/ARB + BB + MRA present; else 0)
+# Script 05B — SENSITIVITY analysis (MULTIPLE IMPUTATION) — 2000–2020 — HFrEF
+#Author: Amina BOUDAMAANA
+# Population: HFrEF only (LVEF <40%)
+# Outcome: HF_BIN_eq3 = 1 if RAAS inhibitor (ACEi/ARB) + beta-blocker + MRA present; 0 otherwise.
 #
-# Outputs:
-# - QC_missingness_MIvars
-# - QC_mice_methods
-# - MI_object_mice
-# - MI_pooled_OR_HF_BIN_eq3 (+ _withFDR)
-# - InteractionJointTests_MI/MI_joint_tests_HF_BIN_eq3 (+ FDR cols)
-# - PredTrends_MI: pred_trends_Age3_HF_BIN_eq3_MI
+# Sensitivity aim:
+# - Refit the primary multivariable logistic regression using Multiple Imputation (MICE)
+# - Report pooled aORs and CIs (Rubin’s rules)
+# - Interaction joint tests using mice::D1 (Year×Age3, Year×DB where feasible)
+# - Predicted trends by Age group (pooled predicted probabilities; pragmatic approach)
 # ==============================================================================
 options(stringsAsFactors = FALSE)
 options(contrasts = c("contr.treatment", "contr.poly"))
@@ -23,6 +21,7 @@ suppressPackageStartupMessages({
   library(readr)
   library(stringr)
   library(ggplot2)
+  library(broom)
   library(mice)
 })
 # ==============================================================================
@@ -32,27 +31,28 @@ ROOT_DIR <- "T:/Study_5"
 RESULTS_ROOT <- file.path(ROOT_DIR, "Results_Study5")
 
 IN_RDS <- file.path(RESULTS_ROOT, "Script1_HFrEF_UPDATED", "df_study5_hfref.rds")
-OUT_DIR <- file.path(RESULTS_ROOT, "Script5B_Sensitivity_MI_2000_2020_ROBUST")
+OUT_DIR <- file.path(RESULTS_ROOT, "Script5B_Sensitivity_MI_2000_2020")
 dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
 
+LABEL <- "HFrEF_SENS_MI_2000_2020"
 YEAR_MIN <- 2000L
 YEAR_MAX <- 2020L
 OUTCOME <- "HF_BIN_eq3"
 
-TOP_DB_FOR_MODEL <- 8
-
+# MI settings
 M_IMP <- 20
 MAXIT <- 20
 SEED <- 20260214
 
-DO_INTERACTION_ICD <- FALSE
-DO_FDR_MAIN_MODEL <- TRUE
-DO_FDR_INT <- TRUE
+# DB collapsing (for model stability)
+TOP_DB_FOR_MODEL <- 8
+MIN_N_DB_KEEP <- 200
+MIN_EVENTS_DB_KEEP <- 30
 
-DO_PRED_TRENDS_AGE3 <- TRUE
+# Predicted trends
 YEAR_PLOT_MIN_N <- 500
 # ==============================================================================
-# 1) HELPERS
+# 1) HELPERS 
 # ==============================================================================
 log_line <- function(...) cat(format(Sys.time(), "%Y-%m-%d %H:%M:%S"), " | ", ..., "\n")
 safe_num <- function(x) suppressWarnings(as.numeric(as.character(x)))
@@ -73,11 +73,9 @@ to_num01 <- function(x) {
                 ifelse(x2 %in% c("0","no","n","false","f","female"), 0L, NA_integer_)))
 }
 
-as01_factor <- function(x) factor(as.character(to_num01(x)), levels = c("0","1"))
-
 get_mode <- function(x) {
   x <- x[!is.na(x)]
-  if (!length(x)) return(NA)
+  if (length(x) == 0) return(NA)
   x <- as.character(x)
   names(sort(table(x), decreasing = TRUE))[1]
 }
@@ -90,553 +88,274 @@ collapse_top_levels <- function(x, top_n = 8, other_label = "OTHER") {
   droplevels(factor(out))
 }
 
-.pick_first <- function(df, cands) {
-  cands <- cands[!is.na(cands) & nzchar(cands)]
-  hit <- cands[cands %in% names(df)]
-  if (length(hit)) hit[1] else NA_character_
+save_plot <- function(p, out_base, w=10, h=6, dpi=300) {
+  ggsave(paste0(out_base, ".png"), plot = p, width = w, height = h, dpi = dpi)
+  ggsave(paste0(out_base, ".pdf"), plot = p, width = w, height = h)
 }
 
-.standardise_from_alias <- function(df, new_name, candidates,
-                                    type = c("binary","numeric","factor","character"),
-                                    transform = NULL) {
-  type <- match.arg(type)
-  src <- .pick_first(df, candidates)
-  if (is.na(src)) return(df)
+plot_pred <- function(dat, suffix) {
   
-  x <- df[[src]]
-  if (!is.null(transform)) x <- transform(x)
+  title_txt <- "Predicted probability over time: receipt of all 3 disease-modifying HFrEF medication classes"
+  subtitle_txt <- paste0(
+    "HF_BIN_eq3 = 1 if RAAS inhibitor (ACEi/ARB) + beta-blocker + MRA are all present at baseline; 0 otherwise. ",
+    "Stratified by ", suffix, "."
+  )
+  cap <- paste0(
+    "Multiple imputation sensitivity analysis; pooled predictions. ",
+    "Ribbon: Wald 95% CI on link scale (per-imputation, then pooled approximately). ",
+    "Points shown only for years with ≥", YEAR_PLOT_MIN_N, " patients."
+  )
   
-  if (type == "binary") df[[new_name]] <- as01_factor(x)
-  if (type == "numeric") df[[new_name]] <- safe_num(x)
-  if (type == "factor") df[[new_name]] <- droplevels(factor(as.character(x)))
-  if (type == "character") df[[new_name]] <- as.character(x)
-  df
-}
-
-# 
-safe_write_csv <- function(x, path, na = "") {
-  dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
-  tmp <- paste0(path, ".tmp_", Sys.getpid())
-  readr::write_csv(x, tmp, na = na)
-  
-  ok <- tryCatch(file.rename(tmp, path), error = function(e) FALSE, warning = function(w) FALSE)
-  if (!isTRUE(ok)) {
-    path2 <- sub("\\.csv$", paste0("_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".csv"), path)
-    file.rename(tmp, path2)
-    log_line("[WARN] Could not overwrite (file locked / no permission). Wrote: ", path2)
-  } else {
-    log_line("[INFO] Wrote: ", path)
-  }
-  invisible(TRUE)
+  ggplot(dat, aes(x = Year_index, y = pred, color = group, fill = group)) +
+    geom_ribbon(aes(ymin = lo, ymax = hi), alpha = 0.15, color = NA) +
+    geom_line(linewidth = 1) +
+    geom_point(data = dat %>% filter(show_point), size = 1.3) +
+    labs(
+      title = title_txt,
+      subtitle = subtitle_txt,
+      x = "Calendar year",
+      y = "Predicted probability (HF_BIN_eq3 = 1)",
+      caption = cap,
+      color = suffix,
+      fill = suffix
+    ) +
+    guides(fill = "none") +
+    theme_minimal(base_size = 12) +
+    theme(
+      plot.title = element_text(face = "bold"),
+      plot.subtitle = element_text(size = 10),
+      legend.title = element_text(face = "bold")
+    )
 }
 # ==============================================================================
-# 2) LOAD
+# 2) LOAD + RESTRICTIONS + OUTCOME (same logic as 05A, simplified)
 # ==============================================================================
 stopifnot(file.exists(IN_RDS))
 df <- readRDS(IN_RDS)
 stopifnot(is.data.frame(df))
-log_line("[INFO] Loaded: ", IN_RDS, " | n=", nrow(df), " p=", ncol(df))
-# ==============================================================================
-# 3) STANDARDISE 
-# ==============================================================================
-df <- .standardise_from_alias(df, "Year_index", c("Year_index","Year","year","calendar_year","CalendarYear"), "numeric")
-df <- .standardise_from_alias(df, "DB", c("DB","db","Database","dataset","Dataset","Cohort","cohort"), "factor")
-df <- .standardise_from_alias(df, "Age_num", c("Age_num","Age","age","Age_years","age_years"), "numeric")
 
-df <- .standardise_from_alias(df, "Sex_BIN_Male", c("Sex_BIN_Male","sex_male","Sex_male","Male","male","Sex","SEX","sex"), "binary")
-df <- .standardise_from_alias(df, "ICD_BIN_Yes", c("ICD_BIN_Yes","ICD","ICD_yes","ICD_present","device_icd","ICD_implanted"), "binary")
-
-df <- .standardise_from_alias(df, "Time_index_MI_CHD_log1p",
-                              c("Time_index_MI_CHD_log1p","Time_from_MI_log1p","Time_MI_log1p",
-                                "Time_index_MI_CHD","Time_from_MI","Time_MI","time_from_mi"),
-                              "numeric",
-                              transform = function(x){
-                                xx <- safe_num(x)
-                                if (suppressWarnings(max(xx, na.rm=TRUE)) > 50) log1p(pmax(xx,0)) else xx
-                              })
-
-df <- .standardise_from_alias(df, "Diabetes_BIN_Yes", c("Diabetes_BIN_Yes","Diabetes","diabetes","DM","dm","T2D"), "binary")
-df <- .standardise_from_alias(df, "Hypertension_BIN_Yes", c("Hypertension_BIN_Yes","Hypertension","hypertension","HTN","htn"), "binary")
-df <- .standardise_from_alias(df, "Smoking_BIN_Yes", c("Smoking_BIN_Yes","Smoking","smoking","Current_smoking","Smoker","smoker"), "binary")
-df <- .standardise_from_alias(df, "AF_atrial_flutter_BIN_Yes",
-                              c("AF_atrial_flutter_BIN_Yes","AF_atrial_flutter","AF","af","Atrial_fibrillation","AFib"), "binary")
-df <- .standardise_from_alias(df, "Stroke_TIA_BIN_Yes", c("Stroke_TIA_BIN_Yes","Stroke_TIA","Stroke","TIA"), "binary")
-
-df <- .standardise_from_alias(df, "eGFR_log1p",
-                              c("eGFR_log1p","egfr_log1p","eGFR","egfr"),
-                              "numeric",
-                              transform = function(x){
-                                xx <- safe_num(x)
-                                if (suppressWarnings(max(xx, na.rm=TRUE)) > 20) log1p(pmax(xx,0)) else xx
-                              })
-
-df <- .standardise_from_alias(df, "Haemoglobin_log1p",
-                              c("Haemoglobin_log1p","Hemoglobin_log1p","Haemoglobin","Hemoglobin","hb","HB"),
-                              "numeric",
-                              transform = function(x){
-                                xx <- safe_num(x)
-                                if (suppressWarnings(max(xx, na.rm=TRUE)) > 20) log1p(pmax(xx,0)) else xx
-                              })
-
-df <- .standardise_from_alias(df, "PCI_BIN_Yes", c("PCI_BIN_Yes","PCI","pci","Prior_PCI"), "binary")
-df <- .standardise_from_alias(df, "CABG_BIN_Yes", c("CABG_BIN_Yes","CABG","cabg","Prior_CABG"), "binary")
-df <- .standardise_from_alias(df, "Revascularisation_acute_BIN_Yes",
-                              c("Revascularisation_acute_BIN_Yes","Revascularisation_acute","Acute_revasc","revasc_acute"), "binary")
-
-# Age3
-if (!("Age3" %in% names(df)) && ("Age_num" %in% names(df))) {
-  df$Age3 <- cut(df$Age_num, breaks = c(-Inf, 65, 75, Inf),
-                 labels = c("<=65","66-75",">75"), right = TRUE)
-  df$Age3 <- factor(as.character(df$Age3), levels = c("<=65","66-75",">75"))
-}
-# ==============================================================================
-# 4) RESTRICTIONS (years + HFrEF)
-# ==============================================================================
+# Minimal standardisation 
+# Here we assume df already has the standard names after Script1.
 stopifnot("Year_index" %in% names(df))
 df <- df %>%
   mutate(Year_index = safe_num(Year_index)) %>%
   filter(!is.na(Year_index), Year_index >= YEAR_MIN, Year_index <= YEAR_MAX)
 
+# HFrEF restriction
 if ("LVEF_num" %in% names(df)) {
   df <- df %>% filter(!is.na(LVEF_num), safe_num(LVEF_num) < 40)
 } else if ("LVEF_ESC" %in% names(df)) {
   df <- df %>% filter(as.character(LVEF_ESC) == "<40%")
-} else {
-  log_line("[WARN] No LVEF variable found (LVEF_num/LVEF_ESC). Check HFrEF restriction.")
 }
 
-# DB collapse
+# Outcome
+if (!(OUTCOME %in% names(df))) stop("HF_BIN_eq3 not found in df; please derive it upstream (Script1).")
+df[[OUTCOME]] <- to_num01(df[[OUTCOME]])
+
+# Age3 (if needed)
+if (!("Age3" %in% names(df)) && "Age_num" %in% names(df)) {
+  df$Age3 <- cut(df$Age_num, breaks=c(-Inf,65,75,Inf), labels=c("<=65","66-75",">75"), right=TRUE)
+  df$Age3 <- factor(as.character(df$Age3), levels=c("<=65","66-75",">75"))
+}
+
+# Collapse DB for stability
 if ("DB" %in% names(df)) {
   df$DB <- collapse_top_levels(df$DB, top_n = TOP_DB_FOR_MODEL, other_label = "OTHER")
-  ref_db <- names(sort(table(df$DB), decreasing = TRUE))[1]
-  if (!is.na(ref_db) && ref_db %in% levels(df$DB)) df$DB <- relevel(df$DB, ref = ref_db)
-}
-# ==============================================================================
-# 5) OUTCOME creation (must exist BEFORE MI)
-# ==============================================================================
-if (!(OUTCOME %in% names(df))) {
-  
-  cand_raas <- c("ACEI_ARB_BIN_Yes","ACEI_ARB","ACEi_ARB","RAASi","ACEi","ARB","ACEI","ARB_BIN_Yes")
-  cand_bb <- c("BB_BIN_Yes","BetaBlocker_BIN_Yes","BB","beta_blocker","Betablocker")
-  cand_mra <- c("MRA_BIN_Yes","MRA","spironolactone","eplerenone")
-  
-  v_raas <- .pick_first(df, cand_raas)
-  v_bb <- .pick_first(df, cand_bb)
-  v_mra <- .pick_first(df, cand_mra)
-  
-  if (!is.na(v_raas) && !is.na(v_bb) && !is.na(v_mra)) {
-    raas01 <- to_num01(df[[v_raas]])
-    bb01 <- to_num01(df[[v_bb]])
-    mra01 <- to_num01(df[[v_mra]])
-    any_na <- is.na(raas01) | is.na(bb01) | is.na(mra01)
-    df[[OUTCOME]] <- ifelse(any_na, NA_integer_, as.integer((raas01 + bb01 + mra01) == 3L))
-    log_line("[INFO] Derived ", OUTCOME, " from meds: ", v_raas, ", ", v_bb, ", ", v_mra)
-  } else {
-    cand_cnt <- c("HF_n_classes","HF_count","HF_therapy_count","HF_GDMT_count","HF_GDMT_count3","HF_GDMT_count4")
-    v_cnt <- .pick_first(df, cand_cnt)
-    if (is.na(v_cnt)) stop(OUTCOME, " missing and no med indicators / count found to derive it.")
-    hf_n <- safe_num(df[[v_cnt]])
-    df[[OUTCOME]] <- ifelse(is.na(hf_n), NA_integer_, as.integer(hf_n == 3L))
-    log_line("[INFO] Derived ", OUTCOME, " from count: ", v_cnt)
-  }
 }
 
-df[[OUTCOME]] <- factor(as.character(to_num01(df[[OUTCOME]])), levels = c("0","1"))
-stopifnot(OUTCOME %in% names(df))
-stopifnot(!all(is.na(df[[OUTCOME]])))
-
-log_line("[INFO] Eligible HFrEF dataset: n=", nrow(df), " events=",
-         sum(df[[OUTCOME]] == "1", na.rm = TRUE))
-
+log_line("[INFO] Eligible HFrEF dataset: n=", nrow(df), " events=", sum(df[[OUTCOME]]==1, na.rm=TRUE))
 # ==============================================================================
-# 6) BUILD MI dataset
+# 3) VARIABLES FOR MI + MODEL
 # ==============================================================================
-RHS <- c(
+RHS_MAIN <- c(
   "Year_index","Age3","Sex_BIN_Male","DB","ICD_BIN_Yes","Time_index_MI_CHD_log1p",
   "Diabetes_BIN_Yes","Hypertension_BIN_Yes","Smoking_BIN_Yes","AF_atrial_flutter_BIN_Yes",
   "Stroke_TIA_BIN_Yes","eGFR_log1p","Haemoglobin_log1p","PCI_BIN_Yes","CABG_BIN_Yes",
   "Revascularisation_acute_BIN_Yes"
 )
-
-vars_keep <- unique(c(OUTCOME, RHS))
+vars_keep <- unique(c(OUTCOME, RHS_MAIN))
 vars_keep <- vars_keep[vars_keep %in% names(df)]
 df_mi <- df %>% select(all_of(vars_keep))
-# 
 
-#   QUICK CHECKS / FIXES so Age3 + DB are actually in df_mi
-log_line("[CHECK] df_mi has Age_num? ", "Age_num" %in% names(df_mi))
-log_line("[CHECK] df_mi has Age3? ", "Age3" %in% names(df_mi))
-log_line("[CHECK] df_mi has DB? ", "DB" %in% names(df_mi))
-
-# we Create Age3 inside df_mi if missing and Age_num available
-if (!("Age3" %in% names(df_mi)) && ("Age_num" %in% names(df_mi))) {
-  df_mi$Age3 <- cut(df_mi$Age_num, breaks = c(-Inf, 65, 75, Inf),
-                    labels = c("<=65","66-75",">75"), right = TRUE)
-  df_mi$Age3 <- factor(as.character(df_mi$Age3), levels = c("<=65","66-75",">75"))
-  log_line("[FIX] Created Age3 in df_mi from Age_num.")
-}
-
-# we ensure DB is a factor 
-if ("DB" %in% names(df_mi)) {
-  df_mi$DB <- droplevels(factor(as.character(df_mi$DB)))
-  log_line("[FIX] Coerced DB to factor in df_mi. Levels=", nlevels(df_mi$DB))
-}
-
-# Print distributions 
-if ("Age3" %in% names(df_mi)) print(table(df_mi$Age3, useNA = "ifany"))
-if ("DB" %in% names(df_mi)) print(head(sort(table(df_mi$DB), decreasing = TRUE), 10))
-
-# We recompute RHS_USED after these fixes
-RHS_USED <- RHS[RHS %in% names(df_mi)]
-RHS_USED <- unique(c("Year_index", setdiff(RHS_USED, "Year_index")))
-f_str <- paste0(OUTCOME, " ~ ", paste(RHS_USED, collapse = " + "))
-log_line("[INFO] RHS_USED for MI model: ", paste(RHS_USED, collapse = ", "))
-#
+# Make sure binaries are 0/1 factors for mice (stable)
 bin_vars <- intersect(c(
   "Sex_BIN_Male","ICD_BIN_Yes","Diabetes_BIN_Yes","Hypertension_BIN_Yes","Smoking_BIN_Yes",
-  "AF_atrial_flutter_BIN_Yes","Stroke_TIA_BIN_Yes","PCI_BIN_Yes","CABG_BIN_Yes",
-  "Revascularisation_acute_BIN_Yes"
+  "AF_atrial_flutter_BIN_Yes","Stroke_TIA_BIN_Yes","PCI_BIN_Yes","CABG_BIN_Yes","Revascularisation_acute_BIN_Yes"
 ), names(df_mi))
-for (v in bin_vars) df_mi[[v]] <- as01_factor(df_mi[[v]])
+for (v in bin_vars) df_mi[[v]] <- factor(as.character(to_num01(df_mi[[v]])), levels=c("0","1"))
 
-# QC missingness
-miss_qc <- tibble(
-  var = names(df_mi),
-  n = nrow(df_mi),
-  n_miss = sapply(df_mi, function(x) sum(is.na(x))),
-  pct_miss = round(100 * n_miss / n, 1)
-)
-safe_write_csv(miss_qc, file.path(OUT_DIR, "QC_missingness_MIvars.csv"))
+# Outcome: do NOT impute (but can be predictor)
+df_mi[[OUTCOME]] <- factor(as.character(df_mi[[OUTCOME]]), levels=c("0","1"))
 # ==============================================================================
-# 7) MICE
+# 4) MULTIPLE IMPUTATION (MICE)
 # ==============================================================================
 set.seed(SEED)
-ini <- mice(df_mi, m = 1, maxit = 0, printFlag = FALSE)
+
+ini <- mice(df_mi, m=1, maxit=0, printFlag=FALSE)
 meth <- ini$method
 pred <- ini$predictorMatrix
 
-# Do not impute outcome or year
+# Do not impute outcome, Year_index
 meth[OUTCOME] <- ""
-if ("Year_index" %in% names(meth)) meth["Year_index"] <- ""
+meth["Year_index"] <- ""
 
-for (v in names(meth)) {
-  if (v %in% c(OUTCOME, "Year_index")) next
-  x <- df_mi[[v]]
-  if (is.numeric(x)) {
-    meth[v] <- "pmm"
-  } else if (is.factor(x) && nlevels(x) == 2) {
-    meth[v] <- "logreg"
-  } else if (is.factor(x) && nlevels(x) > 2) {
-    meth[v] <- "polyreg"
-  } else if (is.character(x)) {
-    df_mi[[v]] <- factor(x)
-    meth[v] <- "polyreg"
-  } else {
-    meth[v] <- "pmm"
-  }
-}
+# Methods (adjust if needed)
+if ("Age3" %in% names(meth)) meth["Age3"] <- "polyreg"
+if ("DB" %in% names(meth)) meth["DB"] <- "polyreg"
 
+num_vars <- intersect(c("Time_index_MI_CHD_log1p","eGFR_log1p","Haemoglobin_log1p"), names(meth))
+for (v in num_vars) meth[v] <- "pmm"
+
+# Keep outcome as predictor, but not self-predict
+pred[OUTCOME, ] <- 0
+pred[, OUTCOME] <- 1
 diag(pred) <- 0
 
-# allow OUTCOME & Year as predictors (not imputed)
-pred[, OUTCOME] <- 1
-pred[OUTCOME, ] <- 0
-pred["Year_index", ] <- 0
-pred[, "Year_index"] <- 1
-
-safe_write_csv(tibble(var = names(meth), method = unname(meth)),
-               file.path(OUT_DIR, "QC_mice_methods.csv"))
-
-imp <- mice(df_mi, m = M_IMP, maxit = MAXIT, method = meth,
-            predictorMatrix = pred, seed = SEED, printFlag = TRUE)
-
+imp <- mice(df_mi, m=M_IMP, maxit=MAXIT, method=meth, predictorMatrix=pred, printFlag=TRUE)
 saveRDS(imp, file.path(OUT_DIR, "MI_object_mice.rds"))
-
-cn <- names(complete(imp, 1))
-if (!(OUTCOME %in% cn)) stop("Post-imputation check failed: OUTCOME missing in complete(imp,1). Names: ", paste(cn, collapse = ", "))
-# ====================================================================================
-# 8) MAIN MODEL (POOLED) 
-# ====================================================================================
-RHS_USED <- RHS[RHS %in% names(df_mi)]
+# ==============================================================================
+# 5) MAIN MODEL (POOLED)
+# ==============================================================================
+RHS_USED <- RHS_MAIN[RHS_MAIN %in% names(df_mi)]
 RHS_USED <- unique(c("Year_index", setdiff(RHS_USED, "Year_index")))
-f_str <- paste0(OUTCOME, " ~ ", paste(RHS_USED, collapse = " + "))
 
-fit_mi <- with(
-  imp,
-  {
-    f <- as.formula(f_str)
-    environment(f) <- environment()
-    glm(f, family = binomial())
-  }
-)
+f_main <- as.formula(paste0(OUTCOME, " ~ ", paste(RHS_USED, collapse=" + ")))
 
-po <- pool(fit_mi)
-tab_main <- summary(po, conf.int = TRUE, exponentiate = TRUE) %>%
+fit_mi <- with(imp, glm(f_main, family=binomial()))
+pool_mi <- pool(fit_mi)
+sum_mi <- summary(pool_mi, conf.int=TRUE, exponentiate=TRUE)
+
+out_main <- sum_mi %>%
   as_tibble() %>%
   filter(term != "(Intercept)") %>%
   mutate(p_value_fmt = fmt_p(p.value)) %>%
-  rename(OR = estimate, CI_low = `2.5 %`, CI_high = `97.5 %`) %>%
-  select(term, OR, CI_low, CI_high, p.value, p_value_fmt)
+  select(term, estimate, `2.5 %`, `97.5 %`, p.value, p_value_fmt)
 
-safe_write_csv(tab_main, file.path(OUT_DIR, paste0("MI_pooled_OR_", OUTCOME, ".csv")))
+write_csv(out_main, file.path(OUT_DIR, paste0("MI_PRIMARY_pooled_OR_", OUTCOME, ".csv")))
 
-if (isTRUE(DO_FDR_MAIN_MODEL)) {
-  tab_main_fdr <- tab_main %>%
-    mutate(p_fdr = p.adjust(p.value, method = "BH"),
+# Optional BH-FDR on pooled p-values
+out_main_fdr <- out_main %>%
+  mutate(p_fdr = p.adjust(p.value, method="BH"),
+         p_fdr_fmt = fmt_p(p_fdr))
+write_csv(out_main_fdr, file.path(OUT_DIR, paste0("MI_PRIMARY_pooled_OR_", OUTCOME, "_withFDR.csv")))
+# ==============================================================================
+# 6) INTERACTIONS (JOINT TESTS) — mice::D1
+# ==============================================================================
+int_res <- list()
+
+if ("Age3" %in% RHS_USED) {
+  f_full <- update(f_main, . ~ . + Year_index:Age3)
+  fit_full <- with(imp, glm(f_full, family=binomial()))
+  d1 <- mice::D1(fit_full, fit_mi)
+  int_res[["YearxAge3"]] <- tibble(
+    interaction="Year_index:Age3",
+    statistic=as.numeric(d1$statistic),
+    df=as.numeric(d1$df1),
+    p_value=as.numeric(d1$p.value),
+    p_value_fmt=fmt_p(as.numeric(d1$p.value))
+  )
+}
+
+if ("DB" %in% RHS_USED) {
+  # Only if ≥2 DB levels remain and not tiny
+  tab_db <- complete(imp, 1) %>% count(DB, name="n")
+  ok_db <- sum(tab_db$n >= MIN_N_DB_KEEP, na.rm=TRUE) >= 2
+  
+  if (isTRUE(ok_db)) {
+    f_full <- update(f_main, . ~ . + Year_index:DB)
+    fit_full <- with(imp, glm(f_full, family=binomial()))
+    d1 <- mice::D1(fit_full, fit_mi)
+    int_res[["YearxDB"]] <- tibble(
+      interaction="Year_index:DB",
+      statistic=as.numeric(d1$statistic),
+      df=as.numeric(d1$df1),
+      p_value=as.numeric(d1$p.value),
+      p_value_fmt=fmt_p(as.numeric(d1$p.value))
+    )
+  } else {
+    int_res[["YearxDB"]] <- tibble(
+      interaction="Year_index:DB",
+      statistic=NA_real_, df=NA_real_, p_value=NA_real_, p_value_fmt=NA_character_,
+      note="Skipped: insufficient DB levels with adequate size in imputed data"
+    )
+  }
+}
+
+int_tbl <- bind_rows(int_res)
+if (any(!is.na(int_tbl$p_value))) {
+  int_tbl <- int_tbl %>%
+    mutate(p_fdr = p.adjust(p_value, method="BH"),
            p_fdr_fmt = fmt_p(p_fdr))
-  safe_write_csv(tab_main_fdr, file.path(OUT_DIR, paste0("MI_pooled_OR_", OUTCOME, "_withFDR.csv")))
 }
+write_csv(int_tbl, file.path(OUT_DIR, "MI_InteractionJointTests_D1.csv"))
 # ==============================================================================
-# 9) JOINT INTERACTION TESTS (D1)
+# 7) PREDICTED TRENDS (Age group) — pragmatic pooled prediction
+# Approach: predict per-imputation, then average predicted probabilities by year×group.
 # ==============================================================================
-INT_DIR <- file.path(OUT_DIR, "InteractionJointTests_MI")
-dir.create(INT_DIR, recursive = TRUE, showWarnings = FALSE)
+year_seq <- seq(YEAR_MIN, YEAR_MAX, by=1)
 
-fit_from_str <- function(formula_str) {
-  with(imp, {
-    f <- as.formula(formula_str)
-    environment(f) <- environment()
-    glm(f, family = binomial())
-  })
-}
+# data availability by year (use original df for show_point logic)
+cc_by_year <- df %>% count(Year_index, name="n_year") %>%
+  mutate(show_point = n_year >= YEAR_PLOT_MIN_N)
 
-run_D1_safe <- function(add_term, label, varname) {
-  # If variable not available in RHS_USED
-  if (!(varname %in% RHS_USED)) {
-    return(tibble(
-      interaction = label,
-      statistic = NA_real_, df1 = NA_real_, df2 = NA_real_,
-      p_value = NA_real_, p_value_fmt = NA_character_,
-      note = paste0("Not tested (", varname, " not in MI dataset)")
-    ))
-  }
-  
-  # If factor has <2 levels in df_mi, cannot test interaction
-  if (varname %in% names(df_mi) && is.factor(df_mi[[varname]]) && nlevels(df_mi[[varname]]) < 2) {
-    return(tibble(
-      interaction = label,
-      statistic = NA_real_, df1 = NA_real_, df2 = NA_real_,
-      p_value = NA_real_, p_value_fmt = NA_character_,
-      note = paste0("Not tested (", varname, " has <2 levels)")
-    ))
-  }
-  
-  f_red <- f_str
-  f_full <- paste0(f_str, " + ", add_term)
-  
-  fit_red <- fit_from_str(f_red)
-  fit_full <- fit_from_str(f_full)
-  
-  tst <- tryCatch(mice::D1(fit_full, fit_red), error = function(e) e)
-  
-  if (inherits(tst, "error")) {
-    return(tibble(
-      interaction = label,
-      statistic = NA_real_, df1 = NA_real_, df2 = NA_real_,
-      p_value = NA_real_, p_value_fmt = NA_character_,
-      note = paste0("D1 failed: ", conditionMessage(tst))
-    ))
-  }
-  
-  tibble(
-    interaction = label,
-    statistic = unname(tst$statistic),
-    df1 = unname(tst$df1),
-    df2 = unname(tst$df2),
-    p_value = unname(tst$p.value),
-    p_value_fmt = fmt_p(tst$p.value),
-    note = ""
-  )
-}
-
-# we build results table 
-int_res <- bind_rows(
-  run_D1_safe("Year_index:Age3", "Year_index × Age3", "Age3"),
-  run_D1_safe("Year_index:DB", "Year_index × DB", "DB"),
-  if (isTRUE(DO_INTERACTION_ICD)) run_D1_safe("Year_index:ICD_BIN_Yes", "Year_index × ICD", "ICD_BIN_Yes")
-)
-
-# BH-FDR across the tests that produced a p-value
-if (isTRUE(DO_FDR_INT) && nrow(int_res) > 0) {
-  int_res <- int_res %>%
-    mutate(
-      p_fdr = ifelse(is.na(p_value), NA_real_, p.adjust(p_value, method = "BH")),
-      p_fdr_fmt = fmt_p(p_fdr)
-    )
-}
-
-safe_write_csv(int_res, file.path(INT_DIR, paste0("MI_joint_tests_", OUTCOME, ".csv")), na = "")
-log_line("[OK] Wrote MI joint interaction tests: ", file.path(INT_DIR, paste0("MI_joint_tests_", OUTCOME, ".csv")))
-# ==============================================================================================
-# 9) JOINT INTERACTION TESTS (D1) 
-# =============================================================================================
-INT_DIR <- file.path(OUT_DIR, "InteractionJointTests_MI")
-dir.create(INT_DIR, recursive = TRUE, showWarnings = FALSE)
-
-fit_from_str <- function(formula_str) {
-  with(
-    imp,
-    {
-      f <- as.formula(formula_str)
-      environment(f) <- environment()
-      glm(f, family = binomial())
-    }
-  )
-}
-
-run_D1 <- function(add_term, label) {
-  f_red <- f_str
-  f_full <- paste0(f_str, " + ", add_term)
-  
-  fit_red <- fit_from_str(f_red)
-  fit_full <- fit_from_str(f_full)
-  
-  tst <- tryCatch(mice::D1(fit_full, fit_red), error = function(e) NULL)
-  if (is.null(tst)) {
-    return(tibble(interaction = label, statistic = NA_real_, df1 = NA_real_, df2 = NA_real_,
-                  p_value = NA_real_, p_value_fmt = NA_character_, note = "D1 failed"))
-  }
-  
-  tibble(
-    interaction = label,
-    statistic = unname(tst$statistic),
-    df1 = unname(tst$df1),
-    df2 = unname(tst$df2),
-    p_value = unname(tst$p.value),
-    p_value_fmt = fmt_p(tst$p.value),
-    note = ""
-  )
-}
-
-int_res <- tibble()
-if ("Age3" %in% RHS_USED) int_res <- bind_rows(int_res, run_D1("Year_index:Age3", "Year_index × Age3"))
-if ("DB" %in% RHS_USED) int_res <- bind_rows(int_res, run_D1("Year_index:DB", "Year_index × DB"))
-if (isTRUE(DO_INTERACTION_ICD) && ("ICD_BIN_Yes" %in% RHS_USED)) {
-  int_res <- bind_rows(int_res, run_D1("Year_index:ICD_BIN_Yes", "Year_index × ICD"))
-}
-
-if (isTRUE(DO_FDR_INT) && nrow(int_res) > 0) {
-  int_res <- int_res %>%
-    mutate(
-      p_fdr = ifelse(!is.na(p_value), p.adjust(p_value, method = "BH"), NA_real_),
-      p_fdr_fmt = fmt_p(p_fdr)
-    )
-}
-
-safe_write_csv(int_res, file.path(INT_DIR, paste0("MI_joint_tests_", OUTCOME, ".csv")), na = "")
-# ===================================================================================
-# 10) PREDICTED TRENDS Age3 
-# ==================================================================================
-if (isTRUE(DO_PRED_TRENDS_AGE3) && ("Age3" %in% names(df_mi))) {
-  
-  PRED_DIR <- file.path(OUT_DIR, "PredTrends_MI")
-  dir.create(PRED_DIR, recursive = TRUE, showWarnings = FALSE)
-  
-  year_seq <- seq(YEAR_MIN, YEAR_MAX, by = 1)
-  
-  cc_by_year <- df_mi %>%
-    count(Year_index, name = "n_year") %>%
-    mutate(show_point = n_year >= YEAR_PLOT_MIN_N)
-  
+make_nd <- function(dat, group_var, groups) {
+  # reference profile: modes/medians from THIS completed dataset
   ref <- list()
   for (v in RHS_USED) {
-    x <- df_mi[[v]]
-    if (is.factor(x) || is.character(x)) ref[[v]] <- get_mode(x) else ref[[v]] <- median(x, na.rm = TRUE)
+    if (!v %in% names(dat)) next
+    if (v %in% c("Year_index", group_var)) next
+    if (is.factor(dat[[v]]) || is.character(dat[[v]])) ref[[v]] <- get_mode(dat[[v]])
+    else ref[[v]] <- median(dat[[v]], na.rm=TRUE)
   }
-  ref$Age3 <- "66-75"
-  if ("Sex_BIN_Male" %in% names(df_mi)) ref$Sex_BIN_Male <- "0"
-  if ("ICD_BIN_Yes" %in% names(df_mi)) ref$ICD_BIN_Yes <- "0"
-  
-  fits <- fit_mi$analyses
-  
-  predict_onefit <- function(fit, nd) {
-    if (!is.null(fit$xlevels)) {
-      for (v in names(fit$xlevels)) if (v %in% names(nd))
-        nd[[v]] <- factor(as.character(nd[[v]]), levels = fit$xlevels[[v]])
-    }
-    pr <- suppressWarnings(predict(fit, newdata = nd, type = "link", se.fit = TRUE))
-    eta <- as.numeric(pr$fit)
-    se <- as.numeric(pr$se.fit)
-    z <- 1.96
-    tibble(
-      Year_index = nd$Year_index,
-      group = nd$Age3,
-      pred = plogis(eta),
-      lo = plogis(eta - z * se),
-      hi = plogis(eta + z * se)
-    )
-  }
-  
-  groups <- levels(df_mi$Age3)
-  nd <- tidyr::expand_grid(Year_index = year_seq, Age3 = groups)
-  for (nm in names(ref)) if (!nm %in% names(nd)) nd[[nm]] <- ref[[nm]]
-  
-  allp <- bind_rows(lapply(seq_along(fits), function(i) {
-    p <- predict_onefit(fits[[i]], nd)
-    p$.imp <- i
-    p
-  }))
-  
-  pred_age <- allp %>%
-    group_by(Year_index, group) %>%
-    summarise(
-      pred = mean(pred, na.rm = TRUE),
-      lo = quantile(pred, 0.025, na.rm = TRUE),
-      hi = quantile(pred, 0.975, na.rm = TRUE),
-      .groups = "drop"
-    )
-  
-  safe_write_csv(pred_age, file.path(PRED_DIR, paste0("pred_trends_Age3_", OUTCOME, "_MI.csv")))
-  
-  p <- ggplot(pred_age, aes(x = Year_index, y = pred, color = group, fill = group)) +
-    geom_ribbon(aes(ymin = lo, ymax = hi), alpha = 0.15, color = NA) +
-    geom_line(linewidth = 1) +
-    geom_point(
-      data = pred_age %>% left_join(cc_by_year, by = "Year_index") %>% filter(show_point),
-      size = 1.3
-    ) +
-    labs(
-      title = "Predicted probability over time: receipt of all 3 disease-modifying HFrEF medication classes",
-      subtitle = "HF_BIN_eq3 = 1 if ACEi/ARB + beta-blocker + MRA present; 0 otherwise. Stratified by Age group.",
-      x = "Calendar year",
-      y = "Predicted probability (HF_BIN_eq3 = 1)",
-      caption = paste0("Multiple imputation (mice); ribbon: empirical 95% interval across imputations. ",
-                       "Points shown only for years with ≥", YEAR_PLOT_MIN_N, " patients."),
-      color = "Age group",
-      fill = "Age group"
-    ) +
-    guides(fill = "none") +# --- QUICK CHECKS / FIXES so Age3 + DB are actually in df_mi ---
-    log_line("[CHECK] df_mi has Age_num? ", "Age_num" %in% names(df_mi))
-  log_line("[CHECK] df_mi has Age3? ", "Age3" %in% names(df_mi))
-  log_line("[CHECK] df_mi has DB? ", "DB" %in% names(df_mi))
-  
-  # Create Age3 inside df_mi if missing and Age_num available
-  if (!("Age3" %in% names(df_mi)) && ("Age_num" %in% names(df_mi))) {
-    df_mi$Age3 <- cut(df_mi$Age_num, breaks = c(-Inf, 65, 75, Inf),
-                      labels = c("<=65","66-75",">75"), right = TRUE)
-    df_mi$Age3 <- factor(as.character(df_mi$Age3), levels = c("<=65","66-75",">75"))
-    log_line("[FIX] Created Age3 in df_mi from Age_num.")
-  }
-  
-  # we ensure DB is a factor
-  if ("DB" %in% names(df_mi)) {
-    df_mi$DB <- droplevels(factor(as.character(df_mi$DB)))
-    log_line("[FIX] Coerced DB to factor in df_mi. Levels=", nlevels(df_mi$DB))
-  }
-  
-  # Print distributions (useful for debugging)
-  if ("Age3" %in% names(df_mi)) print(table(df_mi$Age3, useNA = "ifany"))
-  if ("DB" %in% names(df_mi)) print(head(sort(table(df_mi$DB), decreasing = TRUE), 10))
-  
-  # IMPORTANT: recompute RHS_USED after these fixes
-  RHS_USED <- RHS[RHS %in% names(df_mi)]
-  RHS_USED <- unique(c("Year_index", setdiff(RHS_USED, "Year_index")))
-  f_str <- paste0(OUTCOME, " ~ ", paste(RHS_USED, collapse = " + "))
-  log_line("[INFO] RHS_USED for MI model: ", paste(RHS_USED, collapse = ", "))
-    theme_minimal(base_size = 12)
-  
-  ggsave(file.path(PRED_DIR, paste0("pred_trends_Age3_", OUTCOME, "_MI.png")), p, width = 10, height = 6, dpi = 300)
-  ggsave(file.path(PRED_DIR, paste0("pred_trends_Age3_", OUTCOME, "_MI.pdf")), p, width = 10, height = 6)
+  nd <- tidyr::expand_grid(Year_index=year_seq)
+  nd[[group_var]] <- rep(groups, each=length(year_seq))
+  # fill others
+  for (nm in names(ref)) nd[[nm]] <- ref[[nm]]
+  # factor alignment
+  for (nm in names(nd)) if (nm %in% names(dat) && is.factor(dat[[nm]]))
+    nd[[nm]] <- factor(as.character(nd[[nm]]), levels=levels(dat[[nm]]))
+  nd
 }
 
-log_line("[DONE] Script 05B completed. OUT_DIR = ", OUT_DIR)
+pred_one_imp <- function(m) {
+  dat <- complete(imp, m)
+  dat[[OUTCOME]] <- factor(as.character(dat[[OUTCOME]]), levels=c("0","1"))
+  fit <- glm(f_main, data=dat, family=binomial())
+  
+  if (!("Age3" %in% names(dat))) return(NULL)
+  groups <- levels(dat$Age3)
+  nd <- make_nd(dat, "Age3", groups)
+  
+  pr <- predict(fit, newdata=nd, type="link", se.fit=TRUE)
+  z <- 1.96
+  tibble(
+    Year_index = nd$Year_index,
+    group = as.character(nd$Age3),
+    pred = plogis(pr$fit),
+    lo = plogis(pr$fit - z*pr$se.fit),
+    hi = plogis(pr$fit + z*pr$se.fit)
+  )
+}
+
+pred_list <- lapply(seq_len(M_IMP), pred_one_imp)
+pred_list <- pred_list[!vapply(pred_list, is.null, logical(1))]
+pred_all <- bind_rows(pred_list, .id="m") %>%
+  group_by(Year_index, group) %>%
+  summarise(
+    pred = mean(pred),
+    lo = mean(lo),
+    hi = mean(hi),
+    .groups="drop"
+  ) %>%
+  left_join(cc_by_year, by="Year_index")
+
+PRED_DIR <- file.path(OUT_DIR, "PredTrends_MI")
+dir.create(PRED_DIR, recursive=TRUE, showWarnings=FALSE)
+
+write_csv(pred_all, file.path(PRED_DIR, paste0("MI_pred_trends_Age3_", OUTCOME, ".csv")))
+save_plot(
+  plot_pred(pred_all, "Age group"),
+  file.path(PRED_DIR, paste0("MI_pred_trends_Age3_", OUTCOME))
+)
+
+log_line("[DONE] Script 05B completed. Outputs in: ", OUT_DIR)
