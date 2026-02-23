@@ -1,11 +1,13 @@
 ##############################################################################
 # PROFID — Study 5
 # Script 08: Between-database variation + GEO trend model
-#
+#Author: Amina BOUDAMAANA
+
 # Input: df_study5_hfref.rds (from Script 1)
 # Cohort: HFrEF only (LVEF <40%) — expected to be restricted by Script 1
 ##############################################################################
 options(stringsAsFactors = FALSE)
+
 suppressPackageStartupMessages({
   library(dplyr)
   library(tidyr)
@@ -16,7 +18,9 @@ suppressPackageStartupMessages({
   library(forcats)
   library(tibble)
 })
+
 log_line <- function(...) cat(format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "|", ..., "\n")
+
 # =============================================================================
 # 0) Paths
 # =============================================================================
