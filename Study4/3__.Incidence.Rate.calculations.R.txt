@@ -1,7 +1,6 @@
 ###################################################################################################
-###################################################################################################
 # projet: UmBIZO- PROFID_Study4 (SCD post-MI, age- stratified)
-# Script: 03_Incidence_rate_calculations.R
+# Script: 03_Incidence_rate_calculations
 # Author: Amina Boudamaana
 ## ================================================================================================
 ## STUDY 4 - PRIMARY STATISTICAL METHODOLOGY
@@ -160,7 +159,6 @@ if (any(finCI)) {
          angle = 90, code = 3, length = 0.05, col = "grey30", lwd = 1.2)
 }
 par(op)
-
 # ===============================================================================================================================
 ## 4) WHO 2000-2025 weights aggregated to the 4 SAP bands 
 ## Source: WHO World Standard Population 2000-2025 (Ahmad et al., 2001).
@@ -217,10 +215,10 @@ ASR_CI <- c(ASR - 1.96*SEp, ASR + 1.96*SEp)
 pl <- subset(df, is.finite(py) & py > 0 & !is.na(age_group) & !is.na(SCD_event))
 df$SCD_event
 # Fit a (quasi-)Poisson model at patient level
-fit_pl <- glm(SCD_event ~ age_group, offset = log(py),
+fit_pl <- glm(SCD_event ~  age_group, offset = log(py),
               family = quasipoisson(link = "log"),
               dfa = pl)
-
+py
 phi <- as.numeric(summary(fit_pl)$dispersion) # dispersion estimate (>=1 means over-dispersion)
 if (!is.finite(phi) || phi < 1) phi <- 1 # fallback to 1 (no inflation)
 
@@ -312,7 +310,6 @@ age_rates_out <- rbind(
 who_df <- data.frame(age_band = names(who_w), who_weight = as.numeric(who_w), row.names = NULL)
 
 # 3) ASR table (already computed as 'asr_out')
-
 ##  write CSVs  
 write.csv(age_rates_out, fn1, row.names = FALSE)
 write.csv(who_df, fn2, row.names = FALSE)
@@ -322,5 +319,4 @@ cat("[Export] Tables written:\n - ", normalizePath(fn1),
     "\n - ", normalizePath(fn2),
     "\n - ", normalizePath(fn3), "\n", sep = "")
 # ============================================================================
-
 
