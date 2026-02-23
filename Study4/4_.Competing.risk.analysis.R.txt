@@ -1,17 +1,14 @@
 ########################################################################################################################
-########################################################################################################################
 # projet: UmBIZO- PROFID_Study4 (SCD post-MI, age- stratified)
 # Script: 04_Competing_risk_analysis.R
 # Author: Amina Boudamaana
 # Date: 2025-10-24
-# 
 # ====================================================================================================
 # Study 4 —  CIF (univariate by age) + model multivariable
 # - CIF curves by age (cause=1 SCD, competing=2)
 ## Input required: df_handled with columns: ftime_mo_int, fstatus (0/1/2), age_group
 # - CIF at fixed horizon = 36 months (bar chart)
 # ====================================================================================================
-
 suppressPackageStartupMessages({
   library(cmprsk)
 })
@@ -31,11 +28,10 @@ stopifnot(exists("df_handled"),
           all(c("ftime_mo_int","fstatus","age_group") %in% names(df_handled)))
 canon <- c("<=50","51-65","66-75",">75")
 df_handled$age_group <- factor(as.character(df_handled$age_group), levels = canon, ordered = FALSE)
-
+rownames(df_handled)
 ## ====================================================================================================
 ## A) UNIVARIATE Fine-Gray by age: CIF at 12, 36, 60 months
 ## ====================================================================================================
-
 PRIMARY <- 36L
 TIMES <- c(12L, 36L, 60L)
 
@@ -221,7 +217,6 @@ text(x = bp, y = as.vector(t(M)),
 
 legend("topleft", inset = 0.01, title = "Horizon",
        legend = colnames(M), fill = cols, bty = "n")
-
 ## ---------------------------------------------------------------------------------------------
 ## B) Lines over time – one line per age group (colored)
 ## --------------------------------------------------------------------------------------------
@@ -257,7 +252,7 @@ legend("topleft", inset = 0.01, title = "Age group",
        legend = rownames(M), col = pal, pch = pch, lty = lty, bty = "n")
 
 
-# --- Stacked bars: SCD vs non-SCD at 36 months (by age group) — slimmer bars + x-axis label ---
+#  Stacked bars: SCD vs non-SCD at 36 months (by age group) — slimmer bars + x-axis label ---
 library(cmprsk)
 
 canon <- c("<=50","51-65","66-75",">75")
@@ -310,11 +305,9 @@ text(x = bp, y = total_vals, pos = 3,
 
 mtext("Competing risks framework; cause of interest = SCD; competing = non-SCD.",
       side = 1, line = 4.8, cex = 0.85)
-
 ## ===============================================================================================
 ## B) MULTIVARIABLE Fine-Gray (same covariates as Cox)
 ## ==============================================================================================
-
 # 1) Define covariates (continuous scaled per 1 SD + binaries), age ref = <=50
 cov_cont <- c("LVEF","eGFR","BMI","Haemoglobin")
 cov_bin <- c("Diabetes","Hypertension","ACE_inhibitor","ARB","Anti_coagulant")
@@ -368,9 +361,8 @@ pretty_label <- function(x){
 }
 shr_m <- shr_multi
 shr_m$label <- pretty_label(shr_m$term)
-
 # =====================================================================================================
-# --- Fine–Gray multivariable model: forest plot 
+#  Fine–Gray multivariable model: forest plot 
 # ======================================================================================================
 pretty_label <- function(x){
   x <- sub("^age_group51-65$", "Age 51–65 (ref \u2264 50)", x)
