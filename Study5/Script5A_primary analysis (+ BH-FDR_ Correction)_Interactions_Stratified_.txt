@@ -1,0 +1,1153 @@
+# ==============================================================================
+# UmBIZO_PROFID — Study 5
+# Script 05A — PRIMARY analysis (COMPLETE-CASE) — 2000–2020
+# Author: Amina BOUDAMAANA
+
+# - Population: HFrEF only (LVEF <40%)
+# - Endpoint: HF_BIN_eq3 = 1 if RAAS/ACEi-ARB + beta-blocker + MRA all present
+#
+# Outputs:
+# 1) Main multivariable logistic model (CC) — determinants ( BH-FDR)
+# 2) Stratified analyses:
+# A) Descriptive (yearly + time_period)
+# B) aOR_year within strata (glm → brglm2 → logistf) (+ BH-FDR)
+# 3) Predicted temporal trends:
+# - Age3 (from main model)
+# - DB_plot 
+# 4) Interaction joint tests (LRT): Year×Age3, Year×DB (optional Year×ICD) (+ BH-FDR)
+# ==============================================================================
+
+options(stringsAsFactors = FALSE)
+options(contrasts = c("contr.treatment", "contr.poly"))
+
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(tidyr)
+  library(tibble)
+  library(readr)
+  library(stringr)
+  library(ggplot2)
+  library(broom)
+})
+
+# ==============================================================================
+# 0) CONFIG
+# ==============================================================================
+ROOT_DIR <- "T:/Study_5"
+RESULTS_ROOT <- file.path(ROOT_DIR, "Results_Study5")
+
+IN_RDS <- file.path(RESULTS_ROOT, "Script1_HFrEF_UPDATED", "df_study5_hfref.rds")
+OUT_DIR <- file.path(RESULTS_ROOT, "Script5A_Primary_CC_2000_2020_ROBUST")
+dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
+
+LABEL <- "HFrEF_PRIMARY_CC_2000_2020"
+YEAR_MIN <- 2000L
+YEAR_MAX <- 2020L
+OUTCOME <- "HF_BIN_eq3"
+
+# DB collapsing
+TOP_DB_FOR_MODEL <- 8
+TOP_DB_FOR_PLOTS <- 6
+
+# Stratified model: simpler adjustment set 
+RHS_STRAT_SIMPLE <- c("Year_index", "Sex_BIN_Male", "Diabetes_BIN_Yes", "Hypertension_BIN_Yes", "eGFR_log1p")
+MIN_N_STRAT <- 200
+MIN_EVENTS_STRAT <- 30
+
+# Predicted trends
+YEAR_PLOT_MIN_N <- 500
+
+# Interactions
+DO_INTERACTION_ICD <- FALSE
+# FDR options
+DO_FDR_MAIN_MODEL <- TRUE # BH over main model covariates
+DO_FDR_STRAT <- TRUE # BH over stratified p-values
+DO_FDR_INT <- TRUE # BH over interaction LRT p-values
+
+# ==============================================================================
+# 1) HELPERS
+# ==============================================================================
+log_line <- function(...) cat(format(Sys.time(), "%Y-%m-%d %H:%M:%S"), " | ", ..., "\n")
+safe_num <- function(x) suppressWarnings(as.numeric(as.character(x)))
+
+fmt_p <- function(p) {
+  p <- suppressWarnings(as.numeric(p))
+  ifelse(is.na(p), NA_character_,
+         ifelse(p < 0.001, "<0.001", formatC(p, format = "f", digits = 3)))
+}
+
+to_num01 <- function(x) {
+  if (is.factor(x)) x <- as.character(x)
+  if (is.logical(x)) return(as.integer(x))
+  if (is.numeric(x)) return(ifelse(is.na(x), NA_integer_, as.integer(x != 0)))
+  x2 <- tolower(trimws(as.character(x)))
+  ifelse(is.na(x2), NA_integer_,
+         ifelse(x2 %in% c("1","yes","y","true","t","m","male"), 1L,
+                ifelse(x2 %in% c("0","no","n","false","f","female"), 0L, NA_integer_)))
+}
+
+get_mode <- function(x) {
+  x <- x[!is.na(x)]
+  if (length(x) == 0) return(NA)
+  x <- as.character(x)
+  names(sort(table(x), decreasing = TRUE))[1]
+}
+
+collapse_top_levels <- function(x, top_n = 8, other_label = "OTHER") {
+  xx <- as.character(x)
+  tab <- sort(table(xx), decreasing = TRUE)
+  keep <- names(tab)[seq_len(min(top_n, length(tab)))]
+  out <- ifelse(is.na(xx), NA_character_, ifelse(xx %in% keep, xx, other_label))
+  droplevels(factor(out))
+}
+
+collapse_sparse_by_events <- function(df, var, outcome, min_events = 30, other_label = "OTHER") {
+  if (!(var %in% names(df)) || !(outcome %in% names(df))) return(df)
+  x <- as.character(df[[var]])
+  y <- df[[outcome]]
+  if (all(is.na(x))) return(df)
+  ev_by <- tapply(y == 1, x, function(z) sum(z, na.rm = TRUE))
+  ev_by[is.na(ev_by)] <- 0
+  keep <- names(ev_by)[ev_by >= min_events]
+  x2 <- ifelse(is.na(x), NA_character_, ifelse(x %in% keep, x, other_label))
+  df[[var]] <- droplevels(factor(x2))
+  df
+}
+
+.pick_first_existing <- function(df, candidates) {
+  candidates <- candidates[!is.na(candidates) & nzchar(candidates)]
+  candidates[candidates %in% names(df)][1]
+}
+
+.drop_single_level_predictors <- function(df, vars) {
+  out <- character(0)
+  for (v in vars) {
+    if (!v %in% names(df)) next
+    ux <- unique(na.omit(as.character(df[[v]])))
+    if (length(ux) < 2) next
+    out <- c(out, v)
+  }
+  unique(out)
+}
+
+safe_deparse <- function(x) paste(deparse(x, width.cutoff = 500), collapse = " ")
+
+#  alias map (global)
+alias_map <- tibble(new = character(), source = character(), action = character())
+
+.standardise_from_alias <- function(df, new_name, candidates,
+                                    type = c("binary","numeric","factor","character"),
+                                    transform = NULL) {
+  type <- match.arg(type)
+  src <- .pick_first_existing(df, candidates)
+  
+  if (is.null(src) || is.na(src) || !nzchar(src)) {
+    alias_map <<- bind_rows(alias_map, tibble(new = new_name, source = NA_character_, action = "not_found"))
+    return(df)
+  }
+  
+  x <- df[[src]]
+  if (!is.null(transform)) x <- transform(x)
+  
+  if (type == "binary") df[[new_name]] <- factor(as.character(to_num01(x)), levels = c("0","1"))
+  if (type == "numeric") df[[new_name]] <- safe_num(x)
+  if (type == "factor") df[[new_name]] <- droplevels(factor(as.character(x)))
+  if (type == "character") df[[new_name]] <- as.character(x)
+  
+  alias_map <<- bind_rows(alias_map, tibble(new = new_name, source = src, action = "created"))
+  df
+}
+
+#  glm wrappers 
+.safe_glm_binom_main <- function(df, formula, outcome, min_n = 50, min_events = 10) {
+  y <- df[[outcome]]
+  n_cc <- nrow(df)
+  n_events <- sum(y == 1, na.rm = TRUE)
+  if (n_cc < min_n) stop("Too few CC rows")
+  if (n_events < min_events) stop("Too few events")
+  
+  warn_msgs <- character(0)
+  fit <- withCallingHandlers(
+    tryCatch(glm(formula, data = df, family = binomial(), control = glm.control(maxit = 80)),
+             error = function(e) e),
+    warning = function(w) { warn_msgs <<- c(warn_msgs, conditionMessage(w)); invokeRestart("muffleWarning") }
+  )
+  if (inherits(fit, "error")) stop("glm failed: ", fit$message)
+  if (!isTRUE(fit$converged)) stop("glm did not converge")
+  
+  list(fit = fit, n_cc = n_cc, n_events = n_events,
+       note = ifelse(length(warn_msgs), paste(unique(warn_msgs), collapse=" | "), NA))
+}
+
+.safe_glm_binom_strict <- function(df, formula, outcome, min_n = MIN_N_STRAT, min_events = MIN_EVENTS_STRAT) {
+  y <- df[[outcome]]
+  n_cc <- nrow(df); n_events <- sum(y == 1, na.rm = TRUE)
+  
+  if (n_cc < min_n) return(list(ok=FALSE, fit=NULL, n_cc=n_cc, n_events=n_events, note="Too few CC rows"))
+  if (n_events < min_events) return(list(ok=FALSE, fit=NULL, n_cc=n_cc, n_events=n_events, note="Too few events"))
+  
+  warn_msgs <- character(0)
+  fit <- withCallingHandlers(
+    tryCatch(glm(formula, data = df, family = binomial(), control = glm.control(maxit = 80)),
+             error = function(e) e),
+    warning = function(w) { warn_msgs <<- c(warn_msgs, conditionMessage(w)); invokeRestart("muffleWarning") }
+  )
+  
+  if (inherits(fit, "error")) return(list(ok=FALSE, fit=NULL, n_cc=n_cc, n_events=n_events, note=paste0("glm failed: ", fit$message)))
+  if (!isTRUE(fit$converged)) return(list(ok=FALSE, fit=fit, n_cc=n_cc, n_events=n_events, note="glm non-converged"))
+  
+  sm <- suppressWarnings(summary(fit)$coef)
+  bad <- any(!is.finite(coef(fit))) || any(is.infinite(sm[,"Std. Error"])) || any(sm[,"Std. Error"] > 20, na.rm=TRUE)
+  if (bad) return(list(ok=FALSE, fit=fit, n_cc=n_cc, n_events=n_events, note="glm unstable/separation"))
+  
+  list(ok=TRUE, fit=fit, n_cc=n_cc, n_events=n_events,
+       note = ifelse(length(warn_msgs), paste(unique(warn_msgs), collapse=" | "), NA))
+}
+
+#  predictions on link scale with SE
+safe_predict_link <- function(fit, newdata) {
+  nd <- newdata
+  if (!is.null(fit$xlevels)) {
+    for (v in names(fit$xlevels)) if (v %in% names(nd))
+      nd[[v]] <- factor(as.character(nd[[v]]), levels = fit$xlevels[[v]])
+  }
+  pr <- tryCatch(predict(fit, newdata = nd, type="link", se.fit=TRUE), error=function(e) NULL)
+  if (is.null(pr)) return(tibble(fit=NA_real_, se=NA_real_))
+  tibble(fit=as.numeric(pr$fit), se=as.numeric(pr$se.fit))
+}
+
+# --- plot saving ---
+save_plot <- function(p, out_base, w=10, h=6, dpi=300) {
+  ggsave(paste0(out_base, ".png"), plot = p, width = w, height = h, dpi = dpi)
+  ggsave(paste0(out_base, ".pdf"), plot = p, width = w, height = h)
+}
+
+# ==============================================================================
+# 2) LOAD + STANDARDISE
+# ==============================================================================
+stopifnot(file.exists(IN_RDS))
+df <- readRDS(IN_RDS)
+stopifnot(is.data.frame(df))
+log_line("[INFO] Loaded: ", IN_RDS, " | n=", nrow(df), " p=", ncol(df))
+
+df <- .standardise_from_alias(df, "Year_index", c("Year_index","Year","year","calendar_year","CalendarYear"), type="numeric")
+df <- .standardise_from_alias(df, "DB", c("DB","db","Database","dataset","Dataset","Cohort","cohort"), type="factor")
+df <- .standardise_from_alias(df, "Age_num", c("Age_num","Age","age","Age_years","age_years"), type="numeric")
+
+if (!("Age3" %in% names(df)) && "Age_num" %in% names(df)) {
+  df$Age3 <- cut(df$Age_num, breaks=c(-Inf,65,75,Inf), labels=c("<=65","66-75",">75"), right=TRUE)
+  df$Age3 <- factor(as.character(df$Age3), levels=c("<=65","66-75",">75"))
+}
+
+df <- .standardise_from_alias(df, "Sex_BIN_Male", c("Sex_BIN_Male","sex_male","Sex_male","Male","male","Sex","SEX","sex"), type="binary")
+df <- .standardise_from_alias(df, "ICD_BIN_Yes", c("ICD_BIN_Yes","ICD","ICD_yes","ICD_present","device_icd","ICD_implanted"), type="binary")
+
+df <- .standardise_from_alias(
+  df, "Time_index_MI_CHD_log1p",
+  c("Time_index_MI_CHD_log1p","Time_from_MI_log1p","Time_MI_log1p","Time_index_MI_CHD","Time_from_MI","Time_MI","time_from_mi"),
+  type="numeric",
+  transform=function(x){
+    xx <- safe_num(x)
+    if (suppressWarnings(max(xx, na.rm=TRUE)) > 50) log1p(pmax(xx,0)) else xx
+  }
+)
+
+df <- .standardise_from_alias(df, "Diabetes_BIN_Yes", c("Diabetes_BIN_Yes","Diabetes","diabetes","DM","dm","T2D"), type="binary")
+df <- .standardise_from_alias(df, "Hypertension_BIN_Yes", c("Hypertension_BIN_Yes","Hypertension","hypertension","HTN","htn"), type="binary")
+df <- .standardise_from_alias(df, "Smoking_BIN_Yes", c("Smoking_BIN_Yes","Smoking","smoking","Current_smoking","Smoker","smoker"), type="binary")
+df <- .standardise_from_alias(df, "AF_atrial_flutter_BIN_Yes", c("AF_atrial_flutter_BIN_Yes","AF_atrial_flutter","AF","af","Atrial_fibrillation","AFib"), type="binary")
+df <- .standardise_from_alias(df, "Stroke_TIA_BIN_Yes", c("Stroke_TIA_BIN_Yes","Stroke_TIA","Stroke","TIA"), type="binary")
+
+df <- .standardise_from_alias(
+  df, "eGFR_log1p",
+  c("eGFR_log1p","egfr_log1p","eGFR","egfr"),
+  type="numeric",
+  transform=function(x){
+    xx <- safe_num(x)
+    if (suppressWarnings(max(xx, na.rm=TRUE)) > 20) log1p(pmax(xx,0)) else xx
+  }
+)
+
+df <- .standardise_from_alias(
+  df, "Haemoglobin_log1p",
+  c("Haemoglobin_log1p","Hemoglobin_log1p","Haemoglobin","Hemoglobin","hb","HB"),
+  type="numeric",
+  transform=function(x){
+    xx <- safe_num(x)
+    if (suppressWarnings(max(xx, na.rm=TRUE)) > 20) log1p(pmax(xx,0)) else xx
+  }
+)
+
+df <- .standardise_from_alias(df, "PCI_BIN_Yes", c("PCI_BIN_Yes","PCI","pci","Prior_PCI"), type="binary")
+df <- .standardise_from_alias(df, "CABG_BIN_Yes", c("CABG_BIN_Yes","CABG","cabg","Prior_CABG"), type="binary")
+df <- .standardise_from_alias(df, "Revascularisation_acute_BIN_Yes",
+                              c("Revascularisation_acute_BIN_Yes","Revascularisation_acute","Acute_revasc","revasc_acute"), type="binary")
+
+write_csv(alias_map, file.path(OUT_DIR, "QC_alias_map.csv"))
+
+# ==============================================================================
+# 3) RESTRICTIONS + OUTCOME
+# ==============================================================================
+stopifnot("Year_index" %in% names(df))
+df <- df %>%
+  mutate(Year_index = safe_num(Year_index)) %>%
+  filter(!is.na(Year_index), Year_index >= YEAR_MIN, Year_index <= YEAR_MAX)
+
+# HFrEF restriction (defensive)
+if ("LVEF_num" %in% names(df)) {
+  df <- df %>% filter(!is.na(LVEF_num), safe_num(LVEF_num) < 40)
+} else if ("LVEF_ESC" %in% names(df)) {
+  df <- df %>% filter(as.character(LVEF_ESC) == "<40%")
+}
+
+# Outcome derivation
+if (!(OUTCOME %in% names(df))) {
+  cand <- c("HF_n_classes","HF_count","HF_therapy_count","HF_GDMT_count","HF_GDMT_count3","HF_GDMT_count4")
+  cnt <- cand[cand %in% names(df)]
+  if (length(cnt) == 0) stop("HF_BIN_eq3 missing and no HF therapy count variable found.")
+  hf_n <- safe_num(df[[cnt[1]]])
+  df[[OUTCOME]] <- ifelse(is.na(hf_n), NA_integer_, as.integer(hf_n == 3))
+} else {
+  df[[OUTCOME]] <- to_num01(df[[OUTCOME]])
+}
+
+# DB collapse for stability
+if ("DB" %in% names(df)) {
+  df$DB <- collapse_top_levels(df$DB, top_n = TOP_DB_FOR_MODEL, other_label = "OTHER")
+  df <- collapse_sparse_by_events(df, "DB", OUTCOME, min_events = MIN_EVENTS_STRAT, other_label="OTHER")
+  ref_db <- names(sort(table(df$DB), decreasing=TRUE))[1]
+  if (!is.na(ref_db) && ref_db %in% levels(df$DB)) df$DB <- relevel(df$DB, ref=ref_db)
+}
+
+# time_period (median split)
+cutv <- median(df$Year_index, na.rm=TRUE)
+df$time_period <- factor(ifelse(df$Year_index <= cutv, "Early (<= median)", "Recent (> median)"),
+                         levels=c("Early (<= median)", "Recent (> median)"))
+
+log_line("[INFO] After filters: n=", nrow(df), " | events=", sum(df[[OUTCOME]]==1, na.rm=TRUE))
+
+# ==============================================================================
+# 4) COVARIATES + QC
+# ==============================================================================
+RHS_CANDIDATES <- c(
+  "Year_index","Age3","Sex_BIN_Male","DB","ICD_BIN_Yes","Time_index_MI_CHD_log1p",
+  "Diabetes_BIN_Yes","Hypertension_BIN_Yes","Smoking_BIN_Yes","AF_atrial_flutter_BIN_Yes",
+  "Stroke_TIA_BIN_Yes","eGFR_log1p","Haemoglobin_log1p","PCI_BIN_Yes","CABG_BIN_Yes",
+  "Revascularisation_acute_BIN_Yes"
+)
+
+audit_before <- bind_rows(lapply(RHS_CANDIDATES, function(v){
+  if (!v %in% names(df)) {
+    tibble(covariate=v, in_data=FALSE, class=NA_character_, n_total=nrow(df),
+           n_nonmiss=0L, pct_nonmiss=0, n_unique=0L, note="Not found in df")
+  } else {
+    x <- df[[v]]
+    nn <- sum(!is.na(x)); nu <- length(unique(na.omit(x)))
+    tibble(covariate=v, in_data=TRUE, class=class(x)[1], n_total=nrow(df),
+           n_nonmiss=nn, pct_nonmiss=round(100*nn/nrow(df),1), n_unique=nu, note="OK")
+  }
+}))
+write_csv(audit_before, file.path(OUT_DIR, "QC_Covariate_Audit_before_CC.csv"))
+
+RHS_MAIN <- RHS_CANDIDATES[RHS_CANDIDATES %in% names(df)]
+stopifnot("Year_index" %in% RHS_MAIN)
+
+# ==============================================================================
+# 5) COMPLETE-CASE
+# ==============================================================================
+needed <- unique(c(OUTCOME, RHS_MAIN))
+df_cc <- df %>% select(all_of(needed)) %>% filter(complete.cases(.))
+
+write_csv(
+  tibble(
+    n_total = nrow(df),
+    n_cc = nrow(df_cc),
+    events_total = sum(df[[OUTCOME]]==1, na.rm=TRUE),
+    events_cc = sum(df_cc[[OUTCOME]]==1, na.rm=TRUE)
+  ),
+  file.path(OUT_DIR, "QC_CC_counts.csv")
+)
+
+log_line("[INFO] CC: n=", nrow(df_cc), " | events=", sum(df_cc[[OUTCOME]]==1, na.rm=TRUE))
+
+# ==============================================================================
+# 6) MAIN MODEL (CC)
+# ==============================================================================
+MODELS_DIR <- file.path(OUT_DIR, "Models_CC")
+dir.create(MODELS_DIR, recursive=TRUE, showWarnings=FALSE)
+
+RHS_MAIN_CC <- .drop_single_level_predictors(df_cc, RHS_MAIN)
+RHS_MAIN_CC <- unique(c("Year_index", setdiff(RHS_MAIN_CC, "Year_index")))
+
+f_main <- as.formula(paste0(OUTCOME, " ~ ", paste(RHS_MAIN_CC, collapse=" + ")))
+main_res <- .safe_glm_binom_main(df_cc, f_main, OUTCOME)
+fit_main <- main_res$fit
+#
+# we Save PRIMARY CC model + data for downstream scripts (e.g., Script 06 DCA)
+saveRDS(
+list(
+df_cc = df_cc,
+fit_main = fit_main,
+outcome = OUTCOME
+),
+file.path(OUT_DIR, "PRIMARY_CC_fit_and_data.rds")
+)
+#
+saveRDS(fit_main, file.path(MODELS_DIR, paste0("PRIMARY_CC_model_", OUTCOME, ".rds")))
+
+main_or <- broom::tidy(fit_main, conf.int=TRUE, exponentiate=TRUE) %>%
+  filter(term != "(Intercept)") %>%
+  mutate(p_value_fmt = fmt_p(p.value)) %>%
+  select(term, estimate, conf.low, conf.high, p.value, p_value_fmt)
+
+write_csv(main_or, file.path(MODELS_DIR, paste0("PRIMARY_CC_OR_", OUTCOME, ".csv")))
+
+if (isTRUE(DO_FDR_MAIN_MODEL)) {
+  main_or_fdr <- main_or %>%
+    mutate(p_fdr = p.adjust(p.value, method="BH"),
+           p_fdr_fmt = fmt_p(p_fdr))
+  write_csv(main_or_fdr, file.path(MODELS_DIR, paste0("PRIMARY_CC_OR_", OUTCOME, "_withFDR.csv")))
+}
+
+write_csv(
+  tibble(
+    label=LABEL, outcome=OUTCOME,
+    n_cc=main_res$n_cc, n_events=main_res$n_events,
+    rhs_used=paste(RHS_MAIN_CC, collapse=" + "),
+    note=ifelse(is.na(main_res$note),"",main_res$note)
+  ),
+  file.path(MODELS_DIR, paste0("PRIMARY_CC_model_note_", OUTCOME, ".csv"))
+)
+
+# ==============================================================================
+# 7) STRATIFIED (Descriptive +  aOR_year)
+# ==============================================================================
+STRAT_DIR <- file.path(OUT_DIR, "Stratified_CC")
+dir.create(STRAT_DIR, recursive = TRUE, showWarnings = FALSE)
+
+df_cc2 <- df_cc
+
+# DB_plot for plotting/stratification
+if ("DB" %in% names(df_cc2)) {
+  df_cc2$DB_plot <- collapse_top_levels(df_cc2$DB, top_n=TOP_DB_FOR_PLOTS, other_label="OTHER")
+  df_cc2 <- collapse_sparse_by_events(df_cc2, "DB_plot", OUTCOME, min_events=MIN_EVENTS_STRAT, other_label="OTHER")
+  ref_db2 <- names(sort(table(df_cc2$DB_plot), decreasing=TRUE))[1]
+  if (!is.na(ref_db2) && ref_db2 %in% levels(df_cc2$DB_plot)) df_cc2$DB_plot <- relevel(df_cc2$DB_plot, ref=ref_db2)
+}
+
+# eGFR categories (optional)
+if (!("eGFR_cat" %in% names(df_cc2))) {
+  egfr_raw <- NA_real_
+  if ("eGFR" %in% names(df_cc2)) egfr_raw <- suppressWarnings(as.numeric(df_cc2$eGFR))
+  if (all(is.na(egfr_raw)) && "eGFR_log1p" %in% names(df_cc2)) egfr_raw <- pmax(expm1(df_cc2$eGFR_log1p), 0)
+  if (!all(is.na(egfr_raw))) {
+    df_cc2$eGFR_cat <- cut(egfr_raw, breaks=c(-Inf,30,60,Inf), labels=c("<30","30-59",">=60"), right=FALSE)
+    df_cc2$eGFR_cat <- factor(df_cc2$eGFR_cat, levels=c(">=60","30-59","<30"))
+  }
+}
+
+desc_by_year <- function(d, strat_var) {
+  d %>%
+    group_by(Year_index, !!sym(strat_var)) %>%
+    summarise(
+      n = n(),
+      events = sum(.data[[OUTCOME]] == 1, na.rm=TRUE),
+      prop = ifelse(n > 0, events / n, NA_real_),
+      .groups="drop"
+    ) %>%
+    rename(level = !!sym(strat_var))
+}
+
+desc_by_period <- function(d, strat_var) {
+  if (!("time_period" %in% names(d))) return(tibble())
+  d %>%
+    group_by(time_period, !!sym(strat_var)) %>%
+    summarise(
+      n = n(),
+      events = sum(.data[[OUTCOME]] == 1, na.rm=TRUE),
+      prop = ifelse(n > 0, events / n, NA_real_),
+      .groups="drop"
+    ) %>%
+    rename(level = !!sym(strat_var))
+}
+
+extract_year_effect <- function(beta, se) {
+  z <- beta / se
+  p <- 2 * pnorm(-abs(z))
+  tibble(
+    aOR_year = exp(beta),
+    CI_low = exp(beta - 1.96*se),
+    CI_high = exp(beta + 1.96*se),
+    p_value = p
+  )
+}
+
+is_glm_unstable <- function(fit) {
+  if (!inherits(fit, "glm")) return(TRUE)
+  if (!isTRUE(fit$converged)) return(TRUE)
+  sm <- suppressWarnings(summary(fit)$coef)
+  if (!is.matrix(sm)) return(TRUE)
+  bad_se <- any(is.infinite(sm[, "Std. Error"])) || any(sm[, "Std. Error"] > 20, na.rm = TRUE)
+  bad_coef <- any(!is.finite(coef(fit)))
+  bad_se || bad_coef
+}
+
+fit_year_in_stratum_robust <- function(d, strat_var, level) {
+  dd <- d[d[[strat_var]] == level, , drop = FALSE]
+  
+  out <- tibble(
+    strat_var = strat_var,
+    level = as.character(level),
+    n_cc = nrow(dd),
+    n_events = sum(dd[[OUTCOME]]==1, na.rm=TRUE),
+    aOR_year = NA_real_,
+    CI_low = NA_real_,
+    CI_high = NA_real_,
+    p_value = NA_real_,
+    method_used = NA_character_,
+    note = NA_character_
+  )
+  
+  if (out$n_cc < MIN_N_STRAT) { out$note <- "Too few CC rows"; return(out) }
+  if (out$n_events < MIN_EVENTS_STRAT) { out$note <- "Too few events"; return(out) }
+  
+  rhs <- RHS_STRAT_SIMPLE
+  rhs <- rhs[rhs %in% names(dd)]
+  rhs <- setdiff(rhs, strat_var)
+  if (strat_var %in% c("DB","DB_plot")) rhs <- setdiff(rhs, c("DB","DB_plot"))
+  rhs <- .drop_single_level_predictors(dd, rhs)
+  
+  if (!("Year_index" %in% rhs)) { out$note <- "Year_index not usable in this stratum"; return(out) }
+  f <- as.formula(paste0(OUTCOME, " ~ ", paste(rhs, collapse=" + ")))
+  
+  # 1) glm
+  fit1 <- tryCatch(glm(f, data=dd, family=binomial(), control=glm.control(maxit=80)), error=function(e) e)
+  if (inherits(fit1,"glm") && !is_glm_unstable(fit1)) {
+    sm <- suppressWarnings(summary(fit1)$coef)
+    b <- sm["Year_index","Estimate"]; se <- sm["Year_index","Std. Error"]
+    ee <- extract_year_effect(b,se)
+    out$aOR_year <- ee$aOR_year; out$CI_low <- ee$CI_low; out$CI_high <- ee$CI_high; out$p_value <- ee$p_value
+    out$method_used <- "glm"; out$note <- ""
+    return(out)
+  }
+  
+  # 2) brglm2 (optional)
+  if (requireNamespace("brglm2", quietly=TRUE)) {
+    fit2 <- tryCatch(brglm2::brglm(f, data=dd, family=binomial("logit"), method="brglmFit"),
+                     error=function(e) e)
+    if (!inherits(fit2,"error")) {
+      sm <- suppressWarnings(summary(fit2)$coef)
+      if (is.matrix(sm) && "Year_index" %in% rownames(sm)) {
+        b <- sm["Year_index","Estimate"]; se <- sm["Year_index","Std. Error"]
+        ee <- extract_year_effect(b,se)
+        out$aOR_year <- ee$aOR_year; out$CI_low <- ee$CI_low; out$CI_high <- ee$CI_high; out$p_value <- ee$p_value
+        out$method_used <- "brglm2"; out$note <- "glm unstable; penalised fit used"
+        return(out)
+      }
+    }
+  }
+  
+  # 3) logistf (optional) — FIX: ensure named SE
+  if (requireNamespace("logistf", quietly=TRUE)) {
+    fit3 <- tryCatch(logistf::logistf(f, data=dd), error=function(e) e)
+    if (!inherits(fit3,"error")) {
+      cf <- fit3$coefficients
+      se <- sqrt(diag(fit3$var))
+      if (is.null(names(se)) || any(names(se) == "")) names(se) <- names(cf) # critical fix
+      if ("Year_index" %in% names(cf) && "Year_index" %in% names(se)) {
+        b <- unname(cf["Year_index"]); se2 <- unname(se["Year_index"])
+        ee <- extract_year_effect(b,se2)
+        out$aOR_year <- ee$aOR_year; out$CI_low <- ee$CI_low; out$CI_high <- ee$CI_high; out$p_value <- ee$p_value
+        out$method_used <- "logistf"; out$note <- "glm/brglm2 failed; logistf used"
+        return(out)
+      }
+    }
+  }
+  
+  out$method_used <- "failed"
+  out$note <- "Model failed (separation / not estimable)"
+  out
+}
+
+STRAT_VARS <- intersect(c("ICD_BIN_Yes","Age3","time_period","eGFR_cat","DB_plot"), names(df_cc2))
+
+# A) Descriptive 
+for (sv in STRAT_VARS) {
+  write_csv(desc_by_year(df_cc2, sv), file.path(STRAT_DIR, paste0("STRAT_DESC_yearly_", sv, "_", OUTCOME, ".csv")))
+  dp <- desc_by_period(df_cc2, sv)
+  if (nrow(dp) > 0) write_csv(dp, file.path(STRAT_DIR, paste0("STRAT_DESC_period_", sv, "_", OUTCOME, ".csv")))
+}
+
+# B) Robust year effect
+all_strat <- list()
+for (sv in STRAT_VARS) {
+  levs <- levels(df_cc2[[sv]])
+  tab <- bind_rows(lapply(levs, function(lv) fit_year_in_stratum_robust(df_cc2, sv, lv))) %>%
+    mutate(
+      p_value_fmt = fmt_p(p_value),
+      aOR_CI = ifelse(is.na(aOR_year), NA_character_,
+                      paste0(formatC(aOR_year, digits=3, format="f"),
+                             " [", formatC(CI_low, digits=3, format="f"),
+                             "-", formatC(CI_high, digits=3, format="f"), "]"))
+    ) %>%
+    select(strat_var, level, n_cc, n_events, aOR_year, CI_low, CI_high, aOR_CI, p_value, p_value_fmt, method_used, note)
+  
+  write_csv(tab, file.path(STRAT_DIR, paste0("STRAT_OR_year_", sv, "_", OUTCOME, "_ROBUST.csv")), na = "")
+  all_strat[[sv]] <- tab
+}
+
+strat_all <- bind_rows(all_strat)
+
+if (isTRUE(DO_FDR_STRAT) && nrow(strat_all) > 0 && any(!is.na(strat_all$p_value))) {
+  strat_all <- strat_all %>%
+    mutate(p_fdr = p.adjust(p_value, method="BH"),
+           p_fdr_fmt = fmt_p(p_fdr))
+  write_csv(strat_all, file.path(STRAT_DIR, paste0("STRAT_OR_year_ALL_", OUTCOME, "_ROBUST_withFDR.csv")), na = "")
+} else {
+  write_csv(strat_all, file.path(STRAT_DIR, paste0("STRAT_OR_year_ALL_", OUTCOME, "_ROBUST.csv")), na = "")
+}
+# ==============================================================================
+# 8) PREDICTED TRENDS (Age3 + DB_plot)
+# ==============================================================================
+PRED_DIR <- file.path(OUT_DIR, "PredTrends_CC")
+dir.create(PRED_DIR, recursive = TRUE, showWarnings = FALSE)
+
+cc_by_year <- df_cc %>%
+  count(Year_index, name = "n_cc_year") %>%
+  mutate(show_point = n_cc_year >= YEAR_PLOT_MIN_N)
+
+year_seq <- seq(YEAR_MIN, YEAR_MAX, by = 1)
+
+plot_pred <- function(dat, suffix) {
+  
+  title_txt <- "Predicted probability over time: receipt of all 3 disease-modifying HFrEF medication classes"
+  subtitle_txt <- paste0(
+    "HF_BIN_eq3 = 1 if RAAS inhibitor (ACEi/ARB) + beta-blocker + MRA are all present at baseline; 0 otherwise. ",
+    "Stratified by ", suffix, "."
+  )
+  cap <- paste0(
+    "Complete-case logistic model; ribbon: Wald 95% CI on link scale. ",
+    "Points shown only for years with ≥", YEAR_PLOT_MIN_N, " complete-case patients."
+  )
+  
+  ggplot(dat, aes(x = Year_index, y = pred, color = group, fill = group)) +
+    geom_ribbon(aes(ymin = lo, ymax = hi), alpha = 0.15, color = NA) +
+    geom_line(linewidth = 1) +
+    geom_point(
+      data = dat %>% left_join(cc_by_year, by = "Year_index") %>% filter(show_point),
+      size = 1.3
+    ) +
+    labs(
+      title = title_txt,
+      subtitle = subtitle_txt,
+      x = "Calendar year",
+      y = "Predicted probability (HF_BIN_eq3 = 1)",
+      caption = cap,
+      color = suffix,
+      fill = suffix
+    ) +
+    guides(fill = "none") +
+    theme_minimal(base_size = 12) +
+    theme(
+      plot.title = element_text(face = "bold"),
+      plot.subtitle = element_text(size = 10),
+      legend.title = element_text(face = "bold")
+    )
+}
+
+# Reference covariates from main RHS (for standardised prediction profiles)
+ref <- list()
+for (v in RHS_MAIN_CC) {
+  if (!v %in% names(df_cc)) next
+  if (is.factor(df_cc[[v]]) || is.character(df_cc[[v]])) ref[[v]] <- get_mode(df_cc[[v]])
+  else ref[[v]] <- median(df_cc[[v]], na.rm = TRUE)
+}
+if ("Age3" %in% names(df_cc)) ref$Age3 <- "66-75"
+if ("Sex_BIN_Male" %in% names(df_cc)) ref$Sex_BIN_Male <- "0"
+if ("ICD_BIN_Yes" %in% names(df_cc)) ref$ICD_BIN_Yes <- "0"
+
+make_pred_curve <- function(fit, nd, group_lab) {
+  pr <- safe_predict_link(fit, nd)
+  z <- 1.96
+  bind_cols(nd, pr) %>%
+    mutate(
+      lo_link = fit - z * se,
+      hi_link = fit + z * se,
+      pred = plogis(fit),
+      lo = plogis(lo_link),
+      hi = plogis(hi_link),
+      group = .data[[group_lab]]
+    ) %>%
+    select(Year_index, group, pred, lo, hi)
+}
+# ========================================================================================
+# 8A) Age3 predicted trends (from main model)
+#=========================================================================================
+if ("Age3" %in% names(df_cc)) {
+  
+  groups <- levels(df_cc$Age3)
+  
+  nd <- tidyr::expand_grid(Year_index = year_seq, Age3 = groups)
+  for (nm in names(ref)) if (!nm %in% names(nd)) nd[[nm]] <- ref[[nm]]
+  for (nm in names(nd)) if (nm %in% names(df_cc) && is.factor(df_cc[[nm]]))
+    nd[[nm]] <- factor(as.character(nd[[nm]]), levels = levels(df_cc[[nm]]))
+  
+  pred_age <- make_pred_curve(fit_main, nd, "Age3")
+  
+  write_csv(pred_age, file.path(PRED_DIR, paste0("pred_trends_Age3_", OUTCOME, "_CC.csv")))
+  save_plot(
+    plot_pred(pred_age, "Age group"),
+    file.path(PRED_DIR, paste0("pred_trends_Age3_", OUTCOME, "_CC"))
+  )
+}
+
+# =================================================================================
+# 8B) DB_plot predicted trends (dedicated model; robust to sparse DBs)
+# ==================================================================================
+if ("DB_plot" %in% names(df_cc2)) {
+  
+  # Keep DBs with sufficient information (avoid tiny strata such as OTHER)
+  db_keep <- df_cc2 %>%
+    group_by(DB_plot) %>%
+    summarise(
+      n = n(),
+      events = sum(.data[[OUTCOME]] == 1, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    filter(n >= 200, events >= MIN_EVENTS_STRAT) %>%
+    pull(DB_plot) %>% as.character()
+  
+  df_plot <- df_cc2 %>%
+    filter(as.character(DB_plot) %in% db_keep) %>%
+    droplevels()
+  
+  if ("DB_plot" %in% names(df_plot) && nlevels(df_plot$DB_plot) >= 2) {
+    
+    # Minimal adjustment set (reduces separation risk)
+    rhs_plot <- intersect(
+      c("Year_index", "Age3", "Sex_BIN_Male", "Diabetes_BIN_Yes", "Hypertension_BIN_Yes", "eGFR_log1p", "DB_plot"),
+      names(df_plot)
+    )
+    rhs_plot <- .drop_single_level_predictors(df_plot, rhs_plot)
+    
+    f_plot <- as.formula(paste0(OUTCOME, " ~ ", paste(rhs_plot, collapse = " + ")))
+    
+    plot_res <- .safe_glm_binom_strict(
+      df_plot, f_plot, OUTCOME,
+      min_n = 500, min_events = MIN_EVENTS_STRAT
+    )
+    
+    if (isTRUE(plot_res$ok)) {
+      
+      fit_plot <- plot_res$fit
+      
+      groups <- levels(df_plot$DB_plot)
+      groups <- groups[seq_len(min(TOP_DB_FOR_PLOTS, length(groups)))]
+      
+      # Reference values for non-DB covariates
+      ref2 <- list()
+      for (v in rhs_plot) {
+        if (v == "DB_plot") next
+        if (is.factor(df_plot[[v]]) || is.character(df_plot[[v]])) ref2[[v]] <- get_mode(df_plot[[v]])
+        else ref2[[v]] <- median(df_plot[[v]], na.rm = TRUE)
+      }
+      if ("Age3" %in% names(df_plot)) ref2$Age3 <- "66-75"
+      if ("Sex_BIN_Male" %in% names(df_plot)) ref2$Sex_BIN_Male <- "0"
+      
+      nd <- tidyr::expand_grid(Year_index = year_seq, DB_plot = groups)
+      for (nm in names(ref2)) if (!nm %in% names(nd)) nd[[nm]] <- ref2[[nm]]
+      for (nm in names(nd)) if (nm %in% names(df_plot) && is.factor(df_plot[[nm]]))
+        nd[[nm]] <- factor(as.character(nd[[nm]]), levels = levels(df_plot[[nm]]))
+      
+      pred_db <- make_pred_curve(fit_plot, nd, "DB_plot")
+      
+      write_csv(pred_db, file.path(PRED_DIR, paste0("pred_trends_DB_", OUTCOME, "_CC.csv")))
+      save_plot(
+        plot_pred(pred_db, "Database"),
+        file.path(PRED_DIR, paste0("pred_trends_DB_", OUTCOME, "_CC"))
+      )
+      
+    } else {
+      write_csv(
+        tibble(message = "DB_plot model unstable; DB predicted trends skipped", note = plot_res$note),
+        file.path(PRED_DIR, paste0("pred_trends_DB_", OUTCOME, "_CC_SKIPPED.csv"))
+      )
+    }
+    
+  } else {
+    write_csv(
+      tibble(message = "Too few DB_plot levels after filtering; DB predicted trends skipped"),
+      file.path(PRED_DIR, paste0("pred_trends_DB_", OUTCOME, "_CC_SKIPPED.csv"))
+    )
+  }
+}
+df_cc2 %>%
+  count(DB_plot, name="n") %>%
+  left_join(
+    df_cc2 %>% group_by(DB_plot) %>% summarise(events=sum(.data[[OUTCOME]]==1, na.rm=TRUE), .groups="drop"),
+    by="DB_plot"
+  ) %>%
+  arrange(desc(n))
+
+# Recréer DB_plot à partir de DB (pas DB déjà collapsée)
+top_db <- df_cc %>%
+  count(DB, sort=TRUE) %>%
+  slice_head(n = TOP_DB_FOR_PLOTS) %>%
+  pull(DB) %>% as.character()
+
+df_cc2 <- df_cc %>%
+  mutate(DB_plot = ifelse(as.character(DB) %in% top_db, as.character(DB), NA_character_)) %>%
+  mutate(DB_plot = factor(DB_plot)) %>%
+  filter(!is.na(DB_plot)) %>%
+  droplevels()
+# =============================================================================
+# 9) INTERACTION JOINT TESTS (LRT) + BH-FDR
+# ==============================================================================
+INT_DIR <- file.path(OUT_DIR, "InteractionJointTests_CC")
+dir.create(INT_DIR, recursive=TRUE, showWarnings=FALSE)
+
+safe_glm_basic <- function(formula, data) {
+  tryCatch(glm(formula, family=binomial(), data=data, control=glm.control(maxit=80)),
+           error=function(e) e)
+}
+ok_fit <- function(fit) inherits(fit,"glm") && isTRUE(fit$converged) && any(is.finite(coef(fit))) && !any(is.na(coef(fit)))
+
+lrt_joint <- function(data_cc, v2) {
+  if (!v2 %in% names(data_cc)) {
+    return(tibble(
+      label=LABEL, outcome=OUTCOME, interaction=paste0("Year_index:", v2),
+      test="LRT", statistic=NA_real_, df=NA_real_, p_value=NA_real_, p_value_fmt=NA_character_,
+      note="Interaction variable not found",
+      n_cc=nrow(data_cc), n_events=sum(data_cc[[OUTCOME]]==1, na.rm=TRUE),
+      formula_reduced=NA_character_, formula_full=NA_character_
+    ))
+  }
+  
+  ux <- unique(na.omit(as.character(data_cc[[v2]])))
+  if (length(ux) < 2) {
+    return(tibble(
+      label=LABEL, outcome=OUTCOME, interaction=paste0("Year_index:", v2),
+      test="LRT", statistic=NA_real_, df=NA_real_, p_value=NA_real_, p_value_fmt=NA_character_,
+      note=paste0("Single-level or empty in CC: ", v2),
+      n_cc=nrow(data_cc), n_events=sum(data_cc[[OUTCOME]]==1, na.rm=TRUE),
+      formula_reduced=NA_character_, formula_full=NA_character_
+    ))
+  }
+  
+  base_ok <- RHS_MAIN_CC[RHS_MAIN_CC %in% names(data_cc)]
+  base_ok <- .drop_single_level_predictors(data_cc, base_ok)
+  base_ok <- unique(c("Year_index", setdiff(base_ok,"Year_index")))
+  
+  f_red <- as.formula(paste0(OUTCOME, " ~ ", paste(base_ok, collapse=" + ")))
+  f_full <- update(f_red, paste(". ~ . + Year_index*", v2))
+  
+  fit_red <- safe_glm_basic(f_red, data_cc)
+  fit_full <- safe_glm_basic(f_full, data_cc)
+  
+  if (!ok_fit(fit_red) || !ok_fit(fit_full)) {
+    return(tibble(
+      label=LABEL, outcome=OUTCOME, interaction=paste0("Year_index:", v2),
+      test="LRT", statistic=NA_real_, df=NA_real_, p_value=NA_real_, p_value_fmt=NA_character_,
+      note="Model fitting failed (reduced or full)",
+      n_cc=nrow(data_cc), n_events=sum(data_cc[[OUTCOME]]==1, na.rm=TRUE),
+      formula_reduced=safe_deparse(f_red), formula_full=safe_deparse(f_full)
+    ))
+  }
+  
+  a <- tryCatch(anova(fit_red, fit_full, test="Chisq"), error=function(e) e)
+  if (inherits(a,"error") || nrow(a) < 2) {
+    return(tibble(
+      label=LABEL, outcome=OUTCOME, interaction=paste0("Year_index:", v2),
+      test="LRT", statistic=NA_real_, df=NA_real_, p_value=NA_real_, p_value_fmt=NA_character_,
+      note=paste0("anova() failed: ", ifelse(inherits(a,"error"), a$message, "unknown")),
+      n_cc=nrow(data_cc), n_events=sum(data_cc[[OUTCOME]]==1, na.rm=TRUE),
+      formula_reduced=safe_deparse(f_red), formula_full=safe_deparse(f_full)
+    ))
+  }
+  
+  stat <- suppressWarnings(as.numeric(a$Deviance[2]))
+  dff <- suppressWarnings(as.numeric(a$Df[2]))
+  p <- suppressWarnings(as.numeric(a$`Pr(>Chi)`[2]))
+  
+  # export interaction coefficients (informative)
+  coef_int <- broom::tidy(fit_full, conf.int=TRUE, exponentiate=TRUE) %>%
+    filter(str_detect(term, "Year_index:") | str_detect(term, ":Year_index")) %>%
+    mutate(p_value_fmt = fmt_p(p.value))
+  
+  if (nrow(coef_int) > 0) {
+    write_csv(coef_int, file.path(INT_DIR, paste0("InteractionCoeffs_Yearx", v2, "_", OUTCOME, ".csv")))
+  }
+  
+  tibble(
+    label=LABEL, outcome=OUTCOME, interaction=paste0("Year_index:", v2),
+    test="LRT", statistic=stat, df=dff, p_value=p, p_value_fmt=fmt_p(p),
+    note=NA_character_,
+    n_cc=nrow(data_cc), n_events=sum(data_cc[[OUTCOME]]==1, na.rm=TRUE),
+    formula_reduced=safe_deparse(f_red), formula_full=safe_deparse(f_full)
+  )
+}
+
+int_list <- character(0)
+if ("Age3" %in% names(df_cc)) int_list <- c(int_list, "Age3")
+if ("DB" %in% names(df_cc)) int_list <- c(int_list, "DB")
+if (isTRUE(DO_INTERACTION_ICD) && "ICD_BIN_Yes" %in% names(df_cc)) int_list <- c(int_list, "ICD_BIN_Yes")
+
+int_res <- if (length(int_list) == 0) {
+  tibble(
+    label=LABEL, outcome=OUTCOME, interaction=NA_character_,
+    test="LRT", statistic=NA_real_, df=NA_real_, p_value=NA_real_, p_value_fmt=NA_character_,
+    note="No interaction variables available in CC",
+    n_cc=nrow(df_cc), n_events=sum(df_cc[[OUTCOME]]==1, na.rm=TRUE),
+    formula_reduced=NA_character_, formula_full=NA_character_
+  )
+} else {
+  bind_rows(lapply(int_list, function(v) lrt_joint(df_cc, v)))
+}
+
+if (isTRUE(DO_FDR_INT)) {
+  int_res <- int_res %>%
+    mutate(p_fdr = ifelse(!is.na(p_value), p.adjust(p_value, method="BH"), NA_real_),
+           p_fdr_fmt = fmt_p(p_fdr))
+}
+
+write_csv(int_res, file.path(INT_DIR, paste0("joint_tests_", LABEL, "_", OUTCOME, ".csv")), na="")
+write_csv(
+  int_res %>% select(outcome, interaction, statistic, df, p_value, p_value_fmt,
+                     dplyr::any_of(c("p_fdr","p_fdr_fmt")), n_cc, n_events, note),
+  file.path(INT_DIR, "JointTests_Summary.csv"), na=""
+)
+
+log_line("[DONE] Script 05A completed. Outputs in: ", OUT_DIR)
+
+# ==============================================================================
+x <- readr::read_csv(".../STRAT_OR_year_ALL_HF_BIN_eq3_ROBUST_withFDR.csv")
+x %>% select(strat_var, level, aOR_year, CI_low, CI_high, p_value) %>%
+  mutate(across(c(aOR_year, CI_low, CI_high), ~sprintf("%.6f", .)))
+# =====================================================================================
+#  Forest plot determinants (aOR)
+library(broom)
+library(ggplot2)
+library(dplyr)
+library(forcats)
+
+# fit_main 
+tab_or <- broom::tidy(fit_main, conf.int = TRUE, exponentiate = TRUE) %>%
+  filter(term != "(Intercept)") %>%
+  mutate(
+    term_clean = term,
+    term_clean = fct_reorder(term_clean, estimate) # ordre par OR
+  )
+
+p_forest <- ggplot(tab_or, aes(x = estimate, y = term_clean)) +
+  geom_vline(xintercept = 1, linetype = 2) +
+  geom_point() +
+  geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0.2) +
+  scale_x_log10() +
+  labs(
+    x = "Adjusted odds ratio (log scale)",
+    y = NULL,
+    title = "Determinants of receipt of triple HF therapy (RAASi + BB + MRA)",
+    subtitle = "Complete-case multivariable logistic regression"
+  ) +
+  theme_minimal(base_size = 12)
+
+ggsave(file.path(OUT_DIR, "Fig_ForestPlot_Determinants_CC.png"), p_forest, width = 9, height = 6, dpi = 300)
+ggsave(file.path(OUT_DIR, "Fig_ForestPlot_Determinants_CC.pdf"), p_forest, width = 9, height = 6)
+write.csv(tab_or, file.path(OUT_DIR, "Table_Determinants_OR_CC_full.csv"), row.names = FALSE)
+# ==============================================================================
+# 6B) FOREST PLOT — Determinants (aOR) — PRIMARY CC model (HFrEF)
+# Requires: fit_main (glm, CC), OUT_DIR, OUTCOME, fmt_p()
+# ==============================================================================
+suppressPackageStartupMessages({
+  library(ggplot2)
+})
+
+FOREST_DIR <- file.path(OUT_DIR, "ForestPlot_CC")
+dir.create(FOREST_DIR, recursive = TRUE, showWarnings = FALSE)
+
+#helpers
+pretty_db_label <- function(term){
+  # glm term example: "DBOTHER", "DBSWE", etc.
+  x <- sub("^DB", "", term)
+  x <- gsub("_", " ", x)
+  x <- trimws(x)
+  if (toupper(x) %in% c("OTHER","OTHERS")) return("Database: Other")
+  paste0("Database: ", x)
+}
+
+safe_write_csv <- function(df, path){
+  # common failure: file open in Excel / no write permission
+  ok <- tryCatch({
+    write.csv(df, file = path, row.names = FALSE, na = "")
+    TRUE
+  }, error = function(e) e)
+  if (!isTRUE(ok)) {
+    message("[WRITE FAILED] ", path)
+    message("Reason: ", conditionMessage(ok))
+    message("Fix: close the CSV in Excel and re-run, or change OUT_DIR to a writable folder.")
+  }
+  invisible(ok)
+}
+
+# extract OR table
+sm <- summary(fit_main)$coef
+terms <- rownames(sm)
+keep <- terms != "(Intercept)"
+
+beta <- sm[keep, "Estimate"]
+se <- sm[keep, "Std. Error"]
+pval <- sm[keep, "Pr(>|z|)"]
+
+OR <- exp(beta)
+CI_low <- exp(beta - 1.96 * se)
+CI_high <- exp(beta + 1.96 * se)
+
+or_raw <- data.frame(
+  term = terms[keep],
+  OR = OR,
+  CI_low = CI_low,
+  CI_high = CI_high,
+  p.value = as.numeric(pval),
+  p_value_fmt = fmt_p(pval),
+  stringsAsFactors = FALSE
+)
+
+# map labels + section 
+label_map <- function(term){
+  # Time / exposure
+  if (term == "Year_index") return("Calendar year (per 1-year increase)")
+  if (term == "Time_index_MI_CHD_log1p") return("Time since MI (log-transformed)")
+  
+  # Age3 (ref assumed <=65)
+  if (grepl("^Age3", term) && grepl("66-75", term)) return("Age 66–75 vs ≤65")
+  if (grepl("^Age3", term) && grepl(">75", term)) return("Age >75 vs ≤65")
+  
+  # Sex
+  if (grepl("^Sex_BIN_Male", term)) return("Male sex (vs female)")
+  
+  # Comorbidities / risk
+  if (grepl("^Diabetes", term)) return("Diabetes (yes vs no)")
+  if (grepl("^Hypertension", term)) return("Hypertension (yes vs no)")
+  if (grepl("^Smoking", term)) return("Current smoking (yes vs no)")
+  if (grepl("^AF", term)) return("Atrial fibrillation/flutter (yes vs no)")
+  if (grepl("^Stroke", term)) return("Stroke/TIA (yes vs no)")
+  
+  # Procedures
+  if (grepl("^PCI", term)) return("PCI (yes vs no)")
+  if (grepl("^CABG", term)) return("CABG (yes vs no)")
+  if (grepl("^Revascularisation", term)) return("Acute revascularisation (yes vs no)")
+  
+  # Labs
+  if (grepl("^Haemoglobin", term)) return("Haemoglobin (log-transformed)")
+  if (grepl("^eGFR", term)) return("eGFR (log-transformed)")
+  
+  # DB
+  if (grepl("^DB", term)) return(pretty_db_label(term))
+  
+  # fallback
+  term
+}
+
+or_raw$label <- vapply(or_raw$term, label_map, character(1))
+
+or_raw$section <- ifelse(grepl("^Database: ", or_raw$label), "Database", "Clinical")
+
+# we enforce clinical order + DB block at end
+order_core <- c(
+  "Calendar year (per 1-year increase)",
+  "Time since MI (log-transformed)",
+  "Age 66–75 vs ≤65",
+  "Age >75 vs ≤65",
+  "Male sex (vs female)",
+  "Diabetes (yes vs no)",
+  "Hypertension (yes vs no)",
+  "Current smoking (yes vs no)",
+  "Atrial fibrillation/flutter (yes vs no)",
+  "Stroke/TIA (yes vs no)",
+  "PCI (yes vs no)",
+  "CABG (yes vs no)",
+  "Acute revascularisation (yes vs no)",
+  "Haemoglobin (log-transformed)",
+  "eGFR (log-transformed)"
+)
+
+db_levels <- sort(unique(or_raw$label[or_raw$section == "Database"]))
+if ("Database: Other" %in% db_levels) {
+  db_levels <- c(setdiff(db_levels, "Database: Other"), "Database: Other")
+}
+
+final_levels <- c(order_core, db_levels)
+keep_levels <- final_levels[final_levels %in% or_raw$label]
+
+or2 <- or_raw[or_raw$label %in% keep_levels, , drop = FALSE]
+or2$label_f <- factor(or2$label, levels = rev(keep_levels))
+
+# factor for plotting (top-to-bottom)
+or2$label_f <- factor(or2$label, levels = rev(keep_levels))
+
+ export clean table for supplementary
+or_table_clean <- or2[or2$section != "Header", c("label","OR","CI_low","CI_high","p.value","p_value_fmt")]
+names(or_table_clean)[1] <- "predictor"
+safe_write_csv(or_table_clean, file.path(FOREST_DIR, paste0("PRIMARY_CC_forest_table_", OUTCOME, ".csv")))
+
+#  plot 
+# Build text column
+or2$or_ci_txt <- sprintf("%.2f (%.2f–%.2f)", or2$OR, or2$CI_low, or2$CI_high)
+or2$p_txt <- or2$p_value_fmt
+
+# Order rows exactly as displayed
+ord <- order(or2$label_f) # label_f already has the final order (factor with rev levels)
+orP <- or2[ord, , drop = FALSE]
+
+# Numeric y so we can place a right-side text column cleanly
+orP$y <- seq_len(nrow(orP))
+y_breaks <- orP$y
+y_labels <- as.character(orP$label_f)
+
+# Where to print the text column (a bit to the right of the max CI)
+x_text <- max(orP$CI_high[is.finite(orP$CI_high)], na.rm = TRUE) * 1.35
+
+p_forest <- ggplot(orP, aes(x = OR, y = y)) +
+  geom_vline(xintercept = 1, linetype = "dashed", linewidth = 0.5) +
+  geom_errorbarh(aes(xmin = CI_low, xmax = CI_high), height = 0.20, linewidth = 0.7) +
+  # hollow point so the CI line stays visible even if very short
+  geom_point(shape = 21, fill = "white", stroke = 0.9, size = 2.2) +
+  # OR (95% CI) text column on the right
+  geom_text(aes(x = x_text, label = or_ci_txt), hjust = 0, size = 3.2) +
+  # p-value column
+  # geom_text(aes(x = x_text * 1.35, label = p_txt), hjust = 0, size = 3.2) +
+  scale_x_log10(
+    breaks = c(0.1, 0.2, 0.5, 1, 2,5,10),
+    labels = c("0.1","0.2","0.5","1","2","5","10")
+  ) +
+  scale_y_continuous(
+    breaks = y_breaks,
+    labels = y_labels,
+    expand = expansion(mult = c(0.02, 0.08))
+  ) +
+  coord_cartesian(clip = "off") +
+  labs(
+    title = "Determinants of receipt of triple heart failure (HF) therapy (RAASi + BB + MRA)",
+    subtitle = "Complete-case multivariable logistic regression (HFrEF, LVEF <40%)",
+    x = "Adjusted odds ratio (log scale)",
+    y = NULL,
+    caption = "Outcome: HF_BIN_eq3 = 1 if RAASi (ACEi/ARB) + beta-blocker + MRA all present at baseline."
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(face = "bold"),
+    axis.text.y = element_text(size = 10),
+    plot.margin = margin(5.5, 80, 5.5, 5.5) # right margin for text column
+  )
+
+ggsave(file.path(FOREST_DIR, paste0("Figure_Forest_Determinants_", OUTCOME, "_CC.png")),
+       plot = p_forest, width = 11.8, height = 6.8, dpi = 300)
+ggsave(file.path(FOREST_DIR, paste0("Figure_Forest_Determinants_", OUTCOME, "_CC.pdf")),
+       plot = p_forest, width = 11.8, height = 6.8)
+
+log_line("[OK] Forest plot saved in: ", FOREST_DIR)
+#
+saveRDS(
+  list(df_cc = df_cc, fit_main = fit_main, outcome = OUTCOME),
+  file.path(OUT_DIR, "PRIMARY_CC_fit_and_data.rds")
+)
