@@ -2,7 +2,6 @@
 # UmBIZO_PROFID — Study 5
 # Script 05A — PRIMARY analysis (COMPLETE-CASE) — 2000–2020
 # Author: Amina BOUDAMAANA
-
 # - Population: HFrEF only (LVEF <40%)
 # - Endpoint: HF_BIN_eq3 = 1 if RAAS/ACEi-ARB + beta-blocker + MRA all present
 #
@@ -16,7 +15,6 @@
 # - DB_plot 
 # 4) Interaction joint tests (LRT): Year×Age3, Year×DB (optional Year×ICD) (+ BH-FDR)
 # ==============================================================================
-
 options(stringsAsFactors = FALSE)
 options(contrasts = c("contr.treatment", "contr.poly"))
 
@@ -218,10 +216,9 @@ safe_predict_link <- function(fit, newdata) {
 
 # --- plot saving ---
 save_plot <- function(p, out_base, w=10, h=6, dpi=300) {
-  ggsave(paste0(out_base, ".png"), plot = p, width = w, height = h, dpi = dpi)
-  ggsave(paste0(out_base, ".pdf"), plot = p, width = w, height = h)
+  ggplot2::ggsave(paste0(out_base, ".png"), plot = p, width = w, height = h, dpi = dpi)
+  ggplot2::ggsave(paste0(out_base, ".pdf"), plot = p, width = w, height = h)
 }
-
 # ==============================================================================
 # 2) LOAD + STANDARDISE
 # ==============================================================================
@@ -620,40 +617,85 @@ year_seq <- seq(YEAR_MIN, YEAR_MAX, by = 1)
 
 plot_pred <- function(dat, suffix) {
   
-  title_txt <- "Predicted probability over time: receipt of all 3 disease-modifying HFrEF medication classes"
-  subtitle_txt <- paste0(
-    "HF_BIN_eq3 = 1 if RAAS inhibitor (ACEi/ARB) + beta-blocker + MRA are all present at baseline; 0 otherwise. ",
-    "Stratified by ", suffix, "."
-  )
+  dat <- dat %>%
+    mutate(
+      group = factor(group,
+                     levels = c("<=65", "66-75", ">75"),
+                     labels = c("≤65", "66–75", ">75"))
+    )
+  
+  title_txt <- "Predicted probability of triple HFrEF therapy over calendar time"
+  subtitle_txt <- "Complete-case multivariable logistic model"
   cap <- paste0(
-    "Complete-case logistic model; ribbon: Wald 95% CI on link scale. ",
-    "Points shown only for years with ≥", YEAR_PLOT_MIN_N, " complete-case patients."
+    "Outcome defined as receipt of RAAS inhibitor (ACEi/ARB), beta-blocker, and MRA at baseline. ",
+    "Shaded areas indicate 95% confidence intervals. ",
+    "Points are shown only for years with ≥", YEAR_PLOT_MIN_N, " complete-case patients."
   )
   
-  ggplot(dat, aes(x = Year_index, y = pred, color = group, fill = group)) +
-    geom_ribbon(aes(ymin = lo, ymax = hi), alpha = 0.15, color = NA) +
-    geom_line(linewidth = 1) +
+  ggplot(dat, aes(x = Year_index, y = pred,
+                  color = group, fill = group,
+                  linetype = group, shape = group,
+                  group = group)) +
+    
+    geom_ribbon(aes(ymin = lo, ymax = hi),
+                alpha = 0.08, color = NA, show.legend = FALSE) +
+    
+    geom_line(linewidth = 1.25) +
+    
     geom_point(
-      data = dat %>% left_join(cc_by_year, by = "Year_index") %>% filter(show_point),
-      size = 1.3
+      data = dat %>%
+        left_join(cc_by_year, by = "Year_index") %>%
+        filter(show_point),
+      size = 1.8
     ) +
+    
+    scale_color_manual(values = c("≤65" = "#D55E00",
+                                  "66–75" = "#009E73",
+                                  ">75" = "#0072B2")) +
+    
+    scale_fill_manual(values = c("≤65" = "#D55E00",
+                                 "66–75" = "#009E73",
+                                 ">75" = "#0072B2")) +
+    
+    scale_linetype_manual(values = c("≤65" = "solid",
+                                     "66–75" = "longdash",
+                                     ">75" = "dashed")) +
+    
+    scale_shape_manual(values = c("≤65" = 16,
+                                  "66–75" = 17,
+                                  ">75" = 15)) +
+    
+    scale_x_continuous(
+      breaks = seq(YEAR_MIN, YEAR_MAX, by = 5),
+      limits = c(YEAR_MIN, YEAR_MAX)
+    ) +
+    
+    scale_y_continuous(
+      labels = scales::label_percent(accuracy = 1),
+      limits = c(0, NA),
+      expand = expansion(mult = c(0, 0.02))
+    ) +
+    
     labs(
-      title = title_txt,
-      subtitle = subtitle_txt,
+      title = "Predicted probability of receiving triple HFrEF therapy over calendar time",
+      subtitle = "Complete-case multivariable logistic model",
       x = "Calendar year",
-      y = "Predicted probability (HF_BIN_eq3 = 1)",
-      caption = cap,
-      color = suffix,
-      fill = suffix
+      y = "Predicted probability of receiving triple HFrEF therapy",
+      color = "Age group (years)",
+      fill = "Age group (years)",
+      linetype = "Age group (years)",
+      shape = "Age group (years)"
     ) +
-    guides(fill = "none") +
+    
     theme_minimal(base_size = 12) +
     theme(
       plot.title = element_text(face = "bold"),
       plot.subtitle = element_text(size = 10),
-      legend.title = element_text(face = "bold")
+      legend.title = element_text(face = "bold"),
+      legend.position = "right"
     )
 }
+
 
 # Reference covariates from main RHS (for standardised prediction profiles)
 ref <- list()
@@ -1085,7 +1127,7 @@ or2$label_f <- factor(or2$label, levels = rev(keep_levels))
 # factor for plotting (top-to-bottom)
 or2$label_f <- factor(or2$label, levels = rev(keep_levels))
 
- export clean table for supplementary
+# export clean table for supplementary
 or_table_clean <- or2[or2$section != "Header", c("label","OR","CI_low","CI_high","p.value","p_value_fmt")]
 names(or_table_clean)[1] <- "predictor"
 safe_write_csv(or_table_clean, file.path(FOREST_DIR, paste0("PRIMARY_CC_forest_table_", OUTCOME, ".csv")))
@@ -1151,3 +1193,4 @@ saveRDS(
   list(df_cc = df_cc, fit_main = fit_main, outcome = OUTCOME),
   file.path(OUT_DIR, "PRIMARY_CC_fit_and_data.rds")
 )
+
