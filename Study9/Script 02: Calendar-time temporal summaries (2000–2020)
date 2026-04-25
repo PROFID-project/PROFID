@@ -1,16 +1,7 @@
 # ==============================================================================
 # PROFID — UmBIZO Study 9
-# Script 02 — Calendar-time crude summaries + publication figures (2000–2020)
-# Author: Amina BOUDAMAANA
-# PRIMARY (Results):
-# - Tables by calendar-time band (2000–2004 / 2005–2009 / 2010–2014 / 2015–2020)
-# - MAIN figures by band (pointrange + exact Poisson 95% CI)
-#
-# SUPPLEMENT/QC:
-# - Annual crude plots (ribbon + line + points; exact Poisson 95% CI; display capped)
-# - Non-ICD SCD curve broken at 2005 with dashed line note (denominator artefact)
-# - QC table for 2005 non-ICD person-time artefact
-# - SUPP annual FIGURE as TWO PANELS stacked (aligned X axis)
+# Script 02 — Calendar-time crude summaries + publication figures +
+# formal temporal trend analysis (unadjusted + adjusted), 2000–2020
 # ==============================================================================
 suppressPackageStartupMessages({
   library(dplyr)
@@ -19,126 +10,185 @@ suppressPackageStartupMessages({
   library(tidyr)
   library(ggplot2)
   library(patchwork)
+  library(MASS)
+  library(broom)
 })
 
-rm(list = ls()); gc()
 options(stringsAsFactors = FALSE)
 
 # ==============================================================================
 # 0) LOG + PATHS
 # ==============================================================================
 log_line <- function(...) {
-  cat(paste0(format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
-             " | ", paste0(..., collapse=""), "\n"))
+  cat(
+    paste0(
+      format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
+      " | ",
+      paste0(..., collapse = ""),
+      "\n"
+    )
+  )
 }
 
 ROOT_DIR <- "T:/Study_9"
 
-# Input minimal RDS from Script 01
-IN_RDS <- file.path(ROOT_DIR, "Results_Study9", "Script01_CalendarTime_QC", "df_study9_minimal.rds")
-
-# Output directory
-OUT_DIR <- file.path(ROOT_DIR, "Results_Study9", "Script02_TemporalTables_2000_2020_PUB")
+OUT_DIR <- file.path(
+  ROOT_DIR,
+  "Results_Study9",
+  "Script02_TemporalTables_FormalTrend_FINAL"
+)
 dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
+
+IN_RDS <- file.path(
+  ROOT_DIR,
+  "Results_Study9",
+  "Script01_CalendarTime_QC",
+  "df_study9_minimal.rds"
+)
 
 START_Y <- 2000L
 END_Y <- 2020L
 
-# Display caps for SUPP annual figures
-CAP_SCD <- 25 # events / 1,000 PY
-CAP_ICD <- 200 # events / 1,000 PY
+CAP_SCD <- 25
+CAP_ICD <- 200
+XBY_ANNUAL <- 2
 
-# Shared x-axis spacing for annual panels (align both)
-XBY_ANNUAL <- 2 
+log_line("[OK] Using input RDS: ", IN_RDS)
+log_line("[OK] Output directory: ", OUT_DIR)
 
 # ==============================================================================
 # 1) LOAD + RESTRICT
 # ==============================================================================
-log_line("Reading: ", IN_RDS)
 stopifnot(file.exists(IN_RDS))
+
 dat0 <- readRDS(IN_RDS)
 stopifnot(is.data.frame(dat0))
 
-req <- c("Year_index","ICD_bin","SCD_bin","ICD_proxy_bin","person_years")
-miss <- setdiff(req, names(dat0))
-if (length(miss) > 0) stop("Missing required columns in minimal RDS: ", paste(miss, collapse=", "))
+req <- c(
+  "Year_index", "ICD_bin", "SCD_bin", "ICD_proxy_bin", "person_years",
+  "lvef35_grp"
+)
 
+miss <- setdiff(req, names(dat0))
+if (length(miss) > 0) {
+  stop("Missing required columns in minimal RDS: ", paste(miss, collapse = ", "))
+}
+
+# ------------------------------------------------------------------------------
+# Covariate name detection for adjusted models
+# ------------------------------------------------------------------------------
+pick_first_existing <- function(candidates, xnames) {
+  hit <- candidates[candidates %in% xnames]
+  if (length(hit) == 0) return(NA_character_)
+  hit[1]
+}
+
+age_candidates <- c("Age", "age", "Age_num", "age_num", "age_years", "Age_years")
+sex_candidates <- c("Sex", "sex", "Sex_BIN_Male", "sex_male", "Male", "male")
+egfr_candidates <- c("eGFR", "egfr", "eGFR_num", "egfr_num", "eGFR_log1p", "egfr_log1p")
+lvef_candidates <- c("LVEF", "lvef", "LVEF_num", "lvef_num")
+
+col_age <- pick_first_existing(age_candidates, names(dat0))
+col_sex <- pick_first_existing(sex_candidates, names(dat0))
+col_egfr <- pick_first_existing(egfr_candidates, names(dat0))
+col_lvef <- pick_first_existing(lvef_candidates, names(dat0))
+
+log_line("[INFO] Detected covariates for adjusted models:",
+         " age=", ifelse(is.na(col_age), "NA", col_age),
+         " | sex=", ifelse(is.na(col_sex), "NA", col_sex),
+         " | eGFR=",ifelse(is.na(col_egfr), "NA", col_egfr),
+         " | LVEF=",ifelse(is.na(col_lvef), "NA", col_lvef))
+
+# ------------------------------------------------------------------------------
+# Main analytic dataset
+# ------------------------------------------------------------------------------
 dat <- dat0 %>%
   transmute(
-    Year_index = suppressWarnings(as.integer(Year_index)),
-    ICD_bin = suppressWarnings(as.integer(ICD_bin)),
-    SCD_bin = suppressWarnings(as.integer(SCD_bin)),
-    ICD_proxy_bin = suppressWarnings(as.integer(ICD_proxy_bin)),
-    person_years = suppressWarnings(as.numeric(person_years))
+    Year_index = suppressWarnings(as.integer(.data$Year_index)),
+    ICD_bin = suppressWarnings(as.integer(.data$ICD_bin)),
+    SCD_bin = suppressWarnings(as.integer(.data$SCD_bin)),
+    ICD_proxy_bin = suppressWarnings(as.integer(.data$ICD_proxy_bin)),
+    person_years = suppressWarnings(as.numeric(.data$person_years)),
+    lvef35_grp = as.character(.data$lvef35_grp),
+    
+    age_raw = if (!is.na(col_age)) .data[[col_age]] else NA,
+    sex_raw = if (!is.na(col_sex)) .data[[col_sex]] else NA,
+    egfr_raw = if (!is.na(col_egfr)) .data[[col_egfr]] else NA,
+    lvef_raw = if (!is.na(col_lvef)) .data[[col_lvef]] else NA
   ) %>%
-  filter(!is.na(Year_index), Year_index >= START_Y, Year_index <= END_Y)
+  filter(
+    !is.na(Year_index),
+    Year_index >= START_Y,
+    Year_index <= END_Y,
+    !is.na(ICD_bin),
+    !is.na(person_years),
+    person_years > 0
+  )
 
-log_line("[OK] Loaded (raw): n=", nrow(dat0), " x ", ncol(dat0))
-log_line("[OK] Restricted: n=", nrow(dat), " | years ", START_Y, "–", END_Y)
+log_line("[OK] Loaded raw dataset: n=", nrow(dat0), " x ", ncol(dat0))
+log_line("[OK] Restricted analytic dataset: n=", nrow(dat), " | years ", START_Y, "-", END_Y)
 
 years_grid <- tibble(Year_index = START_Y:END_Y)
 
 # ==============================================================================
 # 2) HELPERS
 # ==============================================================================
-make_band <- function(y) {
-  cut(
-    y,
-    breaks = c(1999, 2004, 2009, 2014, 2020),
-    labels = c("2000–2004","2005–2009","2010–2014","2015–2020"),
-    right = TRUE,
-    include.lowest = TRUE
+band_from_year <- function(y) {
+  dplyr::case_when(
+    y >= 2000 & y <= 2004 ~ "2000-2004",
+    y >= 2005 & y <= 2009 ~ "2005-2009",
+    y >= 2010 & y <= 2014 ~ "2010-2014",
+    y >= 2015 & y <= 2020 ~ "2015-2020",
+    TRUE ~ NA_character_
   )
 }
 
-# Exact Poisson 95% CI for rate per 1000 PY (vectorised)
-rate_ci_poisson <- function(events, py, mult = 1000, alpha = 0.05) {
-  ok <- !is.na(py) & py > 0
-  rate <- ifelse(ok, mult * events / py, NA_real_)
-  lo <- ifelse(ok, mult * (0.5 * qchisq(alpha/2, 2*events)) / py, NA_real_)
-  hi <- ifelse(ok, mult * (0.5 * qchisq(1 - alpha/2, 2*(events + 1))) / py, NA_real_)
-  lo[events == 0 & ok] <- 0
+band_levels <- c("2000-2004", "2005-2009", "2010-2014", "2015-2020")
+
+rate_ci_poisson <- function(events, py, mult = 1000) {
+  events <- as.numeric(events)
+  py <- as.numeric(py)
+  
+  rate <- ifelse(py > 0, mult * events / py, NA_real_)
+  lo <- rep(NA_real_, length(events))
+  hi <- rep(NA_real_, length(events))
+  
+  ok <- !is.na(events) & !is.na(py) & py > 0
+  
+  if (any(ok)) {
+    lo[ok] <- ifelse(
+      events[ok] == 0,
+      0,
+      mult * 0.5 * qchisq(0.025, 2 * events[ok]) / py[ok]
+    )
+    hi[ok] <- mult * 0.5 * qchisq(0.975, 2 * (events[ok] + 1)) / py[ok]
+  }
+  
   tibble(rate = rate, lo = lo, hi = hi)
 }
 
-summarise_by_year <- function(df, event_var) {
-  out <- df %>%
-    group_by(Year_index) %>%
-    summarise(
-      n = n(),
-      events = sum(.data[[event_var]] == 1L, na.rm = TRUE),
-      person_years = sum(person_years[!is.na(person_years) & person_years > 0], na.rm = TRUE),
-      .groups = "drop"
-    ) %>%
-    right_join(years_grid, by = "Year_index") %>%
-    arrange(Year_index) %>%
-    mutate(
-      n = replace_na(n, 0L),
-      events = replace_na(events, 0L),
-      person_years = replace_na(person_years, 0)
-    )
-  
-  bind_cols(out, rate_ci_poisson(out$events, out$person_years))
+write_legend <- function(path, lines) {
+  writeLines(lines, con = path, useBytes = TRUE)
 }
 
-summarise_by_band <- function(df, event_var) {
-  df2 <- df %>% mutate(band = make_band(Year_index))
-  out <- df2 %>%
-    filter(!is.na(band)) %>%
-    group_by(band) %>%
-    summarise(
-      n = n(),
-      events = sum(.data[[event_var]] == 1L, na.rm = TRUE),
-      person_years = sum(person_years[!is.na(person_years) & person_years > 0], na.rm = TRUE),
-      .groups = "drop"
-    ) %>%
-    mutate(band = factor(band, levels = c("2000–2004","2005–2009","2010–2014","2015–2020"))) %>%
-    arrange(band)
-  
-  bind_cols(out, rate_ci_poisson(out$events, out$person_years))
+clean_lvef35_labels <- function(x) {
+  x <- trimws(as.character(x))
+  dplyr::case_when(
+    x %in% c("<35%", "<35", "lt35", "LVEF <35%", "LVEF<35%") ~ "LVEF <35%",
+    x %in% c(">=35%", ">=35", "ge35", "LVEF >=35%", "LVEF ≥35%", "≥35%", "LVEF >35%") ~ "LVEF >=35%",
+    TRUE ~ x
+  )
 }
 
-# Journal-like theme
+clean_sex_binary <- function(x) {
+  y <- trimws(as.character(x))
+  dplyr::case_when(
+    y %in% c("1", "Male", "male", "M", "m", "man", "Men", "MEN") ~ "Male",
+    y %in% c("0", "Female", "female", "F", "f", "woman", "Women", "WOMEN") ~ "Female",
+    TRUE ~ NA_character_
+  )
+}
+
 theme_journal <- theme_classic(base_size = 12) +
   theme(
     plot.title = element_text(face = "bold", size = 13),
@@ -147,49 +197,40 @@ theme_journal <- theme_classic(base_size = 12) +
     axis.text = element_text(color = "black"),
     axis.line = element_line(linewidth = 0.6),
     axis.ticks = element_line(linewidth = 0.6),
-    plot.margin = margin(8, 10, 8, 10)
+    legend.title = element_text(face = "bold")
   )
 
-# MAIN band figure
-plot_band_pointrange <- function(df, title, subtitle) {
-  ggplot(df, aes(x = band, y = rate, group = 1)) +
+plot_band <- function(df, title, subtitle,
+                      ylab = "Crude rate (events per 1,000 person-years)") {
+  ggplot(df, aes(x = band_2000_2020, y = rate, group = 1)) +
     geom_line(linewidth = 0.8) +
     geom_pointrange(aes(ymin = lo, ymax = hi), linewidth = 0.7) +
     labs(
       title = title,
       subtitle = subtitle,
       x = "Calendar-time band",
-      y = "Crude rate (events per 1,000 person-years)"
+      y = ylab
     ) +
     theme_journal
 }
 
-# SUPP annual figure (aligned X-axis across panels)
-plot_year_ribbon <- function(df, rate_col, lo_col, hi_col,
-                             title, subtitle,
-                             break_year = NA_integer_,
-                             vline_year = NA_integer_,
-                             cap = NA_real_,
-                             x_by = 2,
-                             rotate_x = TRUE,
-                             bottom_note = NULL) {
-  
+plot_annual <- function(df, title, subtitle,
+                        cap = NA_real_,
+                        break_year = NA_integer_,
+                        add_break_note = FALSE) {
   d <- df %>%
     mutate(
-      rate2 = .data[[rate_col]],
-      lo2 = .data[[lo_col]],
-      hi2 = .data[[hi_col]],
-      rate_line = ifelse(!is.na(break_year) & Year_index == break_year, NA_real_, rate2),
-      lo_line = ifelse(!is.na(break_year) & Year_index == break_year, NA_real_, lo2),
-      hi_line = ifelse(!is.na(break_year) & Year_index == break_year, NA_real_, hi2)
+      rate_line = ifelse(!is.na(break_year) & Year_index == break_year, NA_real_, rate),
+      lo_line = ifelse(!is.na(break_year) & Year_index == break_year, NA_real_, lo),
+      hi_line = ifelse(!is.na(break_year) & Year_index == break_year, NA_real_, hi)
     )
   
   if (!is.na(cap)) {
     d <- d %>%
       mutate(
-        rate2 = pmin(rate2, cap),
-        lo2 = pmin(lo2, cap),
-        hi2 = pmin(hi2, cap),
+        rate = pmin(rate, cap),
+        lo = pmin(lo, cap),
+        hi = pmin(hi, cap),
         rate_line = pmin(rate_line, cap),
         lo_line = pmin(lo_line, cap),
         hi_line = pmin(hi_line, cap)
@@ -199,10 +240,10 @@ plot_year_ribbon <- function(df, rate_col, lo_col, hi_col,
   p <- ggplot(d, aes(x = Year_index)) +
     geom_ribbon(aes(ymin = lo_line, ymax = hi_line), alpha = 0.18, na.rm = TRUE) +
     geom_line(aes(y = rate_line), linewidth = 0.9, na.rm = TRUE) +
-    geom_point(aes(y = rate2), size = 1.6, na.rm = TRUE) +
+    geom_point(aes(y = rate), size = 1.6, na.rm = TRUE) +
     scale_x_continuous(
       limits = c(START_Y, END_Y),
-      breaks = seq(START_Y, END_Y, by = x_by),
+      breaks = seq(START_Y, END_Y, by = XBY_ANNUAL),
       expand = c(0, 0)
     ) +
     labs(
@@ -211,168 +252,792 @@ plot_year_ribbon <- function(df, rate_col, lo_col, hi_col,
       x = "Calendar year",
       y = "Crude rate (events per 1,000 person-years)"
     ) +
-    theme_journal
+    theme_journal +
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      plot.margin = margin(10, 10, 45, 10)
+    )
   
-  if (!is.na(vline_year)) {
-    p <- p + geom_vline(xintercept = vline_year, linetype = "dashed", linewidth = 0.6)
-  }
   if (!is.na(cap)) {
-    p <- p + coord_cartesian(ylim = c(0, cap))
+    p <- p + coord_cartesian(ylim = c(0, cap), clip = "off")
   }
-  if (!is.null(bottom_note)) {
-    p <- p + labs(caption = bottom_note) +
-      theme(plot.caption = element_text(hjust = 0, size = 10))
+  
+  if (!is.na(break_year)) {
+    p <- p + geom_vline(
+      xintercept = break_year,
+      linetype = "dashed",
+      linewidth = 0.6
+    )
   }
-  if (isTRUE(rotate_x)) {
-    p <- p + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  
+  if (isTRUE(add_break_note) && !is.na(break_year)) {
+    p <- p +
+      annotate(
+        "text",
+        x = START_Y + 0.2, # à gauche
+        y = 0,
+        hjust = 0, # aligné à gauche
+        vjust = 10, # plus bas sous le graphe
+        size = 3.1,
+        label = "Dashed line: 2005 estimate unstable due to very low person-time; curve broken at 2005."
+      )
   }
   
   p
 }
 
-write_legend <- function(path, lines) writeLines(lines, con = path, useBytes = TRUE)
+fit_rate_model <- function(formula_obj, data) {
+  m_pois <- glm(
+    formula_obj,
+    data = data,
+    family = poisson(link = "log")
+  )
+  
+  disp <- sum(residuals(m_pois, type = "pearson")^2, na.rm = TRUE) / m_pois$df.residual
+  
+  if (is.finite(disp) && disp > 1.5) {
+    m_nb <- MASS::glm.nb(formula_obj, data = data)
+    return(list(model = m_nb, family = "negative binomial", dispersion = disp))
+  } else {
+    return(list(model = m_pois, family = "poisson", dispersion = disp))
+  }
+}
+
+extract_trend_row <- function(model_obj, term_name = "year_decade") {
+  broom::tidy(model_obj, conf.int = TRUE, exponentiate = TRUE) %>%
+    filter(term == term_name) %>%
+    transmute(
+      term = term,
+      irr = estimate,
+      lcl = conf.low,
+      ucl = conf.high,
+      p_value = p.value,
+      pct_change_per_decade = (estimate - 1) * 100,
+      pct_change_lcl = (conf.low - 1) * 100,
+      pct_change_ucl = (conf.high - 1) * 100
+    )
+}
+
+extract_interaction_row <- function(model_obj, pattern = "year_decade:lvef35_grp") {
+  broom::tidy(model_obj, conf.int = TRUE, exponentiate = TRUE) %>%
+    filter(grepl(pattern, term)) %>%
+    transmute(
+      term = term,
+      irr = estimate,
+      lcl = conf.low,
+      ucl = conf.high,
+      p_value = p.value,
+      pct_change_per_decade = (estimate - 1) * 100,
+      pct_change_lcl = (conf.low - 1) * 100,
+      pct_change_ucl = (conf.high - 1) * 100
+    )
+}
+
+safe_lrt <- function(model_reduced, model_full) {
+  out <- tryCatch(
+    anova(model_reduced, model_full, test = "Chisq"),
+    error = function(e) NULL
+  )
+  
+  if (is.null(out) || nrow(out) < 2) {
+    return(tibble(
+      comparison = "LRT",
+      df = NA_real_,
+      deviance = NA_real_,
+      p_value = NA_real_
+    ))
+  }
+  
+  tibble(
+    comparison = "LRT",
+    df = suppressWarnings(as.numeric(out$Df[nrow(out)])),
+    deviance = suppressWarnings(as.numeric(out$Deviance[nrow(out)])),
+    p_value = suppressWarnings(as.numeric(out$`Pr(>Chi)`[nrow(out)]))
+  )
+}
+
+derive_subgroup_trends_from_interaction <- function(model_obj) {
+  cf <- coef(model_obj)
+  vc <- tryCatch(vcov(model_obj), error = function(e) NULL)
+  
+  if (is.null(vc) || !"year_decade" %in% names(cf)) {
+    return(tibble(
+      subgroup = c("LVEF >=35%", "LVEF <35%"),
+      log_irr_per_decade = NA_real_,
+      irr = NA_real_,
+      lcl = NA_real_,
+      ucl = NA_real_,
+      pct_change_per_decade = NA_real_,
+      pct_change_lcl = NA_real_,
+      pct_change_ucl = NA_real_
+    ))
+  }
+  
+  time_name <- "year_decade"
+  int_name <- names(cf)[grepl("year_decade:lvef35_grp", names(cf))]
+  if (length(int_name) == 0) int_name <- NA_character_ else int_name <- int_name[1]
+  
+  beta_ref <- unname(cf[time_name])
+  se_ref <- sqrt(vc[time_name, time_name])
+  ref_lcl <- beta_ref - qnorm(0.975) * se_ref
+  ref_ucl <- beta_ref + qnorm(0.975) * se_ref
+  
+  if (!is.na(int_name)) {
+    beta_lt35 <- unname(cf[time_name] + cf[int_name])
+    var_lt35 <- vc[time_name, time_name] + vc[int_name, int_name] + 2 * vc[time_name, int_name]
+    se_lt35 <- sqrt(var_lt35)
+    lt35_lcl <- beta_lt35 - qnorm(0.975) * se_lt35
+    lt35_ucl <- beta_lt35 + qnorm(0.975) * se_lt35
+  } else {
+    beta_lt35 <- NA_real_
+    lt35_lcl <- NA_real_
+    lt35_ucl <- NA_real_
+  }
+  
+  tibble(
+    subgroup = c("LVEF >=35%", "LVEF <35%"),
+    log_irr_per_decade = c(beta_ref, beta_lt35),
+    irr = exp(log_irr_per_decade),
+    lcl = exp(c(ref_lcl, lt35_lcl)),
+    ucl = exp(c(ref_ucl, lt35_ucl))
+  ) %>%
+    mutate(
+      pct_change_per_decade = (irr - 1) * 100,
+      pct_change_lcl = (lcl - 1) * 100,
+      pct_change_ucl = (ucl - 1) * 100
+    )
+}
+
 # ==============================================================================
-# 3) TABLES — YEAR (SUPP)
+# 3) DERIVED VARIABLES
+# ==============================================================================
+dat <- dat %>%
+  mutate(
+    band_2000_2020 = band_from_year(Year_index),
+    band_2000_2020 = factor(band_2000_2020, levels = band_levels),
+    lvef35_grp = clean_lvef35_labels(lvef35_grp),
+    year_decade = (Year_index - 2000) / 10,
+    age_num = suppressWarnings(as.numeric(age_raw)),
+    sex_clean = clean_sex_binary(sex_raw),
+    egfr_num = suppressWarnings(as.numeric(egfr_raw)),
+    lvef_num = suppressWarnings(as.numeric(lvef_raw))
+  )
+
+log_line("[OK] LVEF subgroup labels detected: ", paste(sort(unique(na.omit(dat$lvef35_grp))), collapse = " | "))
+
+# ==============================================================================
+# 4) PRIMARY TABLES — NON-ICD / ICD
 # ==============================================================================
 nonicd_year <- dat %>%
-  filter(ICD_bin == 0L) %>%
-  summarise_by_year(event_var = "SCD_bin") %>%
-  mutate(cohort = "Without ICD")
-
-icd_year <- dat %>%
-  filter(ICD_bin == 1L) %>%
-  summarise_by_year(event_var = "ICD_proxy_bin") %>%
-  mutate(cohort = "With ICD")
-
-write_csv(nonicd_year, file.path(OUT_DIR, "SCD_nonICD_by_year_2000_2020.csv"))
-write_csv(icd_year, file.path(OUT_DIR, "ICDproxy_by_year_2000_2020.csv"))
-
-# ==============================================================================
-# 4) TABLES — BANDS (PRIMARY)
-# ==============================================================================
-nonicd_band <- dat %>%
-  filter(ICD_bin == 0L) %>%
-  summarise_by_band(event_var = "SCD_bin") %>%
-  mutate(cohort = "Without ICD")
-
-icd_band <- dat %>%
-  filter(ICD_bin == 1L) %>%
-  summarise_by_band(event_var = "ICD_proxy_bin") %>%
-  mutate(cohort = "With ICD")
-
-write_csv(nonicd_band, file.path(OUT_DIR, "SCD_nonICD_by_band_2000_2020.csv"))
-write_csv(icd_band, file.path(OUT_DIR, "ICDproxy_by_band_2000_2020.csv"))
-
-# ==============================================================================
-# 5) QC — 2005 denominator artefact (non-ICD)
-# ==============================================================================
-qc2005 <- dat %>%
-  filter(Year_index == 2005L, ICD_bin == 0L) %>%
+  filter(ICD_bin == 0) %>%
+  group_by(Year_index) %>%
   summarise(
-    Year_index = 2005L,
     n = n(),
-    events = sum(SCD_bin == 1L, na.rm = TRUE),
-    person_years = sum(person_years[!is.na(person_years) & person_years > 0], na.rm = TRUE),
+    events = sum(SCD_bin == 1, na.rm = TRUE),
+    person_years = sum(person_years, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  right_join(years_grid, by = "Year_index") %>%
+  mutate(
+    n = coalesce(n, 0L),
+    events = coalesce(events, 0),
+    person_years = coalesce(person_years, 0)
+  ) %>%
+  bind_cols(rate_ci_poisson(.$events, .$person_years))
+
+nonicd_band <- dat %>%
+  filter(ICD_bin == 0, !is.na(band_2000_2020)) %>%
+  group_by(band_2000_2020) %>%
+  summarise(
+    n = n(),
+    events = sum(SCD_bin == 1, na.rm = TRUE),
+    person_years = sum(person_years, na.rm = TRUE),
     .groups = "drop"
   ) %>%
   bind_cols(rate_ci_poisson(.$events, .$person_years))
 
-write_csv(qc2005, file.path(OUT_DIR, "QC_2005_nonICD_denominator_artefact.csv"))
+icd_year <- dat %>%
+  filter(ICD_bin == 1) %>%
+  group_by(Year_index) %>%
+  summarise(
+    n = n(),
+    events = sum(ICD_proxy_bin == 1, na.rm = TRUE),
+    person_years = sum(person_years, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  right_join(years_grid, by = "Year_index") %>%
+  mutate(
+    n = coalesce(n, 0L),
+    events = coalesce(events, 0),
+    person_years = coalesce(person_years, 0)
+  ) %>%
+  bind_cols(rate_ci_poisson(.$events, .$person_years))
+
+icd_band <- dat %>%
+  filter(ICD_bin == 1, !is.na(band_2000_2020)) %>%
+  group_by(band_2000_2020) %>%
+  summarise(
+    n = n(),
+    events = sum(ICD_proxy_bin == 1, na.rm = TRUE),
+    person_years = sum(person_years, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  bind_cols(rate_ci_poisson(.$events, .$person_years))
 
 # ==============================================================================
-# 6) FIGURES — MAIN (band) + PANEL
+# 5) EXTRA SUBGROUP ANALYSIS — NON-ICD BY LVEF <35% vs >=35%
 # ==============================================================================
-p_main_scd <- plot_band_pointrange(
-  df = nonicd_band,
-  title = "Sudden cardiac death (SCD)",
-  subtitle = "Patients without an implantable cardioverter-defibrillator (ICD)"
-)
+valid_lvef_groups <- c("LVEF <35%", "LVEF >=35%")
 
-p_main_icd <- plot_band_pointrange(
-  df = icd_band,
-  title = "Appropriate ICD therapy (proxy outcome; Status = 1)",
-  subtitle = "Patients with an implantable cardioverter-defibrillator (ICD)"
-)
+nonicd_lvef_counts <- dat %>%
+  filter(ICD_bin == 0, !is.na(lvef35_grp), lvef35_grp %in% valid_lvef_groups) %>%
+  count(lvef35_grp, name = "n")
 
-fig_main_panel <- (p_main_scd / p_main_icd) +
-  plot_layout(heights = c(1, 1))
+nonicd_lvef_band <- dat %>%
+  filter(ICD_bin == 0, !is.na(band_2000_2020), !is.na(lvef35_grp), lvef35_grp %in% valid_lvef_groups) %>%
+  group_by(lvef35_grp, band_2000_2020) %>%
+  summarise(
+    n = n(),
+    events = sum(SCD_bin == 1, na.rm = TRUE),
+    person_years = sum(person_years, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  bind_cols(rate_ci_poisson(.$events, .$person_years))
 
-ggsave(file.path(OUT_DIR, "Fig_MAIN_two_panels_by_band_2000_2020.png"),
-       fig_main_panel, width = 10.5, height = 11.5, dpi = 320)
-ggsave(file.path(OUT_DIR, "Fig_MAIN_two_panels_by_band_2000_2020.pdf"),
-       fig_main_panel, width = 10.5, height = 11.5)
-
-# (optionnel) exports single panels
-ggsave(file.path(OUT_DIR, "Fig_MAIN_SCD_by_band_nonICD_2000_2020.png"),
-       p_main_scd, width = 10, height = 5.5, dpi = 320)
-ggsave(file.path(OUT_DIR, "Fig_MAIN_ICDproxy_by_band_ICD_2000_2020.png"),
-       p_main_icd, width = 10, height = 5.5, dpi = 320)
-
-write_legend(
-  file.path(OUT_DIR, "Legend_MAIN_band_figures.txt"),
-  c(
-    "Main figure: Crude rates (events per 1,000 person-years) by calendar-time band.",
-    "Points indicate crude rates; whiskers indicate exact Poisson 95% confidence intervals.",
-    "Lines connect band-specific estimates (display aid only).",
-    "Calendar time was grouped into multi-year bands to stabilise estimates in years with sparse person-time."
-  )
-)
+nonicd_lvef_year <- dat %>%
+  filter(ICD_bin == 0, !is.na(lvef35_grp), lvef35_grp %in% valid_lvef_groups) %>%
+  group_by(lvef35_grp, Year_index) %>%
+  summarise(
+    n = n(),
+    events = sum(SCD_bin == 1, na.rm = TRUE),
+    person_years = sum(person_years, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  bind_cols(rate_ci_poisson(.$events, .$person_years))
 
 # ==============================================================================
-# 7) FIGURES 
+# 6) QC TABLES
 # ==============================================================================
-note2005 <- "Dashed line: 2005 estimate unstable due to very low person-time (denominator artefact)."
+qc_2005_nonicd <- nonicd_year %>%
+  filter(Year_index == 2005)
 
-p_supp_scd <- plot_year_ribbon(
-  df = nonicd_year,
-  rate_col = "rate", lo_col = "lo", hi_col = "hi",
-  title = "Sudden cardiac death (SCD) — annual crude rate",
-  subtitle = "Patients without an implantable cardioverter-defibrillator (ICD)",
-  break_year = 2005L,
-  vline_year = 2005L,
-  cap = CAP_SCD,
-  x_by = XBY_ANNUAL,
-  rotate_x = TRUE,
-  bottom_note = note2005
+availability_by_year_and_cohort <- dat %>%
+  mutate(cohort = ifelse(ICD_bin == 1, "ICD", "Non-ICD")) %>%
+  group_by(Year_index, cohort) %>%
+  summarise(
+    n = n(),
+    py = sum(person_years, na.rm = TRUE),
+    scd_events = sum(SCD_bin == 1, na.rm = TRUE),
+    icd_proxy_events = sum(ICD_proxy_bin == 1, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  arrange(Year_index, cohort)
+
+# ==============================================================================
+# 7) EXPORT TABLES — EXCEL-SAFE
+# ==============================================================================
+write_excel_csv(nonicd_band, file.path(OUT_DIR, "Table_2a_nonICD_SCD_by_band.csv"))
+write_excel_csv(icd_band, file.path(OUT_DIR, "Table_2b_ICD_proxy_by_band.csv"))
+
+write_excel_csv(nonicd_year, file.path(OUT_DIR, "Supp_nonICD_SCD_by_year.csv"))
+write_excel_csv(icd_year, file.path(OUT_DIR, "Supp_ICD_proxy_by_year.csv"))
+
+write_excel_csv(nonicd_lvef_counts, file.path(OUT_DIR, "nonICD_LVEF35_group_counts.csv"))
+write_excel_csv(nonicd_lvef_band, file.path(OUT_DIR, "Table_S_nonICD_SCD_by_band_LVEF35groups.csv"))
+write_excel_csv(nonicd_lvef_year, file.path(OUT_DIR, "Supp_nonICD_SCD_by_year_LVEF35groups.csv"))
+
+write_excel_csv(qc_2005_nonicd, file.path(OUT_DIR, "QC_nonICD_2005_denominator_artifact.csv"))
+write_excel_csv(availability_by_year_and_cohort, file.path(OUT_DIR, "availability_by_year_and_cohort.csv"))
+
+# ==============================================================================
+# 8) FIGURES
+# ==============================================================================
+library(ggplot2)
+p_main_nonicd <- plot_band(
+  nonicd_band,
+  "Sudden cardiac death (SCD)",
+  "Non-ICD cohort"
 )
 
-p_supp_icd <- plot_year_ribbon(
-  df = icd_year,
-  rate_col = "rate", lo_col = "lo", hi_col = "hi",
-  title = "Appropriate ICD therapy (proxy outcome; Status = 1) — annual crude rate",
-  subtitle = "Patients with an implantable cardioverter-defibrillator (ICD)",
-  break_year = NA_integer_,
-  vline_year = NA_integer_,
+p_main_icd <- plot_band(
+  icd_band,
+  "Appropriate ICD therapy (proxy; Status = 1)",
+  "ICD cohort"
+)
+
+fig_main <- p_main_nonicd / p_main_icd + plot_layout(heights = c(1, 1))
+
+ggsave(
+  file.path(OUT_DIR, "Fig1_primary_separate_cohorts_by_band.png"),
+  fig_main, width = 10.5, height = 11.5, dpi = 320
+)
+ggsave(
+  file.path(OUT_DIR, "Fig1_primary_separate_cohorts_by_band.pdf"),
+  fig_main, width = 10.5, height = 11.5
+)
+
+p_supp_icd <- plot_annual(
+  icd_year,
+  "Annual crude ICD proxy rate",
+  "ICD cohort",
   cap = CAP_ICD,
-  x_by = XBY_ANNUAL,
-  rotate_x = TRUE,
-  bottom_note = NULL
+  break_year = NA_integer_,
+  add_break_note = FALSE
 )
 
-fig_supp_panel <- (p_supp_icd / p_supp_scd) + 
-  plot_layout(heights = c(1, 1))
+p_supp_nonicd <- plot_annual(
+  nonicd_year,
+  "Annual crude SCD rate",
+  "Non-ICD cohort",
+  cap = CAP_SCD,
+  break_year = 2005,
+  add_break_note = TRUE
+)
 
-ggsave(file.path(OUT_DIR, "Fig_SUPP_two_panels_by_year_2000_2020.png"),
-       fig_supp_panel, width = 12, height = 11.5, dpi = 320)
-ggsave(file.path(OUT_DIR, "Fig_SUPP_two_panels_by_year_2000_2020.pdf"),
-       fig_supp_panel, width = 12, height = 11.5)
+fig_supp_primary <- p_supp_icd / p_supp_nonicd + plot_layout(heights = c(1, 1))
 
-# (optionnel) exports single panels
-ggsave(file.path(OUT_DIR, "Fig_SUPP_ICDproxy_by_year_ICD_2000_2020_cap200.png"),
-       p_supp_icd, width = 10, height = 5.5, dpi = 320)
-ggsave(file.path(OUT_DIR, "Fig_SUPP_SCD_by_year_nonICD_2000_2020_cap25.png"),
-       p_supp_scd, width = 10, height = 5.5, dpi = 320)
+ggsave(
+  file.path(OUT_DIR, "FigS_primary_annual_separate_cohorts.png"),
+  fig_supp_primary, width = 12, height = 11.5, dpi = 320
+)
+ggsave(
+  file.path(OUT_DIR, "FigS_primary_annual_separate_cohorts.pdf"),
+  fig_supp_primary, width = 12, height = 11.5
+)
 
+lvef_color_values <- c(
+  "LVEF <35%" = "#D55E00",
+  "LVEF >=35%" = "#0072B2"
+)
+
+p_lvef_band <- ggplot(
+  nonicd_lvef_band,
+  aes(
+    x = band_2000_2020,
+    y = rate,
+    group = lvef35_grp,
+    color = lvef35_grp
+  )
+) +
+  geom_line(linewidth = 0.8) +
+  geom_pointrange(aes(ymin = lo, ymax = hi), linewidth = 0.7) +
+  labs(
+    title = "Sudden cardiac death in the non-ICD cohort by left ventricular ejection fraction (LVEF) subgroup",
+    subtitle = NULL,
+    x = "Calendar-time band",
+    y = "Crude rate (events per 1,000 person-years)",
+    color = NULL
+  ) +
+  scale_color_manual(
+    values = lvef_color_values,
+    breaks = c("LVEF <35%", "LVEF >=35%"),
+    labels = c("LVEF <35%", "LVEF >=35%")
+  ) +
+  theme_journal +
+  theme(legend.position = "top")
+
+ggsave(
+  file.path(OUT_DIR, "FigS_nonICD_LVEF35groups_by_band.png"),
+  p_lvef_band, width = 10.5, height = 5.8, dpi = 320
+)
+ggsave(
+  file.path(OUT_DIR, "FigS_nonICD_LVEF35groups_by_band.pdf"),
+  p_lvef_band, width = 10.5, height = 5.8
+)
+
+# ==============================================================================
+# 9) FORMAL TEMPORAL TREND ANALYSIS (UNADJUSTED)
+# ==============================================================================
+# Aggregated annual count models with log(person_years) offset
+
+nonicd_year_model <- nonicd_year %>%
+  mutate(year_decade = (Year_index - 2000) / 10) %>%
+  filter(person_years > 0)
+
+icd_year_model <- icd_year %>%
+  mutate(year_decade = (Year_index - 2000) / 10) %>%
+  filter(person_years > 0)
+
+nonicd_lvef_year_model <- nonicd_lvef_year %>%
+  mutate(
+    year_decade = (Year_index - 2000) / 10,
+    lvef35_grp = factor(lvef35_grp, levels = c("LVEF >=35%", "LVEF <35%"))
+  ) %>%
+  filter(person_years > 0)
+
+mod_nonicd_unadj <- fit_rate_model(
+  events ~ year_decade + offset(log(person_years)),
+  data = nonicd_year_model
+)
+
+res_nonicd_unadj <- extract_trend_row(mod_nonicd_unadj$model, "year_decade") %>%
+  mutate(
+    analysis = "Unadjusted",
+    cohort = "Non-ICD",
+    outcome = "SCD",
+    model_family = mod_nonicd_unadj$family,
+    dispersion = mod_nonicd_unadj$dispersion
+  )
+
+mod_icd_unadj <- fit_rate_model(
+  events ~ year_decade + offset(log(person_years)),
+  data = icd_year_model
+)
+
+res_icd_unadj <- extract_trend_row(mod_icd_unadj$model, "year_decade") %>%
+  mutate(
+    analysis = "Unadjusted",
+    cohort = "ICD",
+    outcome = "Appropriate ICD therapy proxy",
+    model_family = mod_icd_unadj$family,
+    dispersion = mod_icd_unadj$dispersion
+  )
+
+mod_nonicd_lvef_main_unadj <- fit_rate_model(
+  events ~ year_decade + lvef35_grp + offset(log(person_years)),
+  data = nonicd_lvef_year_model
+)
+
+mod_nonicd_lvef_int_unadj <- fit_rate_model(
+  events ~ year_decade * lvef35_grp + offset(log(person_years)),
+  data = nonicd_lvef_year_model
+)
+
+res_nonicd_lvef_main_unadj <- extract_trend_row(mod_nonicd_lvef_main_unadj$model, "year_decade") %>%
+  mutate(
+    analysis = "Unadjusted",
+    cohort = "Non-ICD",
+    subgroup = "Reference subgroup: LVEF >=35%",
+    outcome = "SCD",
+    model_family = mod_nonicd_lvef_main_unadj$family,
+    dispersion = mod_nonicd_lvef_main_unadj$dispersion
+  )
+
+res_nonicd_lvef_interaction_unadj <- extract_interaction_row(mod_nonicd_lvef_int_unadj$model) %>%
+  mutate(
+    analysis = "Unadjusted",
+    cohort = "Non-ICD",
+    outcome = "SCD",
+    model_family = mod_nonicd_lvef_int_unadj$family,
+    dispersion = mod_nonicd_lvef_int_unadj$dispersion
+  )
+
+lrt_nonicd_lvef_interaction_unadj <- safe_lrt(
+  mod_nonicd_lvef_main_unadj$model,
+  mod_nonicd_lvef_int_unadj$model
+) %>%
+  mutate(
+    analysis = "Unadjusted",
+    cohort = "Non-ICD",
+    outcome = "SCD",
+    comparison_label = "year_decade * lvef35_grp interaction"
+  )
+
+res_nonicd_lvef_subgroup_unadj <- derive_subgroup_trends_from_interaction(mod_nonicd_lvef_int_unadj$model) %>%
+  mutate(
+    analysis = "Unadjusted",
+    cohort = "Non-ICD",
+    outcome = "SCD",
+    model_family = mod_nonicd_lvef_int_unadj$family,
+    dispersion = mod_nonicd_lvef_int_unadj$dispersion
+  )
+
+write_excel_csv(
+  bind_rows(res_nonicd_unadj, res_icd_unadj),
+  file.path(OUT_DIR, "Formal_temporal_trend_results_main.csv")
+)
+
+write_excel_csv(
+  res_nonicd_lvef_main_unadj,
+  file.path(OUT_DIR, "Formal_temporal_trend_nonICD_LVEF_main_effect.csv")
+)
+
+write_excel_csv(
+  res_nonicd_lvef_interaction_unadj,
+  file.path(OUT_DIR, "Formal_temporal_trend_nonICD_LVEF_interaction_terms.csv")
+)
+
+write_excel_csv(
+  lrt_nonicd_lvef_interaction_unadj,
+  file.path(OUT_DIR, "Formal_temporal_trend_nonICD_LVEF_interaction_LRT.csv")
+)
+
+write_excel_csv(
+  res_nonicd_lvef_subgroup_unadj,
+  file.path(OUT_DIR, "Formal_temporal_trend_nonICD_LVEF_subgroup_specific.csv")
+)
+
+# ==============================================================================
+# 10) ADJUSTED TEMPORAL TREND ANALYSIS
+# ==============================================================================
+# Individual-level Poisson/NB models with log(person_years) offset
+# Minimal robust adjustment:
+# - non-ICD: year_decade + age + sex + eGFR + LVEF
+# - ICD: year_decade + age + sex + eGFR
+# - non-ICD interaction: year_decade * lvef35_grp + age + sex + eGFR
+
+covar_ready <- c(
+  !all(is.na(dat$age_num)),
+  !all(is.na(dat$sex_clean)),
+  !all(is.na(dat$egfr_num))
+)
+
+if (all(covar_ready)) {
+  
+  # ---------------------------------------------------------------------------
+  # 10A) Non-ICD adjusted model
+  # ---------------------------------------------------------------------------
+  dat_nonicd_adj <- dat %>%
+    filter(
+      ICD_bin == 0,
+      !is.na(SCD_bin),
+      !is.na(year_decade),
+      !is.na(age_num),
+      !is.na(sex_clean),
+      !is.na(egfr_num),
+      person_years > 0
+    ) %>%
+    mutate(
+      sex_clean = factor(sex_clean, levels = c("Female", "Male"))
+    )
+  
+  if (!all(is.na(dat_nonicd_adj$lvef_num))) {
+    dat_nonicd_adj <- dat_nonicd_adj %>%
+      filter(!is.na(lvef_num))
+    
+    mod_nonicd_adj <- fit_rate_model(
+      SCD_bin ~ year_decade + age_num + sex_clean + egfr_num + lvef_num + offset(log(person_years)),
+      data = dat_nonicd_adj
+    )
+    
+    adj_nonicd_formula_label <- "SCD_bin ~ year_decade + age + sex + eGFR + continuous LVEF + offset(log(person_years))"
+  } else {
+    dat_nonicd_adj <- dat_nonicd_adj %>%
+      filter(!is.na(lvef35_grp), lvef35_grp %in% valid_lvef_groups) %>%
+      mutate(lvef35_grp = factor(lvef35_grp, levels = c("LVEF >=35%", "LVEF <35%")))
+    
+    mod_nonicd_adj <- fit_rate_model(
+      SCD_bin ~ year_decade + age_num + sex_clean + egfr_num + lvef35_grp + offset(log(person_years)),
+      data = dat_nonicd_adj
+    )
+    
+    adj_nonicd_formula_label <- "SCD_bin ~ year_decade + age + sex + eGFR + LVEF group + offset(log(person_years))"
+  }
+  
+  res_nonicd_adj <- extract_trend_row(mod_nonicd_adj$model, "year_decade") %>%
+    mutate(
+      analysis = "Adjusted",
+      cohort = "Non-ICD",
+      outcome = "SCD",
+      model_family = mod_nonicd_adj$family,
+      dispersion = mod_nonicd_adj$dispersion,
+      n_complete_case = nrow(dat_nonicd_adj),
+      model_formula = adj_nonicd_formula_label
+    )
+  
+  # ---------------------------------------------------------------------------
+  # 10B) ICD adjusted model
+  # ---------------------------------------------------------------------------
+  dat_icd_adj <- dat %>%
+    filter(
+      ICD_bin == 1,
+      !is.na(ICD_proxy_bin),
+      !is.na(year_decade),
+      !is.na(age_num),
+      !is.na(sex_clean),
+      !is.na(egfr_num),
+      person_years > 0
+    ) %>%
+    mutate(
+      sex_clean = factor(sex_clean, levels = c("Female", "Male"))
+    )
+  
+  mod_icd_adj <- fit_rate_model(
+    ICD_proxy_bin ~ year_decade + age_num + sex_clean + egfr_num + offset(log(person_years)),
+    data = dat_icd_adj
+  )
+  
+  res_icd_adj <- extract_trend_row(mod_icd_adj$model, "year_decade") %>%
+    mutate(
+      analysis = "Adjusted",
+      cohort = "ICD",
+      outcome = "Appropriate ICD therapy proxy",
+      model_family = mod_icd_adj$family,
+      dispersion = mod_icd_adj$dispersion,
+      n_complete_case = nrow(dat_icd_adj),
+      model_formula = "ICD_proxy_bin ~ year_decade + age + sex + eGFR + offset(log(person_years))"
+    )
+  
+  # ---------------------------------------------------------------------------
+  # 10C) Non-ICD adjusted interaction model by LVEF subgroup
+  # ---------------------------------------------------------------------------
+  dat_nonicd_lvef_adj <- dat %>%
+    filter(
+      ICD_bin == 0,
+      !is.na(SCD_bin),
+      !is.na(year_decade),
+      !is.na(age_num),
+      !is.na(sex_clean),
+      !is.na(egfr_num),
+      !is.na(lvef35_grp),
+      lvef35_grp %in% valid_lvef_groups,
+      person_years > 0
+    ) %>%
+    mutate(
+      sex_clean = factor(sex_clean, levels = c("Female", "Male")),
+      lvef35_grp = factor(lvef35_grp, levels = c("LVEF >=35%", "LVEF <35%"))
+    )
+  
+  mod_nonicd_lvef_main_adj <- fit_rate_model(
+    SCD_bin ~ year_decade + lvef35_grp + age_num + sex_clean + egfr_num + offset(log(person_years)),
+    data = dat_nonicd_lvef_adj
+  )
+  
+  mod_nonicd_lvef_int_adj <- fit_rate_model(
+    SCD_bin ~ year_decade * lvef35_grp + age_num + sex_clean + egfr_num + offset(log(person_years)),
+    data = dat_nonicd_lvef_adj
+  )
+  
+  res_nonicd_lvef_main_adj <- extract_trend_row(mod_nonicd_lvef_main_adj$model, "year_decade") %>%
+    mutate(
+      analysis = "Adjusted",
+      cohort = "Non-ICD",
+      subgroup = "Reference subgroup: LVEF >=35%",
+      outcome = "SCD",
+      model_family = mod_nonicd_lvef_main_adj$family,
+      dispersion = mod_nonicd_lvef_main_adj$dispersion,
+      n_complete_case = nrow(dat_nonicd_lvef_adj),
+      model_formula = "SCD_bin ~ year_decade + lvef35_grp + age + sex + eGFR + offset(log(person_years))"
+    )
+  
+  res_nonicd_lvef_interaction_adj <- extract_interaction_row(mod_nonicd_lvef_int_adj$model) %>%
+    mutate(
+      analysis = "Adjusted",
+      cohort = "Non-ICD",
+      outcome = "SCD",
+      model_family = mod_nonicd_lvef_int_adj$family,
+      dispersion = mod_nonicd_lvef_int_adj$dispersion,
+      n_complete_case = nrow(dat_nonicd_lvef_adj),
+      model_formula = "SCD_bin ~ year_decade * lvef35_grp + age + sex + eGFR + offset(log(person_years))"
+    )
+  
+  lrt_nonicd_lvef_interaction_adj <- safe_lrt(
+    mod_nonicd_lvef_main_adj$model,
+    mod_nonicd_lvef_int_adj$model
+  ) %>%
+    mutate(
+      analysis = "Adjusted",
+      cohort = "Non-ICD",
+      outcome = "SCD",
+      comparison_label = "year_decade * lvef35_grp interaction",
+      n_complete_case = nrow(dat_nonicd_lvef_adj)
+    )
+  
+  res_nonicd_lvef_subgroup_adj <- derive_subgroup_trends_from_interaction(mod_nonicd_lvef_int_adj$model) %>%
+    mutate(
+      analysis = "Adjusted",
+      cohort = "Non-ICD",
+      outcome = "SCD",
+      model_family = mod_nonicd_lvef_int_adj$family,
+      dispersion = mod_nonicd_lvef_int_adj$dispersion,
+      n_complete_case = nrow(dat_nonicd_lvef_adj),
+      model_formula = "SCD_bin ~ year_decade * lvef35_grp + age + sex + eGFR + offset(log(person_years))"
+    )
+  
+  write_excel_csv(
+    bind_rows(res_nonicd_adj, res_icd_adj),
+    file.path(OUT_DIR, "Adjusted_temporal_trend_results_main.csv")
+  )
+  
+  write_excel_csv(
+    res_nonicd_lvef_main_adj,
+    file.path(OUT_DIR, "Adjusted_temporal_trend_nonICD_LVEF_main_effect.csv")
+  )
+  
+  write_excel_csv(
+    res_nonicd_lvef_interaction_adj,
+    file.path(OUT_DIR, "Adjusted_temporal_trend_nonICD_LVEF_interaction_terms.csv")
+  )
+  
+  write_excel_csv(
+    lrt_nonicd_lvef_interaction_adj,
+    file.path(OUT_DIR, "Adjusted_temporal_trend_nonICD_LVEF_interaction_LRT.csv")
+  )
+  
+  write_excel_csv(
+    res_nonicd_lvef_subgroup_adj,
+    file.path(OUT_DIR, "Adjusted_temporal_trend_nonICD_LVEF_subgroup_specific.csv")
+  )
+  
+  adjusted_summary_lines <- c(
+    paste0(
+      "Adjusted non-ICD model: IRR per decade = ", round(res_nonicd_adj$irr[1], 3),
+      " (95% CI ", round(res_nonicd_adj$lcl[1], 3), " to ", round(res_nonicd_adj$ucl[1], 3), ")",
+      "; percent change per decade = ", round(res_nonicd_adj$pct_change_per_decade[1], 1), "%",
+      " (95% CI ", round(res_nonicd_adj$pct_change_lcl[1], 1), "% to ", round(res_nonicd_adj$pct_change_ucl[1], 1), "%)",
+      "; p = ", signif(res_nonicd_adj$p_value[1], 3), "."
+    ),
+    paste0(
+      "Adjusted ICD model: IRR per decade = ", round(res_icd_adj$irr[1], 3),
+      " (95% CI ", round(res_icd_adj$lcl[1], 3), " to ", round(res_icd_adj$ucl[1], 3), ")",
+      "; percent change per decade = ", round(res_icd_adj$pct_change_per_decade[1], 1), "%",
+      " (95% CI ", round(res_icd_adj$pct_change_lcl[1], 1), "% to ", round(res_icd_adj$pct_change_ucl[1], 1), "%)",
+      "; p = ", signif(res_icd_adj$p_value[1], 3), "."
+    ),
+    paste0(
+      "Adjusted non-ICD LVEF interaction LRT p = ",
+      signif(lrt_nonicd_lvef_interaction_adj$p_value[1], 3), "."
+    )
+  )
+  
+  write_legend(
+    file.path(OUT_DIR, "Adjusted_temporal_trend_text_ready_summary.txt"),
+    adjusted_summary_lines
+  )
+  
+  log_line("[OK] Adjusted temporal trend analysis completed.")
+  
+} else {
+  log_line("[WARN] Adjusted temporal trend analysis skipped: one or more key covariates not available.")
+}
+
+# ==============================================================================
+# 11) LEGENDS / NOTES
+# ==============================================================================
 write_legend(
-  file.path(OUT_DIR, "Legend_SUPP_annual_figures.txt"),
+  file.path(OUT_DIR, "Legend_Fig1_primary_separate_cohorts_by_band.txt"),
   c(
-    "Supplementary figure: Annual crude rates (events per 1,000 person-years).",
-    "Solid line shows crude rate; shaded band indicates exact Poisson 95% confidence interval.",
-    paste0("For display, the y-axis was truncated at ", CAP_SCD, " (SCD) and ", CAP_ICD,
-           " (ICD proxy); values above these limits were clipped for display."),
-    "In the non-ICD cohort, the 2005 estimate is unstable due to very low person-time (denominator artefact); the curve is broken at 2005."
+    "Figure 1. Crude rates across calendar-time bands, shown separately for the non-ICD and ICD cohorts, 2000-2020.",
+    "Points indicate crude rates; vertical bars indicate exact Poisson 95% confidence intervals.",
+    "Panel A shows sudden cardiac death (SCD) among patients without an implantable cardioverter-defibrillator (ICD).",
+    "Panel B shows appropriate ICD therapy (proxy; Status = 1) among patients with an ICD."
   )
 )
 
+write_legend(
+  file.path(OUT_DIR, "Legend_FigS_nonICD_LVEF35groups_by_band.txt"),
+  c(
+    "Supplementary figure. Crude sudden cardiac death rates across calendar-time bands in the non-ICD cohort, stratified by left ventricular ejection fraction (LVEF) <35% versus >=35%.",
+    "Points indicate crude rates; vertical bars indicate exact Poisson 95% confidence intervals."
+  )
+)
+
+write_legend(
+  file.path(OUT_DIR, "Legend_FigS_primary_annual_separate_cohorts.txt"),
+  c(
+    "Supplementary figure. Annual crude rates (events per 1,000 person-years), shown separately for ICD proxy outcomes and non-ICD SCD outcomes.",
+    "For display only, the y-axis was truncated at 200 events per 1,000 person-years for ICD proxy rates and 25 events per 1,000 person-years for SCD rates.",
+    "Dashed line: 2005 estimate unstable due to very low person-time; curve broken at 2005."
+  )
+)
+
+# ==============================================================================
+# 12) FINAL LOG
+# ==============================================================================
+log_line("[DONE] Script 02 final completed.")
 log_line("[DONE] Outputs written to: ", OUT_DIR)
-if (.Platform$OS.type == "windows") try(shell.exec(normalizePath(OUT_DIR)), silent = TRUE)
+
+if (.Platform$OS.type == "windows") {
+  try(shell.exec(normalizePath(OUT_DIR)), silent = TRUE)
+}
+
