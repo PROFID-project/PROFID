@@ -257,3 +257,409 @@ cat("\nQuantiles:\n")
 print(quantile(df$RiskScore, probs=c(.1,.25,.5,.75,.9)))
 
 cat("\n================ END OF SUMMARY ================\n\n")
+
+
+############################################################
+# FIGURE 6 — AF-ONLY RISK GROUP DISTRIBUTION (FINAL CLEAN)
+############################################################
+
+# ----------------------------------------------------------
+# LOAD PACKAGES
+# ----------------------------------------------------------
+library(dplyr)
+library(ggplot2)
+library(gbm)
+
+# ----------------------------------------------------------
+# PATHS
+# ----------------------------------------------------------
+BASE <- "T:/PROFID/Study8"
+DATADIR <- file.path(BASE, "Variable Selection & Model Development/Files")
+MODELDIR <- file.path(BASE, "Model Validation and Performance/Files")
+OUTDIR <- file.path(BASE, "Risk Score Development/files_2")
+
+if (!dir.exists(OUTDIR)) dir.create(OUTDIR, recursive = TRUE)
+
+# ----------------------------------------------------------
+# LOAD DATA + MODEL
+# ----------------------------------------------------------
+df <- read.csv(file.path(DATADIR, "vs_data_complete.csv"))
+
+final_gbm <- readRDS(file.path(MODELDIR, "Final_GBM_Model.rds"))
+tune_res <- read.csv(file.path(MODELDIR, "GBM_Tuning_Results_Random.csv"))
+
+best_row <- tune_res[which.max(tune_res$C_index),]
+
+# ----------------------------------------------------------
+# PREP DATA
+# ----------------------------------------------------------
+df <- df %>%
+  mutate(
+    Survival_time = as.numeric(Survival_time),
+    Status = as.numeric(Status)
+  )
+
+# ----------------------------------------------------------
+# COMPUTE LINEAR PREDICTOR
+# ----------------------------------------------------------
+lp <- predict(
+  final_gbm,
+  newdata = df,
+  n.trees = best_row$n.trees,
+  type = "link"
+)
+
+df$LP <- lp
+
+# ----------------------------------------------------------
+# BUILD RISK SCORE
+# ----------------------------------------------------------
+scale_factor <- 5
+df$RiskScore <- round((df$LP - min(df$LP)) * scale_factor)
+
+# ----------------------------------------------------------
+# CREATE RISK GROUPS (TERTILES)
+# ----------------------------------------------------------
+q1 <- quantile(df$RiskScore, 0.33)
+q2 <- quantile(df$RiskScore, 0.66)
+
+df <- df %>%
+  mutate(
+    RiskGroup = case_when(
+      RiskScore <= q1 ~ "Low",
+      RiskScore <= q2 ~ "Intermediate",
+      TRUE ~ "High"
+    )
+  )
+
+# ----------------------------------------------------------
+# FILTER AF PATIENTS ONLY
+# ----------------------------------------------------------
+df_AF <- df %>%
+  filter(AF_atrial_flutter == "Yes")
+
+cat("AF-only sample size:", nrow(df_AF), "\n")
+
+# ----------------------------------------------------------
+# PLOT (WITH COUNTS ON TOP — FIXED)
+# ----------------------------------------------------------
+p_af <- ggplot(df_AF, aes(x = RiskGroup, fill = Group)) +
+  geom_bar(position = position_dodge(width = 0.9)) +
+  
+  geom_text(
+    stat = "count",
+    aes(label = after_stat(count)),
+    position = position_dodge(width = 0.9),
+    vjust = -0.3,
+    size = 3.5
+  ) +
+  
+  labs(
+    title = "Distribution of ICD / EF Category Across Risk Groups (AF Patients Only)",
+    x = "Risk Group",
+    y = "Number of Patients",
+    fill = "Category"
+  ) +
+  
+  scale_fill_manual(
+    values = c(
+      "ICD" = "#E64B35",
+      "NonICD_preserved" = "#4DBBD5",
+      "NonICD_reduced" = "#00A087"
+    ),
+    labels = c(
+      "ICD",
+      "NonICD_preserved" = "Non-ICD Preserved EF",
+      "NonICD_reduced" = "Non-ICD Reduced EF"
+    )
+  ) +
+  
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.title = element_text(size = 12),
+    legend.title = element_text(size = 11)
+  )
+
+# ----------------------------------------------------------
+# SAVE FIGURE
+# ----------------------------------------------------------
+ggsave(
+  file.path(OUTDIR, "Figure6_AF_only_with_counts.png"),
+  p_af,
+  width = 8,
+  height = 6,
+  dpi = 300
+)
+
+# ----------------------------------------------------------
+# SAVE DATA (REPRODUCIBILITY)
+# ----------------------------------------------------------
+write.csv(df_AF,
+          file.path(OUTDIR, "Figure6_AF_only_data.csv"),
+          row.names = FALSE)
+
+cat("\n✔ DONE: Figure 6 (AF-only) saved in files_2\n")
+
+
+############################################################
+# SCD RATE BY AF STATUS (WITH RISK GROUP CREATION)
+############################################################
+
+library(dplyr)
+library(ggplot2)
+library(gbm)
+library(scales)
+
+# ----------------------------------------------------------
+# PATHS
+# ----------------------------------------------------------
+BASE <- "T:/PROFID/Study8"
+DATADIR <- file.path(BASE, "Variable Selection & Model Development/Files")
+MODELDIR <- file.path(BASE, "Model Validation and Performance/Files")
+OUTDIR <- file.path(BASE, "Risk Score Development/files_2")
+
+if (!dir.exists(OUTDIR)) dir.create(OUTDIR, recursive = TRUE)
+
+# ----------------------------------------------------------
+# LOAD DATA + MODEL
+# ----------------------------------------------------------
+df <- read.csv(file.path(DATADIR, "vs_data_complete.csv"))
+
+final_gbm <- readRDS(file.path(MODELDIR, "Final_GBM_Model.rds"))
+tune_res <- read.csv(file.path(MODELDIR, "GBM_Tuning_Results_Random.csv"))
+
+best_row <- tune_res[which.max(tune_res$C_index),]
+
+# ----------------------------------------------------------
+# PREP DATA
+# ----------------------------------------------------------
+df <- df %>%
+  mutate(
+    Survival_time = as.numeric(Survival_time),
+    Status = as.numeric(Status),
+    AF_group = ifelse(AF_atrial_flutter == "Yes", "AF Present", "AF Absent"),
+    SCD_event = ifelse(Status == 1, 1, 0)
+  )
+
+# ----------------------------------------------------------
+# COMPUTE RISK SCORE (SAME AS BEFORE)
+# ----------------------------------------------------------
+lp <- predict(
+  final_gbm,
+  newdata = df,
+  n.trees = best_row$n.trees,
+  type = "link"
+)
+
+df$RiskScore <- round((lp - min(lp)) * 5)
+
+# ----------------------------------------------------------
+# CREATE RISK GROUPS (LOW / INTERMEDIATE / HIGH)
+# ----------------------------------------------------------
+q1 <- quantile(df$RiskScore, 0.33)
+q2 <- quantile(df$RiskScore, 0.66)
+
+df <- df %>%
+  mutate(
+    RiskGroup = case_when(
+      RiskScore <= q1 ~ "Low",
+      RiskScore <= q2 ~ "Intermediate",
+      TRUE ~ "High"
+    )
+  )
+
+# ----------------------------------------------------------
+# CALCULATE SCD RATE
+# ----------------------------------------------------------
+summary_df <- df %>%
+  group_by(RiskGroup, AF_group) %>%
+  summarise(
+    N = n(),
+    SCD_events = sum(SCD_event),
+    SCD_rate = SCD_events / N,
+    .groups = "drop"
+  )
+
+# ----------------------------------------------------------
+# PLOT (SIDE-BY-SIDE, PROPORTIONAL)
+# ----------------------------------------------------------
+p <- ggplot(summary_df, aes(x = RiskGroup, y = SCD_rate, fill = AF_group)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.9)) +
+  
+  geom_text(
+    aes(label = paste0(round(SCD_rate * 100, 1), "%")),
+    position = position_dodge(width = 0.9),
+    vjust = -0.3,
+    size = 3.5
+  ) +
+  
+  scale_y_continuous(labels = percent_format(accuracy = 1)) +
+  
+  labs(
+    title = "SCD Rate With vs Without AF Across Risk Groups",
+    x = "Risk Group",
+    y = "SCD Rate (%)",
+    fill = "AF Status"
+  ) +
+  
+  scale_fill_manual(
+    values = c("AF Absent" = "#2C7FB8", "AF Present" = "#D7301F")
+  ) +
+  
+  theme_minimal()
+
+# ----------------------------------------------------------
+# SAVE
+# ----------------------------------------------------------
+ggsave(
+  file.path(OUTDIR, "Figure_SCD_rate_AF.png"),
+  p,
+  width = 8,
+  height = 6,
+  dpi = 300
+)
+
+cat("✔ DONE — Risk groups + proportional figure created\n")
+
+############################################################
+# KAPLAN–MEIER (90-DAY FOLLOW-UP)
+# PROFID – Study 8
+############################################################
+
+# ----------------------------------------------------------
+# LOAD PACKAGES
+# ----------------------------------------------------------
+library(dplyr)
+library(survival)
+library(survminer)
+library(gbm)
+library(scales)
+
+# ----------------------------------------------------------
+# PATHS
+# ----------------------------------------------------------
+BASE <- "T:/PROFID/Study8"
+DATADIR <- file.path(BASE, "Variable Selection & Model Development/Files")
+MODELDIR <- file.path(BASE, "Model Validation and Performance/Files")
+OUTDIR <- file.path(BASE, "Risk Score Development/files_2")
+
+if (!dir.exists(OUTDIR)) dir.create(OUTDIR, recursive = TRUE)
+
+# ----------------------------------------------------------
+# LOAD DATA + MODEL
+# ----------------------------------------------------------
+df <- read.csv(file.path(DATADIR, "vs_data_complete.csv"))
+
+final_gbm <- readRDS(file.path(MODELDIR, "Final_GBM_Model.rds"))
+tune_res <- read.csv(file.path(MODELDIR, "GBM_Tuning_Results_Random.csv"))
+
+best_row <- tune_res[which.max(tune_res$C_index),]
+
+# ----------------------------------------------------------
+# PREP DATA
+# ----------------------------------------------------------
+df <- df %>%
+  mutate(
+    Survival_time = as.numeric(Survival_time),
+    Status = as.numeric(Status),
+    event_SCD = ifelse(Status == 1, 1, 0)
+  )
+
+# ----------------------------------------------------------
+# COMPUTE RISK SCORE (GBM)
+# ----------------------------------------------------------
+lp <- predict(
+  final_gbm,
+  newdata = df,
+  n.trees = best_row$n.trees,
+  type = "link"
+)
+
+df$RiskScore <- round((lp - min(lp)) * 5)
+
+# ----------------------------------------------------------
+# CREATE RISK GROUPS (TERTILES)
+# ----------------------------------------------------------
+q1 <- quantile(df$RiskScore, 0.33)
+q2 <- quantile(df$RiskScore, 0.66)
+
+df <- df %>%
+  mutate(
+    RiskGroup = case_when(
+      RiskScore <= q1 ~ "Low",
+      RiskScore <= q2 ~ "Intermediate",
+      TRUE ~ "High"
+    )
+  )
+
+# ----------------------------------------------------------
+# TRUNCATE FOLLOW-UP TO 90 DAYS
+# ----------------------------------------------------------
+df <- df %>%
+  mutate(
+    Survival_time_90 = pmin(Survival_time, 90),
+    Status_90 = ifelse(Survival_time <= 90, Status, 0),
+    event_SCD_90 = ifelse(Status_90 == 1, 1, 0)
+  )
+
+# ----------------------------------------------------------
+# CREATE KM MODEL
+# ----------------------------------------------------------
+km_fit <- survfit(
+  Surv(Survival_time_90, event_SCD_90) ~ RiskGroup,
+  data = df
+)
+
+# ----------------------------------------------------------
+# 🔥 ADD THIS NEW PLOT CODE HERE
+# ----------------------------------------------------------
+library(ggplot2)
+
+km_df <- data.frame(
+  time = km_fit$time,
+  surv = km_fit$surv,
+  lower = km_fit$lower,
+  upper = km_fit$upper,
+  strata = rep(names(km_fit$strata), km_fit$strata)
+)
+
+km_df$RiskGroup <- gsub("RiskGroup=", "", km_df$strata)
+
+p <- ggplot(km_df, aes(x = time, y = surv, color = RiskGroup, fill = RiskGroup)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper),
+              alpha = 0.15,
+              color = NA) +
+  geom_step(size = 0.8) +
+  labs(
+    title = "Kaplan–Meier by Risk Group (90-day follow-up)",
+    x = "Time (days)",
+    y = "Survival probability"
+  ) +
+  scale_color_manual(values = c(
+    "Low" = "#4DBBD5",
+    "Intermediate" = "#00A087",
+    "High" = "#E64B35"
+  )) +
+  scale_fill_manual(values = c(
+    "Low" = "#4DBBD5",
+    "Intermediate" = "#00A087",
+    "High" = "#E64B35"
+  )) +
+  scale_x_continuous(
+    breaks = c(0, 10,20,30,40,50,60,70,80,90),
+    limits = c(0, 90)
+  ) +
+  theme_minimal()
+
+# ----------------------------------------------------------
+# SAVE
+# ----------------------------------------------------------
+ggsave(
+  file.path(OUTDIR, "KM_RiskGroups_90Days_CLEAN.png"),
+  p,
+  width = 8,
+  height = 6,
+  dpi = 300
+)
+
