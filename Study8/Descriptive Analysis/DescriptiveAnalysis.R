@@ -1,4 +1,4 @@
-# install.packages("dplyr") 
+install.packages("dplyr") 
 library(dplyr)
 
 # reading files
@@ -316,3 +316,181 @@ write.csv(
 ## Quick look in R
 print(all_variables)
 
+## Revision
+
+###############################################################
+# TABLE 1: AF vs NON-AF + SCD RATE 
+###############################################################
+
+
+# ----------------------------------------------------------
+# LOAD PACKAGES
+# ----------------------------------------------------------
+library(dplyr)
+library(tidyr)
+
+# ----------------------------------------------------------
+# LOAD DATA
+# ----------------------------------------------------------
+df <- read.csv("T:/PROFID/Study8/Variable Selection & Model Development/Files/vs_data_complete.csv")
+
+# ----------------------------------------------------------
+# CHECK REQUIRED VARIABLES
+# ----------------------------------------------------------
+if(!"AF_atrial_flutter" %in% names(df)) stop("AF_atrial_flutter not found")
+if(!"Status" %in% names(df)) stop("event variable not found")
+
+names(df)
+# ----------------------------------------------------------
+# CREATE AF GROUP
+# ----------------------------------------------------------
+df$AF_group <- ifelse(df$AF_atrial_flutter == "Yes", "AF", "No_AF")
+
+# ----------------------------------------------------------
+# CREATE SCD INDICATOR (1 = SCD)
+# ----------------------------------------------------------
+df$SCD_event <- ifelse(df$Status == 1, 1, 0)
+
+#table(df$AF_atrial_flutter)
+
+# ----------------------------------------------------------
+# CHECK COUNTS
+# ----------------------------------------------------------
+print(table(df$AF_group))
+
+print(sum(df$SCD_event))
+
+# ----------------------------------------------------------
+# SCD RATE (REVIEWER REQUIRED)
+# ----------------------------------------------------------
+scd_summary <- df %>%
+  group_by(AF_group) %>%
+  summarise(
+    N = n(),
+    SCD_events = sum(SCD_event, na.rm = TRUE),
+    SCD_rate_percent = round(100 * SCD_events / N, 2)
+  )
+
+print(scd_summary)
+
+# ----------------------------------------------------------
+# CONTINUOUS VARIABLES (MEDIAN + IQR)
+# ----------------------------------------------------------
+numeric_vars <- names(df)[sapply(df, is.numeric)]
+
+table1_continuous <- df %>%
+  pivot_longer(cols = all_of(numeric_vars),
+               names_to = "Variable",
+               values_to = "Value") %>%
+  group_by(AF_group, Variable) %>%
+  summarise(
+    N = sum(!is.na(Value)),
+    Median = median(Value, na.rm = TRUE),
+    Q1 = quantile(Value, 0.25, na.rm = TRUE),
+    Q3 = quantile(Value, 0.75, na.rm = TRUE),
+    IQR = IQR(Value, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# ----------------------------------------------------------
+# CATEGORICAL VARIABLES (N + %)
+# ----------------------------------------------------------
+categorical_vars <- names(df)[sapply(df, function(x) is.character(x) | is.factor(x))]
+
+table1_categorical <- df %>%
+  select(AF_group, all_of(categorical_vars)) %>%
+  pivot_longer(-AF_group, names_to = "Variable", values_to = "Category") %>%
+  group_by(AF_group, Variable, Category) %>%
+  summarise(n = n(), .groups = "drop_last") %>%
+  mutate(percent = round(100 * n / sum(n), 1))
+
+# ----------------------------------------------------------
+# P-VALUES (CONTINUOUS — KRUSKAL-WALLIS)
+# ----------------------------------------------------------
+pvals_cont <- lapply(numeric_vars, function(var) {
+  
+  data_var <- df %>%
+    select(AF_group, all_of(var)) %>%
+    filter(!is.na(.data[[var]]))
+  
+  if(length(unique(data_var[[var]])) > 1){
+    test <- kruskal.test(reformulate("AF_group", var), data = data_var)
+    p <- test$p.value
+  } else {
+    p <- NA
+  }
+  
+  data.frame(
+    Variable = var,
+    p_value = round(p, 5)
+  )
+  
+}) %>%
+  bind_rows()
+
+# ----------------------------------------------------------
+# P-VALUES (CATEGORICAL — CHI-SQUARE)
+# ----------------------------------------------------------
+pvals_cat <- lapply(categorical_vars, function(var) {
+  
+  tbl <- table(df[[var]], df$AF_group)
+  
+  if(all(dim(tbl) > 1)){
+    test <- chisq.test(tbl)
+    p <- test$p.value
+  } else {
+    p <- NA
+  }
+  
+  data.frame(
+    Variable = var,
+    p_value = round(p, 5)
+  )
+  
+}) %>%
+  bind_rows()
+
+# ----------------------------------------------------------
+# SAVE OUTPUTS
+# ----------------------------------------------------------
+outdir <- "T:/PROFID/Study8/Descriptive Analysis/files"
+dir.create(outdir, showWarnings = FALSE, recursive = TRUE)
+
+write.csv(table1_continuous,
+          file.path(outdir, "Table1_continuous_AF_vs_NoAF.csv"),
+          row.names = FALSE)
+
+write.csv(table1_categorical,
+          file.path(outdir, "Table1_categorical_AF_vs_NoAF.csv"),
+          row.names = FALSE)
+
+write.csv(pvals_cont,
+          file.path(outdir, "Table1_pvalues_continuous_AF_vs_NoAF.csv"),
+          row.names = FALSE)
+
+write.csv(pvals_cat,
+          file.path(outdir, "Table1_pvalues_categorical_AF_vs_NoAF.csv"),
+          row.names = FALSE)
+
+write.csv(scd_summary,
+          file.path(outdir, "SCD_rate_AF_vs_NoAF.csv"),
+          row.names = FALSE)
+
+# ----------------------------------------------------------
+# VIEW OUTPUTS
+# ----------------------------------------------------------
+View(table1_continuous)
+View(table1_categorical)
+View(scd_summary)
+
+
+icd_rows <- df %>%
+  group_by(AF_group, Group) %>%
+  summarise(n = n(), .groups = "drop_last") %>%
+  mutate(percent = round(100 * n / sum(n), 1))
+
+print(icd_rows)
+
+###############################################################
+# END
+###############################################################
